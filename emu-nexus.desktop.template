@@ -1,0 +1,7 @@
+[Desktop Entry]
+Version={BUILD_VERSION}
+Name=Emu Nexus
+Exec=emu-nexus
+Icon=/usr/share/emu-nexus/ui-templates/img/emu-nexus.svg
+Type=Application
+Categories=GTK;GNOME;Game;

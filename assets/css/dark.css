@@ -1,0 +1,155 @@
+/*
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+*/
+/* 
+    Created on : Feb 26, 2019, 10:30:05 PM
+    Author     : ram
+*/
+
+window{
+    background-color: #353b44;
+}
+
+dialog{
+    background-color: #353b44;
+}
+
+dialog button{
+    background: #252930;
+    border: #252930;
+}
+
+dialog button:active{
+    background: #5e6e87;
+    border: #5e6e87;
+}
+
+box button{
+    background: #252930;
+    border: #252930;
+}
+
+box button:active{
+    background: #5e6e87;
+    border: #5e6e87;
+}
+
+entry{
+    background: #252a30;
+    border: #252a30;
+    color: white;
+}
+
+textview{
+    background: #252a30;
+    border: #252a30;
+    color: white;
+    padding: 5px;
+}
+
+label{
+    color: white;
+}
+
+combobox box{
+    color: white;
+    background: #252930;
+}
+
+scrolledwindow{
+    border-color: transparent;
+}
+
+list{
+    background-color: #252a30;
+}
+
+list row:hover{
+    background-color: #475366;
+}
+
+notebook stack{
+    border-color: transparent;
+}
+
+notebook header{
+    border-color: transparent;
+}
+
+notebook tab{
+    background: transparent;
+    background-image: none;
+    border-image: none;
+}
+
+notebook tab:active{
+    background: blue;
+    background-image: none;
+    border-image: none;
+}
+
+notebook tab:hover{
+    background-color: #252930;
+}
+
+*:selected {
+    background-color: #5e6e87;
+}
+
+list#PlatformPanel_gameGridListBox row:hover{
+    background-color: transparent;
+}
+
+list#PlatformDialog_imagesGridListBox row:hover{
+    background-color: transparent;
+}
+
+list#PlatformDialog_imagesGridListBox{
+    background-color: transparent;
+}
+
+list#GameDialog_developersListBox row:hover{
+    background-color: transparent;
+}
+
+list#GameDialog_publishersListBox row:hover{
+    background-color: transparent;
+}
+
+list#GameDialog_genresListBox row:hover{
+    background-color: transparent;
+}
+
+list#GameDialog_imagesGridListBox row:hover{
+    background-color: transparent;
+}
+
+list#GameDialog_imagesGridListBox{
+    background-color: transparent;
+}
+
+list#GameDialog_documentsGridListBox row:hover{
+    background-color: transparent;
+}
+
+list#GameDialog_documentsGridListBox{
+    background-color: transparent;
+}
+
+list#GameDialog_documentsListBox row:hover{
+    background-color: transparent;
+}
+
+list#GameDialog_documentsListBox{
+    background-color: transparent;
+}
+
+list#SearchableListDialog_listBox row:hover{
+    background-color: transparent;
+}
+
+box#homeBox{
+    background-color: #252a30;
+}

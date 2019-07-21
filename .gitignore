@@ -1,0 +1,17 @@
+thegamesdb/nbproject/
+thegamesdb/thegamesdb.sqlite
+nbproject/
+src/*~
+src/data/*~
+src/games/*~
+src/net/*~
+src/ui/*~
+ui-templates/*~
+ui-templates/\#*
+ui/img=templates/*~
+*.o
+*.bin
+*~
+emu-nexus
+enu-nexus.desktop
+src/Build.h
