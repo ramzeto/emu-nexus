@@ -15,10 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
-*
-* @author Tlachia auto generador
-* @date March 27, 2019, 9:49 pm
+/* 
+ * File:   GameGenre.cpp
+ * Author: ram
+ * 
+ * Created March 27, 2019, 9:49 pm
 */
 
 #include "GameGenre.h"

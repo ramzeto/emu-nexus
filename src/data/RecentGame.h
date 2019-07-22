@@ -16,14 +16,14 @@
  */
 
 /* 
- * File:   GameGenre.h
+ * File:   RecentGame.h
  * Author: ram
- * 
- * Created March 27, 2019, 9:49 pm
-*/
+ *
+ * Created on July 21, 2019, 8:46 PM
+ */
 
-#ifndef GAMEGENRE_H
-#define GAMEGENRE_H
+#ifndef RECENTGAME_H
+#define RECENTGAME_H
 
 #include <sqlite3.h>
 #include <string>
@@ -33,35 +33,38 @@
 
 using namespace std;
 
-class GameGenre
+class RecentGame
 {
 private:
 	int64_t gameId;
-	int64_t genreId;
+	string timestamp;
 
-	GameGenre();
+	RecentGame();
 
 public:
-	GameGenre(int64_t gameId, int64_t genreId);
-	GameGenre(const GameGenre &orig);
-	GameGenre(json_t *json);
+    static const unsigned int LIMIT;
+    
+	RecentGame(int64_t gameId);
+	RecentGame(const RecentGame &orig);
+	RecentGame(json_t *json);
 
-	~GameGenre();
+	~RecentGame();
 
 	int64_t getGameId();
-        void setGameId(int64_t gameId);
-	int64_t getGenreId();
+	string getTimestamp();
+	void setTimestamp(string timestamp);
 
 	int load(sqlite3 *sqlite);
 	int save(sqlite3 *sqlite);
+        int remove(sqlite3 *sqlite);
 
 	json_t *toJson();
 
-	static list<GameGenre *> *getItems(sqlite3 *sqlite, int64_t gameId);
-	static GameGenre *getItem(list<GameGenre *> *items, unsigned int index);
-	static void releaseItems(list<GameGenre *> *items);
-        static int remove(sqlite3 *sqlite, int64_t gameId);
-	static json_t *toJsonArray(list<GameGenre *> *items);
+	static list<RecentGame *> *getItems(sqlite3 *sqlite);
+	static RecentGame *getItem(list<RecentGame *> *items, unsigned int index);
+	static void releaseItems(list<RecentGame *> *items);
+	static json_t *toJsonArray(list<RecentGame *> *items);
 };
 
 #endif
+

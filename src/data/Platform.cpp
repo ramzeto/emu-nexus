@@ -15,10 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
-*
-* @author Tlachia auto generador
-* @date March 26, 2019, 8:45 pm
+/* 
+ * File:   Platform.cpp
+ * Author: ram
+ * 
+ * Created March 26, 2019, 8:45 pm
 */
 
 #include "Platform.h"

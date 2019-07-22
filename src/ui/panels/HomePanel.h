@@ -26,6 +26,13 @@
 #define HOMEPANEL_H
 
 #include "Panel.h"
+#include "RecentGame.h"
+#include "LaunchDialog.h"
+
+#include <list>
+#include <map>
+
+using namespace std;
 
 class HomePanel : public Panel
 {
@@ -33,8 +40,70 @@ public:
     HomePanel();
     virtual ~HomePanel();
 private:
+    static const int GAME_GRID_ITEM_WIDTH;
+    static const int GAME_GRID_ITEM_HEIGHT;
+    
+    static const int GAME_GRID_ITEM_IMAGE_WIDTH;
+    static const int GAME_GRID_ITEM_IMAGE_HEIGHT;
+    
+    
     GtkBox *recentsBox;
+    GtkBox *recentsGridBox;
     GtkLabel *informationLabel;
+    
+    int isShown;
+    int panelWidth;
+    int panelHeight;
+    int64_t selectedGameId;
+    time_t selectGameTimestamp;
+    time_t launchGameTimestamp;
+    map<int64_t, GtkWidget *> *gameGridItems;
+    list<RecentGame *> *recentGames;
+    LaunchDialog *launchDialog;
+    
+    void loadRecentsGrid();
+    void launchGame(int64_t gameId);
+    void updateGame(int64_t gameId);
+    void selectGame(int64_t gameId);
+
+    /**
+     * Signal triggered when the recentsGridBox "size-allocate" event happens.
+     * @param widget
+     * @param allocation
+     * @param pHomePanel
+     */
+    static void signalRecentsGridSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer pHomePanel);
+    
+    /**
+     * 
+     * @param widget
+     * @param pHomePanel
+     */
+    static void signalShow(GtkWidget *widget, gpointer pHomePanel);
+
+    
+    /**
+     * Callback that gets fired when the horrible hacky timer triggers to force the first draw of the recents grid.
+     * @param pHomePanel
+     * @return 
+     */
+    static gint callbackFirstShowHackyTimeout(gpointer pHomePanel);  
+    
+    /**
+     * Signal triggered when the user presses a mouse button over a game in the recents grid.
+     * @param widget
+     * @param event
+     * @param pHomePanel
+     * @return 
+     */
+    static gboolean signalGameItemBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer pHomePanel);
+    
+    /**
+     * 
+     * @param pUiThreadHandlerResult
+     * @return 
+     */
+    static int callbackGameLauncher(gpointer pUiThreadHandlerResult);
 };
 
 #endif /* HOMEPANEL_H */

@@ -45,7 +45,7 @@ int FileExtractor::extract(string directory)
 
     a = archive_read_new();
     ext = archive_write_disk_new();
-    archive_write_disk_set_options(ext, ARCHIVE_EXTRACT_OWNER);
+    archive_write_disk_set_options(ext, ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_PERM | ARCHIVE_EXTRACT_ACL | ARCHIVE_EXTRACT_FFLAGS);
     archive_read_support_format_all(a);
     archive_read_support_filter_all(a);
 

@@ -15,10 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
-*
-* @author Tlachia auto generador
-* @date April 14, 2019, 4:57 pm
+/* 
+ * File:   Publisher.cpp
+ * Author: ram
+ * 
+ * Created April 14, 2019, 4:57 pm
 */
 
 #include "Publisher.h"

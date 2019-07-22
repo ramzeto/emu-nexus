@@ -15,10 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
-*
-* @author Tlachia auto generador
-* @date March 27, 2019, 9:46 pm
+/* 
+ * File:   Game.h
+ * Author: ram
+ * 
+ * Created March 27, 2019, 9:46 pm
 */
 
 #ifndef GAME_H

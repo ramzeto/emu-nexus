@@ -15,10 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
-*
-* @author Tlachia auto generador
-* @date April 14, 2019, 4:55 pm
+/* 
+ * File:   Genre.h
+ * Author: ram
+ * 
+ * Created April 14, 2019, 4:55 pm
 */
 
 #ifndef GENRE_H

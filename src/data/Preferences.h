@@ -15,10 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
- *
- * @author Tlachia auto generador
- * @date March 6, 2019, 11:04 pm
+/* 
+ * File:   Preferences.h
+ * Author: ram
+ * 
+ * Created March 6, 2019, 11:04 pm
  */
 
 #ifndef PREFERENCES_H

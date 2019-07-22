@@ -15,10 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
- *
- * @author Tlachia auto generador
- * @date March 7, 2019, 9:43 pm
+/* 
+ * File:   Settings.h
+ * Author: ram
+ * 
+ * Created March 7, 2019, 9:43 pm
  */
 
 #ifndef SETTINGS_H

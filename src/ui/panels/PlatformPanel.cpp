@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 /* 
  * File:   PlatformPanel.cpp
  * Author: ram
@@ -76,6 +77,11 @@ PlatformPanel::~PlatformPanel()
 {
     gameGridItems->clear();
     delete gameGridItems;
+    
+    if(games)
+    {
+        Game::releaseItems(games);
+    }
 }
 
 void PlatformPanel::showGameDialog(int64_t gameId)

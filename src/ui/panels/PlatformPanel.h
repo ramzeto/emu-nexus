@@ -68,7 +68,7 @@ private:
     static const int GAME_GRID_ITEM_HEIGHT;
     
     static const int GAME_GRID_ITEM_IMAGE_WIDTH;
-    static const int GAME_GRID_ITEM_IMAGE_HEIGHT;   
+    static const int GAME_GRID_ITEM_IMAGE_HEIGHT;
     
     GtkScrolledWindow *gameGridScrolledWindow;
     GtkListBox *gameGridListBox;
@@ -123,7 +123,7 @@ private:
     void launchGame(int64_t gameId);
     
     /**
-     * Signal triggered when the gameGrid "size-allocate" event happens.
+     * Signal triggered when the gameGridListBox "size-allocate" event happens.
      * @param widget
      * @param allocation
      * @param platformPanel

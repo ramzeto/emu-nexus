@@ -136,6 +136,7 @@ void Database::init()
         commands.push_back("CREATE TABLE IF NOT EXISTS GameImage(id integer primary key, gameId integer, type integer, fileName text, external integer, apiId integer, apiItemId integer, url text, downloaded integer)");
         commands.push_back("CREATE TABLE IF NOT EXISTS GameDocument(id integer primary key, gameId integer, type integer, name text, fileName text, apiId integer, apiItemId integer)");
         
+        commands.push_back("CREATE TABLE IF NOT EXISTS RecentGame(gameId integer, timestamp text, unique(gameId) on conflict replace)");
         commands.push_back("CREATE TABLE IF NOT EXISTS CacheGame(id integer primary key, gameId integer, timestamp text)");
     }
     

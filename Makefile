@@ -1,5 +1,5 @@
 OBJS=main.o Utils.o \
-Database.o ApplicationVersion.o Preferences.o Settings.o Platform.o PlatformImage.o Genre.o Developer.o Publisher.o EsrbRating.o Game.o GameGenre.o GameDeveloper.o GamePublisher.o GameImage.o GameDocument.o ApiDatabase.o CacheGame.o\
+Database.o ApplicationVersion.o Preferences.o Settings.o Platform.o PlatformImage.o Genre.o Developer.o Publisher.o EsrbRating.o Game.o GameGenre.o GameDeveloper.o GamePublisher.o GameImage.o GameDocument.o ApiDatabase.o CacheGame.o RecentGame.o\
 thegamesdb.o\
 GameLauncher.o\
 HttpConnector.o\

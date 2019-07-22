@@ -30,6 +30,7 @@
 #include "Utils.h"
 #include "FileExtractor.h"
 #include "Settings.h"
+#include "RecentGame.h"
 
 #include <dirent.h>
 #include <cstdlib>
@@ -100,7 +101,7 @@ string GameLauncher::getFileNameWithExtensions(list<string> extensions, string d
                 string fileName = string(entry->d_name);                
                 
                 for(list<string>::iterator extension = extensions.begin(); extension != extensions.end(); extension++)
-                {                    
+                {
                     if(Utils::getInstance()->strToLowerCase(fileName).find(*extension) != string::npos)
                     {
                         fileNameWithExtension = directory + fileName;
@@ -218,10 +219,11 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
             cacheSize += aCacheGame->getSize();
         }
         
-        if(cacheSize > (size_t)Settings::getInstance()->getCacheSize())
+        size_t allowdCacheSize = Settings::getInstance()->getCacheSize() * 1024 * 1024; //MB to Bytes
+        if(cacheSize > allowdCacheSize)
         {
             size_t size = 0;
-            size_t sizeToClear = cacheSize - Settings::getInstance()->getCacheSize();
+            size_t sizeToClear = cacheSize - allowdCacheSize;
             for(unsigned int c = 0; c < cacheGames->size(); c++)
             {
                 CacheGame *aCacheGame = CacheGame::getItem(cacheGames, c);
@@ -249,7 +251,7 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
         if(!error)
         {
             gameFileName = instance->getFileNameWithExtensions(Utils::getInstance()->strSplitByWhiteSpace(deflateFileExtensions), cacheGame->getDirectory());
-            if(gameFileName.length() > 0)
+            if(gameFileName.length() == 0)
             {
                 error = ERROR_FILE_NOT_FOUND;
             }
@@ -290,7 +292,7 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
             // Replaces %FILE% for the actual game file name
             command = Utils::getInstance()->strReplace(command, "%FILE%", gameFileName);
             
-            cout << "GameLauncher::" << __FUNCTION__ << " command: " << command << endl;            
+            cout << "GameLauncher::" << __FUNCTION__ << " command: " << command << endl;
             system(command.c_str());
         }
         else
@@ -299,7 +301,29 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
         }
     }
     
-    
+    // If the execution was successful, saves to recents
+    if(!error)
+    {
+        RecentGame *recentGame = new RecentGame(game->getId());
+        recentGame->setTimestamp(Utils::getInstance()->nowIsoDateTime());
+        sqlite = Database::getInstance()->acquire();
+        recentGame->save(sqlite);
+        list<RecentGame *> *recentGames = RecentGame::getItems(sqlite);
+        Database::getInstance()->release();
+        
+        if(recentGames->size() > RecentGame::LIMIT)
+        {
+            unsigned int itemsToRemove = recentGames->size() - RecentGame::LIMIT;
+            for(unsigned int c = 0; c < itemsToRemove; c++)
+            {
+                RecentGame *recentGame = RecentGame::getItem(recentGames, c);
+                sqlite = Database::getInstance()->acquire();
+                recentGame->remove(sqlite);
+                Database::getInstance()->release();
+            }
+        }
+        RecentGame::releaseItems(recentGames);
+    }
     
     delete game;
     delete platform;
