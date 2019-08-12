@@ -24,7 +24,6 @@
 
 #include "PlatformPanel.h"
 #include "UiUtils.h"
-#include "Settings.h"
 #include "GameDialog.h"
 #include "GameImage.h"
 #include "MessageDialog.h"
@@ -34,6 +33,10 @@
 #include "Platform.h"
 #include "UiThreadHandler.h"
 #include "GameLauncher.h"
+#include "AddDirectoryDialog.h"
+#include "Directory.h"
+#include "Asset.h"
+#include "Utils.h"
 
 #include <iostream>
 
@@ -122,6 +125,16 @@ void PlatformPanel::updateGames(string searchQuery)
     loadGridPage();
 }
 
+void PlatformPanel::showAddDirectoryDialog()
+{
+    AddDirectoryDialog *addDirectoryDialog = new AddDirectoryDialog(platformId);   
+    if(addDirectoryDialog->execute() == GTK_RESPONSE_ACCEPT)
+    {
+        
+    }
+    delete addDirectoryDialog;
+}
+
 void PlatformPanel::loadGames()
 {    
     if(games)
@@ -182,7 +195,7 @@ void PlatformPanel::loadGridPage()
             {
                 Game *game = Game::getItem(games, gameGridItemIndex);
                 
-                GtkBuilder *gameGridItemBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "GameGridItemBox.ui").c_str());
+                GtkBuilder *gameGridItemBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "GameGridItemBox.ui").c_str());
                 GtkEventBox *gameGridItemBox = (GtkEventBox *)gtk_builder_get_object (gameGridItemBuilder, "gameGridItemBox");
                 GtkImage *gameImage = (GtkImage *)gtk_builder_get_object (gameGridItemBuilder, "gameImage");
                 GtkLabel *nameLabel = (GtkLabel *)gtk_builder_get_object (gameGridItemBuilder, "nameLabel");
@@ -199,7 +212,23 @@ void PlatformPanel::loadGridPage()
                 
                 if(primaryImage)
                 {
-                    UiUtils::getInstance()->loadImage(gameImage, primaryImage->getThumbnailFileName(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+                    if(Utils::getInstance()->fileExists(primaryImage->getThumbnailFileName()))
+                    {
+                        UiUtils::getInstance()->loadImage(gameImage, primaryImage->getThumbnailFileName(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+                    }
+                    else if(Utils::getInstance()->fileExists(primaryImage->getFileName()))
+                    {
+                        UiUtils::getInstance()->loadImage(gameImage, primaryImage->getFileName(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+                    }
+                    else
+                    {
+                        UiUtils::getInstance()->loadImage(gameImage, Asset::getInstance()->getImageLogo(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+                    }
+                    delete primaryImage;
+                }
+                else
+                {
+                    UiUtils::getInstance()->loadImage(gameImage, Asset::getInstance()->getImageLogo(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
                 }
                 gtk_widget_set_size_request(GTK_WIDGET(gameImage), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
 
@@ -261,9 +290,25 @@ void PlatformPanel::updateGame(int64_t gameId)
         sqlite3 *sqlite = Database::getInstance()->acquire();
         GameImage *primaryImage = GameImage::getPrimaryImage(sqlite, game->getId());
         Database::getInstance()->release();    
-        if(primaryImage)
+        if(primaryImage && Utils::getInstance()->fileExists(primaryImage->getFileName()))
         {
-            UiUtils::getInstance()->loadImage(gameImage, primaryImage->getThumbnailFileName(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+            if(Utils::getInstance()->fileExists(primaryImage->getThumbnailFileName()))
+            {
+                UiUtils::getInstance()->loadImage(gameImage, primaryImage->getThumbnailFileName(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+            }
+            else if(Utils::getInstance()->fileExists(primaryImage->getFileName()))
+            {
+                UiUtils::getInstance()->loadImage(gameImage, primaryImage->getFileName(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+            }
+            else
+            {
+                UiUtils::getInstance()->loadImage(gameImage, Asset::getInstance()->getImageLogo(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+            }
+            delete primaryImage;
+        }
+        else
+        {
+            UiUtils::getInstance()->loadImage(gameImage, Asset::getInstance()->getImageLogo(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
         }
         gtk_widget_set_size_request(GTK_WIDGET(gameImage), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
 
@@ -319,6 +364,7 @@ void PlatformPanel::removeGame(int64_t gameId)
         sqlite = Database::getInstance()->acquire();
         game->remove(sqlite);
         Database::getInstance()->release();
+                
         
         selectGame(0);
         gameGridItemIndex = 0;
@@ -448,18 +494,21 @@ gint PlatformPanel::callbackFirstShowHackyTimeout(gpointer platformPanel)
 
 void PlatformPanel::notificationReceived(string notification, void* platformPanel, void* notificationData)
 {
-    cout << __FUNCTION__ << " notification: " << notification << endl;
+    if(((PlatformPanel *)platformPanel)->closed)
+    {
+        return;
+    }
     
     if(notification.compare(NOTIFICATION_GAME_UPDATED) == 0)
     {        
         Game *game = (Game *)notificationData;
         
-        cout << __FUNCTION__ << " game: " << game->getId() << endl; 
+        cout << "PlatformPanel::" <<  __FUNCTION__ << " game: " << game->getId() << endl; 
         ((PlatformPanel *)platformPanel)->updateGame(game->getId());
     }    
 }
 
-int PlatformPanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
+void PlatformPanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
     PlatformPanel *platformPanel = (PlatformPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
@@ -517,6 +566,5 @@ int PlatformPanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
     }
     platformPanel->launchDialog->setStatus(activity, message);
     
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);    
-    return G_SOURCE_REMOVE;
+    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }

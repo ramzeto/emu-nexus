@@ -24,9 +24,9 @@
 
 #include "Database.h"
 #include "Utils.h"
-#include "Settings.h"
 #include "Build.h"
 #include "ApplicationVersion.h"
+#include "Directory.h"
 
 #include <stdlib.h>
 #include <string>
@@ -84,7 +84,7 @@ void Database::close()
 
 string Database::getDatabaseFileName()
 {
-    return Settings::getInstance()->getDataDirectory() + DATABASE_FILE_NAME;
+    return Directory::getInstance()->getDataDirectory() + DATABASE_FILE_NAME;
 }
 
 void Database::init()
@@ -118,9 +118,7 @@ void Database::init()
     {
         commands.push_back("CREATE TABLE IF NOT EXISTS ApplicationVersion(version text, timestamp text, unique(version))");
         
-        commands.push_back("CREATE TABLE IF NOT EXISTS Preferences(maximized integer, windowWidth integer, windowHeight integer, lastPath text)");
-        commands.push_back("CREATE TABLE IF NOT EXISTS Settings(dataDirectory text, cacheDirectory text, cacheSize integer, mameExecutable text, elasticsearchPort integer)");
-        
+        commands.push_back("CREATE TABLE IF NOT EXISTS Preferences(maximized integer, windowWidth integer, windowHeight integer, lastPath text, cacheSize integer, mameExecutable text, elasticsearchPort integer)");        
         commands.push_back("CREATE TABLE IF NOT EXISTS ApiDatabase(apiId integer, md5sum text, timestamp text, unique(apiId, md5sum) on conflict replace)");
         
         commands.push_back("CREATE TABLE IF NOT EXISTS Platform(id integer primary key, name text, description text, command text, deflate integer, deflateFileExtensions text, apiId integer, apiItemId integer)");
@@ -138,6 +136,9 @@ void Database::init()
         
         commands.push_back("CREATE TABLE IF NOT EXISTS RecentGame(gameId integer, timestamp text, unique(gameId) on conflict replace)");
         commands.push_back("CREATE TABLE IF NOT EXISTS CacheGame(id integer primary key, gameId integer, timestamp text)");
+        
+        commands.push_back("CREATE TABLE IF NOT EXISTS ParseDirectory(id integer primary key, platformId integer, timestamp text, start text, end text, directory text, fileExtensions text, useMame integer, mame text, boxFrontImagesDirectory text, boxBackImagesDirectory text, screenshotImagesDirectory text, logoImagesDirectory text, bannerImagesDirectory text)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS ParseDirectoryGame(id integer primary key, parseDirectoryId integer, timestamp text, fileName text, name text, mameName text, processed integer)");
     }
     
     

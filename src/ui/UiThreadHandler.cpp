@@ -29,7 +29,7 @@
 
 using namespace std;
 
-UiThreadHandler::UiThreadHandler(void *requesterInUiThread, int (*callbackInUiThread)(void *))
+UiThreadHandler::UiThreadHandler(void *requesterInUiThread, void (*callbackInUiThread)(void *))
 {
     this->requesterInUiThread = requesterInUiThread;
     this->callbackInUiThread = callbackInUiThread;
@@ -94,7 +94,7 @@ void UiThreadHandler::postToUiThread()
             result->uiThreadHandler = this;
             result->data = data;
 
-            gdk_threads_add_idle (callbackInUiThread, result);
+            gdk_threads_add_idle (callbackUiThreadReady, result);
         }
         else
         {
@@ -108,6 +108,14 @@ void UiThreadHandler::callback(void* pUiThreadHandler, void* data)
 {
     UiThreadHandler *uiThreadHandler = (UiThreadHandler *)pUiThreadHandler;
     uiThreadHandler->pushData(data);
+}
+
+int UiThreadHandler::callbackUiThreadReady(void* pResult)
+{
+    Result_t *result = (Result_t *)pResult;
+    result->uiThreadHandler->callbackInUiThread(result);
+    
+    return G_SOURCE_REMOVE;
 }
 
 

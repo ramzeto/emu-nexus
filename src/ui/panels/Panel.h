@@ -43,6 +43,7 @@ public:
      * @param panelBoxId Id from the base box of the panel.
      */
     Panel(string panelFileName, string panelBoxId);
+    
     virtual ~Panel();
     
     /**
@@ -71,6 +72,7 @@ protected:
     GtkBuilder *builder;
     GtkBox *panelBox;
     string title;
+    int closed;
 };
 
 #endif	/* PANEL_H */

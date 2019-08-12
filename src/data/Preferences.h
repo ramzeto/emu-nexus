@@ -36,11 +36,16 @@ using namespace std;
 class Preferences 
 {
 private:
+    static const string ELASTICSEARCH_BINARY;
+    
     int64_t maximized;
     int64_t windowWidth;
     int64_t windowHeight;
     string lastPath;
-
+    int64_t cacheSize;
+    string mameExecutable;
+    int64_t elasticsearchPort;
+    
     Preferences();
     ~Preferences();
 
@@ -54,7 +59,9 @@ private:
     static Preferences *instance;
 
 public:
-
+    static const unsigned int ELASTICSEARCH_MIN_PORT;
+    static const unsigned int ELASTICSEARCH_MAX_PORT;
+    
     int64_t getMaximized();
     void setMaximized(int64_t maximized);
     int64_t getWindowWidth();
@@ -63,7 +70,15 @@ public:
     void setWindowHeight(int64_t windowHeight);
     string getLastPath();
     void setLastPath(string lastPath);
+    int64_t getCacheSize();
+    void setCacheSize(int64_t cacheSize);
+    void setMameExecutable(string mameExecutable);
+    string getMameExecutable() const;
+    int64_t getElasticsearchPort();
+    void setElasticsearchPort(int64_t searchEnginePort);
+    string getElasticseachBinary();
 
+    
     /**
      * Saves the object to the database.
      * @param sqlite

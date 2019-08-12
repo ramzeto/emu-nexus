@@ -47,7 +47,6 @@ private:
     
     GtkBuilder *builder;
     GtkApplicationWindow *mainWindow;
-    GtkButton *settingsButton;
     GtkButton *addPlatformButton;
     GtkSearchEntry *gameSearchEntry;
     GtkButton *addGameButton;
@@ -77,12 +76,7 @@ private:
      * Shows a panel in the contentBox.
      * @param panel
      */
-    void showPanel(Panel *panel);
-    
-    /**
-     * 
-     */
-    void showSettingsDialog();
+    void showPanel(Panel *panel);   
     
     /**
      * 
@@ -162,14 +156,7 @@ private:
      * @param menuitem
      * @param mainWindow
      */
-    static void signalPlatformMenuRemoveActivate(GtkMenuItem *menuitem, gpointer mainWindow);
-    
-    /**
-     * 
-     * @param button
-     * @param mainWindow
-     */
-    static void signalSettingsButtonClicked(GtkButton *button, gpointer mainWindow);
+    static void signalPlatformMenuRemoveActivate(GtkMenuItem *menuitem, gpointer mainWindow);    
     
     /**
      * 
@@ -202,9 +189,8 @@ private:
     /**
      * 
      * @param uiThreadHandler
-     * @return 
      */
-    static int serialProcessStatusCallBack(gpointer pUiThreadHandlerResult);
+    static void serialProcessStatusCallBack(gpointer pUiThreadHandlerResult);
     
     /**
      * 

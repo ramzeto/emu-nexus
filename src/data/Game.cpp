@@ -23,12 +23,14 @@
 */
 
 #include "Game.h"
-#include "Settings.h"
 #include "Utils.h"
 #include "GameDeveloper.h"
 #include "GamePublisher.h"
 #include "GameImage.h"
 #include "Platform.h"
+#include "Directory.h"
+#include "RecentGame.h"
+#include "CacheGame.h"
 
 #include <iostream>
 
@@ -426,8 +428,19 @@ int Game::remove(sqlite3 *sqlite)
         gameImage->remove(sqlite);
     }
     GameImage::releaseItems(gamesImages);
+        
+    RecentGame *recentGame = new RecentGame(id);
+    recentGame->remove(sqlite);
+    delete recentGame;
     
-    Utils::getInstance()->removeDirectory(getMediaDirectory());    
+    CacheGame *cacheGame = CacheGame::getCacheGame(sqlite, id);
+    if(cacheGame)
+    {
+        cacheGame->remove(sqlite);
+        delete cacheGame;
+    }
+    
+    Utils::getInstance()->removeDirectory(getMediaDirectory());
     
     int result = 1;
 
@@ -450,7 +463,7 @@ int Game::remove(sqlite3 *sqlite)
 
 string Game::getMediaDirectory()
 {
-    return Settings::getInstance()->getMediaDirectory() + Platform::DIRECTORY_PREFIX + to_string(platformId) + "/" + DIRECTORY_PREFIX + to_string(id) + "/";
+    return Directory::getInstance()->getMediaDirectory() + Platform::DIRECTORY_PREFIX + to_string(platformId) + "/" + DIRECTORY_PREFIX + to_string(id) + "/";
 }
 
 
@@ -501,6 +514,45 @@ json_t *Game::toJson()
 	json_object_set_new(json, "apiItemId", apiItemIdJson);
 
 	return json;
+}
+
+Game* Game::getGameWithFileName(sqlite3 *sqlite, int64_t platformId, string fileName)
+{
+    Game *game = NULL;
+    string query = "select id, platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId, apiItemId from Game where platformId = ? and fileName = ?";
+    sqlite3_stmt *statement;
+    if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
+        sqlite3_bind_text(statement, 2, fileName.c_str(), fileName.length(), NULL);
+
+            while (sqlite3_step(statement) == SQLITE_ROW)
+            {
+                    game = new Game();
+                    game->id = (int64_t)sqlite3_column_int64(statement, 0);
+                    game->platformId = (int64_t)sqlite3_column_int64(statement, 1);
+                    game->esrbRatingId = (int64_t)sqlite3_column_int64(statement, 2);
+                    game->name = string((const char*) sqlite3_column_text(statement, 3));
+                    game->description = string((const char*) sqlite3_column_text(statement, 4));
+                    game->releaseDate = string((const char*) sqlite3_column_text(statement, 5));
+                    game->fileName = string((const char*) sqlite3_column_text(statement, 6));
+                    game->notes = string((const char*) sqlite3_column_text(statement, 7));
+                    game->command = string((const char*) sqlite3_column_text(statement, 8));
+                    game->deflate = (int64_t)sqlite3_column_int64(statement, 9);
+                    game->deflateFileExtensions = string((const char*) sqlite3_column_text(statement, 10));
+                    game->timestamp = string((const char*) sqlite3_column_text(statement, 11));
+                    game->apiId = (int64_t)sqlite3_column_int64(statement, 12);
+                    game->apiItemId = (int64_t)sqlite3_column_int64(statement, 13);
+            }
+    }
+    else
+    {
+            cerr << "Game::getItems " << sqlite3_errmsg(sqlite) << endl;
+    }
+
+    sqlite3_finalize(statement);
+
+    return game;
 }
 
 list<Game *> *Game::getItems(sqlite3 *sqlite, int64_t platformId, string queryString)

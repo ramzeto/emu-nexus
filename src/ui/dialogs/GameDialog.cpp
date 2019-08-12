@@ -26,7 +26,6 @@
 #include "Preferences.h"
 #include "Utils.h"
 #include "UiUtils.h"
-#include "Settings.h"
 #include "Platform.h"
 #include "MessageDialog.h"
 #include "Database.h"
@@ -39,6 +38,7 @@
 #include "Notifications.h"
 #include "NotificationManager.h"
 #include "thegamesdb.h"
+#include "Directory.h"
 
 #include <iostream>
 
@@ -282,7 +282,7 @@ void GameDialog::loadDevelopers()
     {
         Developer *developer = Developer::getItem(developers, c);
         
-        GtkBuilder *rowBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "OptionRowBox.ui").c_str());
+        GtkBuilder *rowBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "OptionRowBox.ui").c_str());
         GtkWidget *optionRowBox = (GtkWidget *)gtk_builder_get_object (rowBuilder, "optionRowBox");
         GtkButton *removeButton = (GtkButton *)gtk_builder_get_object (rowBuilder, "removeButton");
         GtkLabel *label = (GtkLabel *)gtk_builder_get_object (rowBuilder, "label");
@@ -341,7 +341,7 @@ void GameDialog::loadPublishers()
     {
         Publisher *publisher = Publisher::getItem(publishers, c);
         
-        GtkBuilder *rowBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "OptionRowBox.ui").c_str());
+        GtkBuilder *rowBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "OptionRowBox.ui").c_str());
         GtkWidget *optionRowBox = (GtkWidget *)gtk_builder_get_object (rowBuilder, "optionRowBox");
         GtkButton *removeButton = (GtkButton *)gtk_builder_get_object (rowBuilder, "removeButton");
         GtkLabel *label = (GtkLabel *)gtk_builder_get_object (rowBuilder, "label");
@@ -399,7 +399,7 @@ void GameDialog::loadGenres()
     {
         Genre *genre = Genre::getItem(genres, c);
         
-        GtkBuilder *rowBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "OptionRowBox.ui").c_str());
+        GtkBuilder *rowBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "OptionRowBox.ui").c_str());
         GtkWidget *optionRowBox = (GtkWidget *)gtk_builder_get_object (rowBuilder, "optionRowBox");
         GtkButton *removeButton = (GtkButton *)gtk_builder_get_object (rowBuilder, "removeButton");
         GtkLabel *label = (GtkLabel *)gtk_builder_get_object (rowBuilder, "label");
@@ -572,7 +572,7 @@ void GameDialog::updateGameImageGrid()
             {
                 GameImage *gameImage = GameImage::getItem(gameImages, index);
                 
-                GtkBuilder *imageBoxBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "ImageBox.ui").c_str());
+                GtkBuilder *imageBoxBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "ImageBox.ui").c_str());
                 GtkEventBox *imageBox = (GtkEventBox *)gtk_builder_get_object (imageBoxBuilder, "imageBox");
                 GtkImage *image = (GtkImage *)gtk_builder_get_object (imageBoxBuilder, "image");
 
@@ -804,24 +804,28 @@ void GameDialog::downloadGameImage(GameImage* gameImage)
 }
 
 void GameDialog::saveNewGameImage(GameImage* gameImage)
-{
+{             
     // When the image is new, copies the file to the media directory and creates the thumbnail.
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    gameImage->setGameId(game->getId());
-    gameImage->save(sqlite);
-    
     if(Utils::getInstance()->fileExists(gameImage->getFileName()))
     {
+        // Saves before to generate the id
+        sqlite3 *sqlite = Database::getInstance()->acquire();
+        gameImage->setGameId(game->getId());
+        gameImage->save(sqlite);
+        Database::getInstance()->release();
+
         string imageFileName = game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId());
         if(!Utils::getInstance()->copyFile(gameImage->getFileName(), imageFileName))
         {
             gameImage->setFileName(imageFileName);
 
             Utils::getInstance()->scaleImage(gameImage->getFileName(), GameImage::THUMBNAIL_WIDTH, GameImage::THUMBNAIL_HEIGHT, gameImage->getThumbnailFileName());
+            
+            sqlite = Database::getInstance()->acquire();
             gameImage->save(sqlite);
-        }        
-    }
-    Database::getInstance()->release();
+            Database::getInstance()->release();
+        }
+    }    
 }
 
 void GameDialog::loadGameDocumentTypes()
@@ -893,7 +897,7 @@ void GameDialog::updateGameDocumentGrid()
             {
                 GameDocument *gameDocument = GameDocument::getItem(gameDocuments, index);
                 
-                GtkBuilder *imageBoxBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "ImageBox.ui").c_str());
+                GtkBuilder *imageBoxBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "ImageBox.ui").c_str());
                 GtkEventBox *imageBox = (GtkEventBox *)gtk_builder_get_object (imageBoxBuilder, "imageBox");
                 GtkImage *image = (GtkImage *)gtk_builder_get_object (imageBoxBuilder, "image");
 
@@ -1585,7 +1589,7 @@ void *GameDialog::downloadGameImagesWorker(void *)
     return NULL;
 }
 
-int GameDialog::callbackDownloadGameImage(gpointer pUiThreadHandlerResult)
+void GameDialog::callbackDownloadGameImage(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;
     DownloadGameImage_t *downloadGameImage = (DownloadGameImage_t *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();    
@@ -1657,6 +1661,4 @@ int GameDialog::callbackDownloadGameImage(gpointer pUiThreadHandlerResult)
 
     
     UiThreadHandler::releaseResult(uiThreadHandlerResult);
-    
-    return G_SOURCE_REMOVE;
 }

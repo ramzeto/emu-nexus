@@ -23,11 +23,11 @@
  */
 
 #include "Widget.h"
-#include "Settings.h"
+#include "Directory.h"
 
 Widget::Widget(string uiFileName, string rootId)
 {
-    builder = gtk_builder_new_from_file(string(Settings::getInstance()->getUiTemplatesDirectory() + uiFileName).c_str());
+    builder = gtk_builder_new_from_file(string(Directory::getInstance()->getUiTemplatesDirectory() + uiFileName).c_str());
     rootWidget = (GtkWidget *)gtk_builder_get_object(builder, rootId.c_str());
 }
 

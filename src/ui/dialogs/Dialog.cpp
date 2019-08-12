@@ -23,12 +23,12 @@
  */
 
 #include "Dialog.h"
-#include "Settings.h"
+#include "Directory.h"
 
 Dialog::Dialog(string uiFileName, string dialogId)
 {
     dismissed = 0;
-    builder = gtk_builder_new_from_file(string(Settings::getInstance()->getUiTemplatesDirectory() + uiFileName).c_str());
+    builder = gtk_builder_new_from_file(string(Directory::getInstance()->getUiTemplatesDirectory() + uiFileName).c_str());
     dialog = (GtkWidget *)gtk_builder_get_object(builder, dialogId.c_str());
 
     gtk_window_set_resizable(GTK_WINDOW(dialog), 0);

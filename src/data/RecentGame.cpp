@@ -125,7 +125,7 @@ int RecentGame::remove(sqlite3* sqlite)
 {
     int result = 1;
     
-    string command = "delete from RecentGame where id = ?";
+    string command = "delete from RecentGame where gameId = ?";
     sqlite3_stmt *statement;
     if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
     {
@@ -154,10 +154,14 @@ json_t *RecentGame::toJson()
 	return json;
 }
 
-list<RecentGame *> *RecentGame::getItems(sqlite3 *sqlite)
+list<RecentGame *> *RecentGame::getItems(sqlite3 *sqlite, int ascending)
 {
 	list<RecentGame *> *items = new list<RecentGame *>;
 	string query = "select gameId, timestamp from RecentGame order by timestamp";
+        if(!ascending)
+        {
+            query += " desc";
+        }
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{

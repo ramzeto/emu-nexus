@@ -65,7 +65,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="margin_top">10</property>
-                <property name="label" translatable="yes">Thank you for using EMU-Nexus</property>
+                <property name="label" translatable="yes">Thank you for using EMU-nexus</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
                 </attributes>
@@ -193,7 +193,7 @@ It should take only a couple of minutes.</property>
                     </child>
                     <child>
                       <object class="GtkButton" id="successButton">
-                        <property name="label" translatable="yes">Start using EMU-Nexus</property>
+                        <property name="label" translatable="yes">Start using EMU-nexus</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>

@@ -63,6 +63,11 @@ public:
     void updateGames(string searchQuery);
     
     
+    /**
+     * Shows the add directory dialog
+     */
+    void showAddDirectoryDialog();
+    
 private:
     static const int GAME_GRID_ITEM_WIDTH;
     static const int GAME_GRID_ITEM_HEIGHT;
@@ -187,9 +192,8 @@ private:
     /**
      * 
      * @param pUiThreadHandlerResult
-     * @return 
      */
-    static int callbackGameLauncher(gpointer pUiThreadHandlerResult);
+    static void callbackGameLauncher(gpointer pUiThreadHandlerResult);
 };
 
 #endif /* PLATFORMPANEL_H */

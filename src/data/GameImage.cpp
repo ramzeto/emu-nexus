@@ -47,6 +47,7 @@ GameImage::GameImage(int64_t id)
 {
 	this->id = id;
         url = "";
+        fileName = "";
 }
 
 GameImage::GameImage(const GameImage &orig)
@@ -437,6 +438,77 @@ list<GameImage *> *GameImage::getItems(sqlite3 *sqlite, int64_t gameId)
 	else
 	{
 		cerr << "GameImage::getItems " << sqlite3_errmsg(sqlite) << endl;
+	}
+
+	sqlite3_finalize(statement);
+
+	return items;
+}
+
+list<GameImage*>* GameImage::getItems(sqlite3* sqlite, int64_t gameId, int64_t type)
+{
+	list<GameImage *> *items = new list<GameImage *>;
+
+	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where gameId = ? and type = ?";
+	sqlite3_stmt *statement;
+	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	{
+            sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
+            sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
+            
+		while (sqlite3_step(statement) == SQLITE_ROW)
+		{
+			GameImage *item = new GameImage();
+			item->id = (int64_t)sqlite3_column_int64(statement, 0);
+			item->gameId = (int64_t)sqlite3_column_int64(statement, 1);
+			item->type = (int64_t)sqlite3_column_int64(statement, 2);
+			item->fileName = string((const char*) sqlite3_column_text(statement, 3));
+			item->external = (int64_t)sqlite3_column_int64(statement, 4);
+			item->apiId = (int64_t)sqlite3_column_int64(statement, 5);
+			item->apiItemId = (int64_t)sqlite3_column_int64(statement, 6);
+                        item->url = string((const char*) sqlite3_column_text(statement, 7));
+                        item->downloaded = (int64_t)sqlite3_column_int64(statement, 8);     
+                    
+			items->push_back(item);
+		}
+	}
+	else
+	{
+		cerr << "GameImage::getItems " << sqlite3_errmsg(sqlite) << endl;
+	}
+
+	sqlite3_finalize(statement);
+
+	return items;
+}
+
+list<GameImage*>* GameImage::getPendingToDownloadItems(sqlite3* sqlite)
+{
+	list<GameImage *> *items = new list<GameImage *>;
+
+	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where downloaded = 0 and url <> ''";
+	sqlite3_stmt *statement;
+	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	{
+		while (sqlite3_step(statement) == SQLITE_ROW)
+		{
+			GameImage *item = new GameImage();
+			item->id = (int64_t)sqlite3_column_int64(statement, 0);
+			item->gameId = (int64_t)sqlite3_column_int64(statement, 1);
+			item->type = (int64_t)sqlite3_column_int64(statement, 2);
+			item->fileName = string((const char*) sqlite3_column_text(statement, 3));
+			item->external = (int64_t)sqlite3_column_int64(statement, 4);
+			item->apiId = (int64_t)sqlite3_column_int64(statement, 5);
+			item->apiItemId = (int64_t)sqlite3_column_int64(statement, 6);
+                        item->url = string((const char*) sqlite3_column_text(statement, 7));
+                        item->downloaded = (int64_t)sqlite3_column_int64(statement, 8);     
+                    
+			items->push_back(item);
+		}
+	}
+	else
+	{
+		cerr << "GameImage::getPendingToDownloadItems " << sqlite3_errmsg(sqlite) << endl;
 	}
 
 	sqlite3_finalize(statement);

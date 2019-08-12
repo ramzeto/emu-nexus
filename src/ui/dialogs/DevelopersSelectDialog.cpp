@@ -24,8 +24,8 @@
 
 #include "DevelopersSelectDialog.h"
 #include "Database.h"
-#include "Settings.h"
 #include "UiUtils.h"
+#include "Directory.h"
 
 #include <iostream>
 
@@ -97,7 +97,7 @@ void DevelopersSelectDialog::loadList()
         
         Developer *item = Developer::getItem(items, index);
         
-        GtkBuilder *rowBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "CheckRowBox.ui").c_str());
+        GtkBuilder *rowBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "CheckRowBox.ui").c_str());
         GtkWidget *checkRowBox = (GtkWidget *)gtk_builder_get_object (rowBuilder, "checkRowBox");
         GtkCheckButton *checkButton = (GtkCheckButton *)gtk_builder_get_object (rowBuilder, "checkButton");
         GtkLabel *label = (GtkLabel *)gtk_builder_get_object (rowBuilder, "label");

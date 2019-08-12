@@ -60,7 +60,7 @@ public:
 
 	json_t *toJson();
 
-	static list<RecentGame *> *getItems(sqlite3 *sqlite);
+	static list<RecentGame *> *getItems(sqlite3 *sqlite, int ascending);
 	static RecentGame *getItem(list<RecentGame *> *items, unsigned int index);
 	static void releaseItems(list<RecentGame *> *items);
 	static json_t *toJsonArray(list<RecentGame *> *items);

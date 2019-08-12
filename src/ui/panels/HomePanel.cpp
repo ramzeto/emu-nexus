@@ -27,10 +27,11 @@
 #include "UiUtils.h"
 #include "Game.h"
 #include "Database.h"
-#include "Settings.h"
 #include "GameImage.h"
 #include "GameLauncher.h"
 #include "UiThreadHandler.h"
+#include "Directory.h"
+#include "Asset.h"
 
 #include <iostream>
 
@@ -53,10 +54,15 @@ HomePanel::HomePanel() : Panel("HomePanel.ui", "homeBox")
     
     recentsBox = (GtkBox *)gtk_builder_get_object (builder, "recentsBox");
     recentsGridBox = (GtkBox *)gtk_builder_get_object (builder, "recentsGridBox");
+    logoImage = (GtkImage *)gtk_builder_get_object (builder, "logoImage");
     informationLabel = (GtkLabel *)gtk_builder_get_object (builder, "informationLabel");
+    
+    gtk_label_set_markup(informationLabel, Utils::getInstance()->getFileContents(Asset::getInstance()->getHomePml()).c_str());
     
     g_signal_connect (getPanelBox(), "show", G_CALLBACK(signalShow), this);
     g_signal_connect (getPanelBox(), "size-allocate", G_CALLBACK(signalRecentsGridSizeAllocate), this);
+    
+    UiUtils::getInstance()->loadImage(logoImage, Asset::getInstance()->getImageLogoBig(), 300, 300);
 }
 
 HomePanel::~HomePanel()
@@ -96,7 +102,7 @@ void HomePanel::loadRecentsGrid()
     }
     
     sqlite3 *sqlite = Database::getInstance()->acquire();
-    recentGames = RecentGame::getItems(sqlite);
+    recentGames = RecentGame::getItems(sqlite, 0);
     Database::getInstance()->release();
     
     if(recentGames->size() == 0)
@@ -116,7 +122,7 @@ void HomePanel::loadRecentsGrid()
             game->load(sqlite);
             Database::getInstance()->release();
             
-            GtkBuilder *gameGridItemBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "GameGridItemBox.ui").c_str());
+            GtkBuilder *gameGridItemBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "GameGridItemBox.ui").c_str());
             GtkEventBox *gameGridItemBox = (GtkEventBox *)gtk_builder_get_object (gameGridItemBuilder, "gameGridItemBox");
             GtkImage *gameImage = (GtkImage *)gtk_builder_get_object (gameGridItemBuilder, "gameImage");
             GtkLabel *nameLabel = (GtkLabel *)gtk_builder_get_object (gameGridItemBuilder, "nameLabel");
@@ -132,12 +138,28 @@ void HomePanel::loadRecentsGrid()
 
             if(primaryImage)
             {
-                UiUtils::getInstance()->loadImage(gameImage, primaryImage->getThumbnailFileName(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+                if(Utils::getInstance()->fileExists(primaryImage->getThumbnailFileName()))
+                {
+                    UiUtils::getInstance()->loadImage(gameImage, primaryImage->getThumbnailFileName(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+                }
+                else if(Utils::getInstance()->fileExists(primaryImage->getFileName()))
+                {
+                    UiUtils::getInstance()->loadImage(gameImage, primaryImage->getFileName(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+                }
+                else
+                {
+                    UiUtils::getInstance()->loadImage(gameImage, Asset::getInstance()->getImageLogo(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+                }
+                delete primaryImage;
+            }
+            else
+            {
+                UiUtils::getInstance()->loadImage(gameImage, Asset::getInstance()->getImageLogo(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
             }
             gtk_widget_set_size_request(GTK_WIDGET(gameImage), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
 
             gtk_widget_set_size_request(GTK_WIDGET(gameGridItemBox), GAME_GRID_ITEM_WIDTH, GAME_GRID_ITEM_HEIGHT);
-            gtk_box_pack_end(recentsGridBox, GTK_WIDGET(gameGridItemBox), 1, 1, 0);
+            gtk_box_pack_start(recentsGridBox, GTK_WIDGET(gameGridItemBox), 1, 1, 0);
 
             if(selectedGameId == game->getId())
             {
@@ -150,7 +172,7 @@ void HomePanel::loadRecentsGrid()
             GtkBox *dummyBox = (GtkBox *)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 
             gtk_widget_set_size_request(GTK_WIDGET(dummyBox), GAME_GRID_ITEM_WIDTH, GAME_GRID_ITEM_HEIGHT);
-            gtk_box_pack_end(recentsGridBox, GTK_WIDGET(dummyBox), 1, 1, 0);
+            gtk_box_pack_start(recentsGridBox, GTK_WIDGET(dummyBox), 1, 1, 0);
         }
     }
     
@@ -292,7 +314,7 @@ gboolean HomePanel::signalGameItemBoxButtonPressedEvent(GtkWidget* widget, GdkEv
     return TRUE;
 }
 
-int HomePanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
+void HomePanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
     HomePanel *homePanel = (HomePanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
@@ -351,7 +373,6 @@ int HomePanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
     }
     homePanel->launchDialog->setStatus(activity, message);
     
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);    
-    return G_SOURCE_REMOVE;
+    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 

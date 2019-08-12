@@ -25,7 +25,6 @@
 #ifndef THEGAMESDB_H
 #define THEGAMESDB_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -190,9 +189,6 @@ namespace TheGamesDB
             string getLarge();
             string getFileName();
 
-            int load(sqlite3 *sqlite);
-
-            static list<PlatformImage *> *getItems(sqlite3 *sqlite);
             static PlatformImage *getItem(list<PlatformImage *> *items, unsigned int index);
             static void releaseItems(list<PlatformImage *> *items);
     };
@@ -221,9 +217,6 @@ namespace TheGamesDB
             string getAlias();
             list<PlatformImage *> *getPlatformImages();
 
-            int load(sqlite3 *sqlite);
-
-            static list<Platform *> *getItems(sqlite3 *sqlite);
             static Platform *getItem(list<Platform *> *items, unsigned int index);
             static void releaseItems(list<Platform *> *items);
     };                                                
@@ -249,9 +242,6 @@ namespace TheGamesDB
             int64_t getId();
             string getName();
 
-            int load(sqlite3 *sqlite);
-
-            static list<Genre *> *getItems(sqlite3 *sqlite);
             static Genre *getItem(list<Genre *> *items, unsigned int index);
             static void releaseItems(list<Genre *> *items);
     };
@@ -277,8 +267,6 @@ namespace TheGamesDB
             int64_t getId();
             string getName();
 
-            int load(sqlite3 *sqlite);
-            static list<Developer *> *getItems(sqlite3 *sqlite);
             static Developer *getItem(list<Developer *> *items, unsigned int index);
             static void releaseItems(list<Developer *> *items);
     };
@@ -304,9 +292,6 @@ namespace TheGamesDB
             int64_t getId();
             string getName();
 
-            int load(sqlite3 *sqlite);
-
-            static list<Publisher *> *getItems(sqlite3 *sqlite);
             static Publisher *getItem(list<Publisher *> *items, unsigned int index);
             static void releaseItems(list<Publisher *> *items);
     };
@@ -332,9 +317,6 @@ namespace TheGamesDB
             int64_t getId();
             string getName();
 
-            int load(sqlite3 *sqlite);
-
-            static list<EsrbRating *> *getItems(sqlite3 *sqlite);
             static EsrbRating *getItem(list<EsrbRating *> *items, unsigned int index);
             static void releaseItems(list<EsrbRating *> *items);
     };
@@ -380,9 +362,6 @@ namespace TheGamesDB
             string getLarge();
             string getFileName();
 
-            int load(sqlite3 *sqlite);
-
-            static list<GameImage *> *getItems(sqlite3 *sqlite);
             static GameImage *getItem(list<GameImage *> *items, unsigned int index);
             static void releaseItems(list<GameImage *> *items);
     };
@@ -407,9 +386,6 @@ namespace TheGamesDB
             int64_t getGameId();
             int64_t getGenreId();
 
-            int load(sqlite3 *sqlite);
-
-            static list<GameGenre *> *getItems(sqlite3 *sqlite);
             static GameGenre *getItem(list<GameGenre *> *items, unsigned int index);
             static void releaseItems(list<GameGenre *> *items);
     };
@@ -436,9 +412,6 @@ namespace TheGamesDB
             int64_t getGameId();
             int64_t getDeveloperId();
 
-            int load(sqlite3 *sqlite);
-
-            static list<GameDeveloper *> *getItems(sqlite3 *sqlite);
             static GameDeveloper *getItem(list<GameDeveloper *> *items, unsigned int index);
             static void releaseItems(list<GameDeveloper *> *items);
     };
@@ -464,13 +437,9 @@ namespace TheGamesDB
 
             int64_t getGameId();
             int64_t getPublisherId();
-
-            int load(sqlite3 *sqlite);
-            int save(sqlite3 *sqlite);
-
+            
             json_t *toJson();
 
-            static list<GamePublisher *> *getItems(sqlite3 *sqlite);
             static GamePublisher *getItem(list<GamePublisher *> *items, unsigned int index);
             static void releaseItems(list<GamePublisher *> *items);
             static json_t *toJsonArray(list<GamePublisher *> *items);
@@ -515,9 +484,6 @@ namespace TheGamesDB
             list<GameDeveloper *> *getGameDevelopers();
             list<GamePublisher *> *getGamePublishers();
 
-            int load(sqlite3 *sqlite);
-
-            static list<Game *> *getItems(sqlite3 *sqlite);
             static Game *getItem(list<Game *> *items, unsigned int index);
             static void releaseItems(list<Game *> *items);
     };

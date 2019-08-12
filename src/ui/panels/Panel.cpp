@@ -23,15 +23,16 @@
  */
 
 #include "Panel.h"
-#include "Settings.h"
+#include "Directory.h"
 #include <iostream>
 
 using namespace std;
 
 Panel::Panel(string panelFileName, string panelBoxId) 
 {
-    builder = gtk_builder_new_from_file(string(Settings::getInstance()->getUiTemplatesDirectory() + panelFileName).c_str());
+    builder = gtk_builder_new_from_file(string(Directory::getInstance()->getUiTemplatesDirectory() + panelFileName).c_str());
     panelBox = (GtkBox *)gtk_builder_get_object (builder, panelBoxId.c_str());
+    closed = 0;
 }
 
 Panel::~Panel() 
@@ -56,5 +57,6 @@ void Panel::show()
 void Panel::close()
 {    
     gtk_widget_hide_on_delete(GTK_WIDGET(panelBox));
+    closed = 1;
 }
 

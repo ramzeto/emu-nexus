@@ -23,7 +23,6 @@
  */
 
 #include "PlatformDialog.h"
-#include "Settings.h"
 #include "UiUtils.h"
 #include "Preferences.h"
 #include "Utils.h"
@@ -35,6 +34,7 @@
 #include "Asset.h"
 #include "NotificationManager.h"
 #include "Notifications.h"
+#include "Directory.h"
 
 #include <iostream>
 
@@ -301,7 +301,7 @@ void PlatformDialog::updateImageGrid()
             {
                 PlatformImage *platformImage = PlatformImage::getItem(platformImages, index);
                 
-                GtkBuilder *imageBoxBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "ImageBox.ui").c_str());
+                GtkBuilder *imageBoxBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "ImageBox.ui").c_str());
                 GtkEventBox *imageBox = (GtkEventBox *)gtk_builder_get_object (imageBoxBuilder, "imageBox");
                 GtkImage *image = (GtkImage *)gtk_builder_get_object (imageBoxBuilder, "image");
 
@@ -535,23 +535,27 @@ void PlatformDialog::downloadPlatformImage(PlatformImage *platformImage)
 
 void PlatformDialog::saveNewImage(PlatformImage* platformImage)
 {
-    // When the image is new, copies the file to the media directory and creates the thumbnail.
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    platformImage->setPlatformId(platform->getId());
-    platformImage->save(sqlite);
-    
+    // When the image is new, copies the file to the media directory and creates the thumbnail.        
     if(Utils::getInstance()->fileExists(platformImage->getFileName()))
     {
+        // Saves before to generate the id
+        sqlite3 *sqlite = Database::getInstance()->acquire();
+        platformImage->setPlatformId(platform->getId());
+        platformImage->save(sqlite);
+        Database::getInstance()->release();
+        
         string imageFileName = platform->getMediaDirectory() + PlatformImage::FILE_PREFIX + to_string(platformImage->getId());
         if(!Utils::getInstance()->copyFile(platformImage->getFileName(), imageFileName))
         {
             platformImage->setFileName(imageFileName);
 
             Utils::getInstance()->scaleImage(platformImage->getFileName(), PlatformImage::THUMBNAIL_WIDTH, PlatformImage::THUMBNAIL_HEIGHT, platformImage->getThumbnailFileName());
+            
+            sqlite = Database::getInstance()->acquire();
             platformImage->save(sqlite);
+            Database::getInstance()->release();
         }        
-    }
-    Database::getInstance()->release();
+    }    
 }
 
 void PlatformDialog::cancel()
@@ -687,7 +691,7 @@ gboolean PlatformDialog::signalImageBoxButtonPressedEvent(GtkWidget* widget, Gdk
     return TRUE;
 }
 
-int PlatformDialog::callbackElasticsearchPlatforms(gpointer pUiThreadHandlerResult)
+void PlatformDialog::callbackElasticsearchPlatforms(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
     PlatformDialog *platformDialog = (PlatformDialog *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
@@ -723,9 +727,7 @@ int PlatformDialog::callbackElasticsearchPlatforms(gpointer pUiThreadHandlerResu
         gtk_combo_box_set_active(platformDialog->apiPlatformComboBox, selectedIndex);
     }
         
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);        
-    
-    return G_SOURCE_REMOVE;
+    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 
 
@@ -801,7 +803,7 @@ void *PlatformDialog::downloadPlatformImagesWorker(void *)
     return NULL;
 }
 
-int PlatformDialog::callbackDownloadPlatformImage(gpointer pUiThreadHandlerResult)
+void PlatformDialog::callbackDownloadPlatformImage(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;
     DownloadPlatformImage_t *downloadPlatformImage = (DownloadPlatformImage_t *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();    
@@ -873,7 +875,5 @@ int PlatformDialog::callbackDownloadPlatformImage(gpointer pUiThreadHandlerResul
 
     
     UiThreadHandler::releaseResult(uiThreadHandlerResult);
-    
-    return G_SOURCE_REMOVE;
 }
 

@@ -27,20 +27,20 @@
 #include "Database.h"
 #include "ApiDatabase.h"
 #include "Utils.h"
-#include "Settings.h"
 #include "FileExtractor.h"
 #include "thegamesdb.h"
+#include "Directory.h"
 
 #include <iostream>
 #include <jansson.h>
 #include <unistd.h>
 #include <fstream>
 
-using namespace std;
-
-const string ElasticsearchProcess::TYPE = "TheGamesDbStartProcess";
-const string ElasticsearchProcess::URL_DOWNLOAD = "http://localhost/public/emu-nexus-db/downloads/thegamesdb.tar.gz";
-const string ElasticsearchProcess::URL_MD5 = "http://localhost/public/emu-nexus-db/downloads/thegamesdb.md5";
+const string ElasticsearchProcess::TYPE = "ElasticsearchProcess";
+//const string ElasticsearchProcess::URL_DOWNLOAD = "http://localhost/public/emu-nexus-db/downloads/thegamesdb.tar.gz";
+//const string ElasticsearchProcess::URL_MD5 = "http://localhost/public/emu-nexus-db/downloads/thegamesdb.md5";
+const string ElasticsearchProcess::URL_DOWNLOAD = "https://www.dropbox.com/s/4hlnjvdqu1f2ndb/thegamesdb.tar.gz?dl=1";
+const string ElasticsearchProcess::URL_MD5 = "https://www.dropbox.com/s/lm6bug13yqqli7f/thegamesdb.md5?dl=1";
 const string ElasticsearchProcess::TARGZ_FILE_NAME = "elasticsearch.tar.gz";
 const string ElasticsearchProcess::TAR_FILE_NAME = "elasticsearch.tar";
 
@@ -76,7 +76,7 @@ int ElasticsearchProcess::execute()
             downloadHttpConnector->setDownloadProgressListener(this, httpConnectorProgressListener);
             if(downloadHttpConnector->get() == HttpConnector::HTTP_OK)
             {
-                string targzFileName = Settings::getInstance()->getCacheDirectory() + TARGZ_FILE_NAME;
+                string targzFileName = Directory::getInstance()->getCacheDirectory() + TARGZ_FILE_NAME;
                 unlink(targzFileName.c_str());
                 
                 if(!Utils::getInstance()->writeToFile(downloadHttpConnector->getResponseData(), downloadHttpConnector->getResponseDataSize(), targzFileName))
@@ -151,7 +151,7 @@ int ElasticsearchProcess::execute()
                     
                     postStatus(string("Extracting database"));
                     FileExtractor *fileExtractor = new FileExtractor(targzFileName);
-                    if(!fileExtractor->extract(Settings::getInstance()->getDataDirectory()))
+                    if(!fileExtractor->extract(Directory::getInstance()->getDataDirectory()))
                     {
                         sqlite3 *sqlite = Database::getInstance()->acquire();
                         apiDatabase->save(sqlite);

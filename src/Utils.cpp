@@ -140,6 +140,19 @@ int Utils::writeToFile(unsigned char* data, size_t dataSize, string fileName)
     return 0;
 }
 
+string Utils::getFileContents(string fileName)
+{
+    string contents = "";
+    ifstream ifs (fileName.c_str());
+    if(ifs)
+    {        
+        getline (ifs, contents, (char) ifs.eof());
+        ifs.close();
+    }
+
+    return contents;
+}
+
 int Utils::directoryExists(string directoryName)
 {
     struct stat statInfo;
@@ -279,7 +292,7 @@ int Utils::executeApplication(string application, string* output)
         
     while (fgets(buffer, length, fp) != NULL)
     {
-        cout << "Utils::" << __FUNCTION__ << " " << buffer << endl;
+        //cout << "Utils::" << __FUNCTION__ << " " << buffer << endl;
         *output += buffer;      
     }
     pclose(fp);

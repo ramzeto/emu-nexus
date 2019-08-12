@@ -67,7 +67,7 @@ private:
     void select(unsigned int apiGameIndex);
     
     static void signalCloseButtonClicked(GtkButton *button, gpointer dialog);
-    static int callbackElasticsearchGames(gpointer pUiThreadHandlerResult);
+    static void callbackElasticsearchGames(gpointer pUiThreadHandlerResult);
     static void signalListRowSelected (GtkListBox *listBox, GtkWidget *row, gpointer dialog);
 };
 

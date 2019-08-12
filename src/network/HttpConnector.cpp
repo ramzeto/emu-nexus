@@ -38,7 +38,7 @@ HttpConnector::HttpConnector(string url)
     this->url = url;    
     responseData = NULL;
     responseDataSize = 0;
-    timeout = 20L;
+    timeout = 600L;
     downloadProgressListener = NULL;
     downloadProgressListenerCallback = NULL;
 }
@@ -134,6 +134,7 @@ int HttpConnector::get()
     
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlResponseCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
     
@@ -144,10 +145,14 @@ int HttpConnector::get()
     
     CURLcode curlCode = curl_easy_perform(curl);
     if(curlCode == CURLE_OK)
-    {
+    {        
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpStatus);
         curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &contentLength);
+        
+        cout << __FUNCTION__ << " httpStatus: " << httpStatus << endl;
     }
+    
+    cout << __FUNCTION__ << " curlCode: " << curlCode << endl;
     
     if(headerList)
     {
@@ -195,9 +200,9 @@ int HttpConnector::post(unsigned char *body, size_t bodySize)
     
     CURLcode curlCode = curl_easy_perform(curl);
     if(curlCode == CURLE_OK)
-    {
+    {        
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpStatus);
-    }
+    }        
     
     if(headerList)
     {

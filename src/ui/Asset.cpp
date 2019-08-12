@@ -23,7 +23,7 @@
  */
 
 #include "Asset.h"
-#include "Settings.h"
+#include "Directory.h"
 
 #include <cstdlib>
 
@@ -32,7 +32,8 @@ const string Asset::ASSET_IMAGE_LOGO_BIG = "logo_big.png";
 const string Asset::ASSET_IMAGE_HOME = "home.png";
 const string Asset::ASSET_IMAGE_DOWNLOADING = "downloading.png";
 const string Asset::ASSET_IMAGE_DOCUMENT = "document.png";
-const string Asset::ASSET_IMAGE_GAME = "game.png";
+const string Asset::ASSET_IMAGE_LOGO = "logo.png";
+const string Asset::ASSET_HOME_PML = "home.pml";
 
 Asset *Asset::instance = NULL;
 
@@ -46,32 +47,37 @@ Asset::~Asset()
 
 string Asset::getCss()
 {
-    return Settings::getInstance()->getCssDirectory() + ASSET_CSS;
+    return Directory::getInstance()->getCssDirectory() + ASSET_CSS;
 }
 
 string Asset::getImageLogoBig()
 {
-    return Settings::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_LOGO_BIG;
+    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_LOGO_BIG;
 }
 
 string Asset::getImageHome()
 {
-    return Settings::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_HOME;
+    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_HOME;
 }
 
 string Asset::getImageDownloading()
 {
-    return Settings::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_DOWNLOADING;
+    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_DOWNLOADING;
 }
 
 string Asset::getImageDocument()
 {
-    return Settings::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_DOCUMENT;
+    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_DOCUMENT;
 }
 
-string Asset::getImageGame()
+string Asset::getImageLogo()
 {
-    return Settings::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_GAME;
+    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_LOGO;
+}
+
+string Asset::getHomePml()
+{
+    return Directory::getInstance()->getAssetsDirectory() + ASSET_HOME_PML;
 }
 
 

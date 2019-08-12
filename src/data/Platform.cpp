@@ -23,9 +23,10 @@
 */
 
 #include "Platform.h"
-#include "Settings.h"
 #include "Utils.h"
 #include "PlatformImage.h"
+#include "Directory.h"
+#include "CacheGame.h"
 
 #include <iostream>
 
@@ -351,6 +352,31 @@ int Platform::remove(sqlite3 *sqlite)
     
     if(!result)
     {
+        // Removes RecentGame records
+        command = "delete from RecentGame where gameId in (select Game.id from RecentGame join Game on Game.id = RecentGame.gameId join Platform on Platform.id = Game.platformId where Platform.id = ?)";
+        if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+        {
+            sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
+            result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
+        }
+        else
+        {
+            cerr << "Platform::remove " << sqlite3_errmsg(sqlite) << endl;
+        }
+        sqlite3_finalize(statement);
+    }
+    
+    // Removes CacheGame records
+    list<CacheGame *> *cacheGames = CacheGame::getItems(sqlite, id);
+    for(unsigned int index = 0; index < cacheGames->size(); index++)
+    {
+        CacheGame *cacheGame = CacheGame::getItem(cacheGames, index);
+        cacheGame->remove(sqlite);
+    }
+    CacheGame::releaseItems(cacheGames);
+    
+    if(!result)
+    {
         // Removes Game records
         command = "delete from Game where platformId = ?";
         if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
@@ -400,7 +426,7 @@ int Platform::remove(sqlite3 *sqlite)
 
 string Platform::getMediaDirectory()
 {
-    return Settings::getInstance()->getMediaDirectory() + DIRECTORY_PREFIX + to_string(id) + "/";
+    return Directory::getInstance()->getMediaDirectory() + DIRECTORY_PREFIX + to_string(id) + "/";
 }
 
 

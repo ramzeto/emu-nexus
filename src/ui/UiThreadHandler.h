@@ -46,9 +46,9 @@ public:
     /**
      * 
      * @param requesterInUiThread Pointer to the object that requested the operation in the UI thread.
-     * @param callbackInUiThread Pointer to the callback that will receive the result from the operation. Receives a pointer to a Result_t structure. The requester in the UI thread is responsible to free this pointer, the data pointer of Result_t is freed by calling releaseResult. The callbackInUiThread should return G_SOURCE_REMOVE.
+     * @param callbackInUiThread Pointer to the callback that will receive the result from the operation. Receives a pointer to a Result_t structure. The requester in the UI thread is responsible to free this pointer by calling UiThreadHandler::releaseResult.
      */
-    UiThreadHandler(void *requesterInUiThread, int (*callbackInUiThread)(void *));
+    UiThreadHandler(void *requesterInUiThread, void (*callbackInUiThread)(void *));
     
     virtual ~UiThreadHandler();
     
@@ -76,14 +76,15 @@ public:
     
 private:
     void *requesterInUiThread;
-    int (*callbackInUiThread)(void *);
+    void (*callbackInUiThread)(void *);
     list<void *> *datas;
     pthread_mutex_t dataMutex;
     int postingData;
     
     void pushData(void *data);
     void postToUiThread();
-        
+    
+    static int callbackUiThreadReady(void *pResult);        
 };
 
 #endif /* UITHREADHANDLER_H */

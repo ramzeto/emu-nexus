@@ -24,7 +24,6 @@
 
 #include "GameDetailWidget.h"
 #include "Platform.h"
-#include "Settings.h"
 #include "UiUtils.h"
 #include "GameDeveloper.h"
 #include "GamePublisher.h"
@@ -36,6 +35,7 @@
 #include "Preferences.h"
 #include "Database.h"
 #include "Asset.h"
+#include "Directory.h"
 
 #include <unistd.h>
 #include <cstdlib>
@@ -85,10 +85,12 @@ GameDetailWidget::GameDetailWidget(int64_t gameId) : Widget("GameDetailWidget.ui
     
     
     gtk_label_set_text(nameLabel, game->getName().c_str());
+    gtk_label_set_text(imageTypeLabel, "");
     
     gtk_label_set_text(platformLabel, platform->getName().c_str());
     delete platform;        
     
+    gtk_image_clear(image);
     //g_signal_connect (rootWidget, "show", G_CALLBACK(signalShow), this);    
     //g_signal_connect (rootWidget, "size-allocate", G_CALLBACK(signalSizeAllocate), this);
     
@@ -139,7 +141,7 @@ void GameDetailWidget::updateInfo()
     
     list<GamePublisher *> *gamePublishers = GamePublisher::getItems(sqlite, game->getId());
     if(gamePublishers->size() > 0)
-    {        
+    {
         html += "<b>Published by</b>\n";
         for(unsigned int c = 0; c < gamePublishers->size(); c++)
         {
@@ -235,14 +237,21 @@ void GameDetailWidget::updateGameImageGrid()
         for(int column = 0; column < columns; column++)
         {
             if(index < gameImages->size())
-            {                
-                GameImage *gameImage = GameImage::getItem(gameImages, index);
+            {
+                GameImage *gameImage = GameImage::getItem(gameImages, index);                               
                 
-                GtkBuilder *imageBoxBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "ImageBox.ui").c_str());
+                GtkBuilder *imageBoxBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "ImageBox.ui").c_str());
                 GtkEventBox *imageBox = (GtkEventBox *)gtk_builder_get_object (imageBoxBuilder, "imageBox");
                 GtkImage *image = (GtkImage *)gtk_builder_get_object (imageBoxBuilder, "image");
 
-                UiUtils::getInstance()->loadImage(image, gameImage->getThumbnailFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
+                if(Utils::getInstance()->fileExists(gameImage->getThumbnailFileName()))
+                {
+                    UiUtils::getInstance()->loadImage(image, gameImage->getThumbnailFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
+                }
+                else
+                {
+                    UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageDownloading(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
+                }
                 
                 gtk_widget_set_name(GTK_WIDGET(imageBox), to_string(index).c_str());                                
                 g_signal_connect (imageBox, "button-press-event", G_CALLBACK(signalImageBoxButtonPressedEvent), this);                                
@@ -280,6 +289,11 @@ void GameDetailWidget::updateGameImageGrid()
 
 void GameDetailWidget::selectGameImage(GameImage *gameImage)
 {
+    if(!Utils::getInstance()->fileExists(gameImage->getFileName()))
+    {
+        return;
+    }
+    
     if(selectedGameImage)
     {
         if(gameImageBoxes->find(selectedGameImage) != gameImageBoxes->end())
@@ -440,7 +454,7 @@ void GameDetailWidget::updateGameDocumentGrid()
             {                
                 GameDocument *gameDocument = GameDocument::getItem(gameDocuments, index);
                 
-                GtkBuilder *imageBoxBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "ImageBox.ui").c_str());
+                GtkBuilder *imageBoxBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "ImageBox.ui").c_str());
                 GtkEventBox *imageBox = (GtkEventBox *)gtk_builder_get_object (imageBoxBuilder, "imageBox");
                 GtkImage *image = (GtkImage *)gtk_builder_get_object (imageBoxBuilder, "image");
 
@@ -575,7 +589,12 @@ gboolean GameDetailWidget::signalImageBoxButtonPressedEvent(GtkWidget *widget, G
 }
 
 gboolean GameDetailWidget::signalImageButtonPressedEvent(GtkWidget* widget, GdkEvent* event, gpointer gameDetailWidget)
-{
+{    
+    if(!((GameDetailWidget *)gameDetailWidget)->selectedGameImage)
+    {
+        return TRUE;
+    }
+    
     // Mouse left button
     if(event->button.button == 1)
     {

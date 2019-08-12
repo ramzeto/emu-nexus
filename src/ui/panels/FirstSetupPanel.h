@@ -65,11 +65,11 @@ private:
 
     static void signalSetupButtonClicked(GtkButton *button, gpointer firstSetupPanel);    
     static void signalSuccessButtonClicked(GtkButton *button, gpointer firstSetupPanel);
-    static int callbackElasticsearchProcessListener(gpointer pUiThreadHandlerResult);
-    static int callbackElasticsearchGenres(gpointer pUiThreadHandlerResult);
-    static int callbackElasticsearchDevelopers(gpointer pUiThreadHandlerResult);
-    static int callbackElasticsearchPublishers(gpointer pUiThreadHandlerResult);
-    static int callbackElasticsearchEsrbRatings(gpointer pUiThreadHandlerResult);
+    static void callbackElasticsearchProcessListener(gpointer pUiThreadHandlerResult);
+    static void callbackElasticsearchGenres(gpointer pUiThreadHandlerResult);
+    static void callbackElasticsearchDevelopers(gpointer pUiThreadHandlerResult);
+    static void callbackElasticsearchPublishers(gpointer pUiThreadHandlerResult);
+    static void callbackElasticsearchEsrbRatings(gpointer pUiThreadHandlerResult);
 };
 
 #endif /* FIRSTSETUPPANEL_H */

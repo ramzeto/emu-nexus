@@ -40,7 +40,8 @@ public:
     static const string ASSET_IMAGE_HOME;
     static const string ASSET_IMAGE_DOWNLOADING;
     static const string ASSET_IMAGE_DOCUMENT;
-    static const string ASSET_IMAGE_GAME;
+    static const string ASSET_IMAGE_LOGO;
+    static const string ASSET_HOME_PML;
 
     /**
      * 
@@ -74,9 +75,15 @@ public:
     
     /**
      * 
-     * @return Game image filename.
+     * @return Logo image filename.
      */
-    string getImageGame();
+    string getImageLogo();
+    
+    /**
+     * 
+     * @return Home information file (Pango Markup Language).
+     */
+    string getHomePml();
     
     /**
      * 

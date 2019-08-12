@@ -94,6 +94,8 @@ public:
         static GameImage *getPrimaryImage(sqlite3 *sqlite, int64_t gameId);
         
 	static list<GameImage *> *getItems(sqlite3 *sqlite, int64_t gameId);
+        static list<GameImage *> *getItems(sqlite3 *sqlite, int64_t gameId, int64_t type);
+        static list<GameImage *> *getPendingToDownloadItems(sqlite3 *sqlite);
 	static GameImage *getItem(list<GameImage *> *items, unsigned int index);
 	static void releaseItems(list<GameImage *> *items);
 	static json_t *toJsonArray(list<GameImage *> *items);

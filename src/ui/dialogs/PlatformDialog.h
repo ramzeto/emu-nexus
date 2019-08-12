@@ -109,7 +109,7 @@ private:
     static void signalCancelButtonClicked(GtkButton *button, gpointer platformDialog);
     static void signalSaveButtonClicked(GtkButton *button, gpointer platformDialog);
     static gboolean signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer platformDialog);
-    static int callbackElasticsearchPlatforms(gpointer pUiThreadHandlerResult);
+    static void callbackElasticsearchPlatforms(gpointer pUiThreadHandlerResult);
     
     
 
@@ -125,7 +125,7 @@ private:
     static int downloadingPlatformImages;
     static void downloadPlatformImage(PlatformDialog *platformDialog, PlatformImage *platformImage);
     static void *downloadPlatformImagesWorker(void *);
-    static int callbackDownloadPlatformImage(gpointer pUiThreadHandlerResult);
+    static void callbackDownloadPlatformImage(gpointer pUiThreadHandlerResult);
     
     
 };

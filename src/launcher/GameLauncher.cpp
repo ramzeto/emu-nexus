@@ -29,8 +29,8 @@
 #include "CacheGame.h"
 #include "Utils.h"
 #include "FileExtractor.h"
-#include "Settings.h"
 #include "RecentGame.h"
+#include "Preferences.h"
 
 #include <dirent.h>
 #include <cstdlib>
@@ -219,7 +219,7 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
             cacheSize += aCacheGame->getSize();
         }
         
-        size_t allowdCacheSize = Settings::getInstance()->getCacheSize() * 1024 * 1024; //MB to Bytes
+        size_t allowdCacheSize = Preferences::getInstance()->getCacheSize() * 1024 * 1024; //MB to Bytes
         if(cacheSize > allowdCacheSize)
         {
             size_t size = 0;
@@ -308,7 +308,7 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
         recentGame->setTimestamp(Utils::getInstance()->nowIsoDateTime());
         sqlite = Database::getInstance()->acquire();
         recentGame->save(sqlite);
-        list<RecentGame *> *recentGames = RecentGame::getItems(sqlite);
+        list<RecentGame *> *recentGames = RecentGame::getItems(sqlite, 1);
         Database::getInstance()->release();
         
         if(recentGames->size() > RecentGame::LIMIT)

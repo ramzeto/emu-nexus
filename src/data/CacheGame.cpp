@@ -24,8 +24,9 @@
 
 
 #include "CacheGame.h"
-#include "Settings.h"
 #include "Utils.h"
+#include "Directory.h"
+
 #include <iostream>
 
 const string CacheGame::DIRECTORY_PREFIX = "cache_game_";
@@ -194,7 +195,7 @@ int CacheGame::remove(sqlite3* sqlite)
 
 string CacheGame::getDirectory()
 {
-    return Settings::getInstance()->getCacheDirectory() + DIRECTORY_PREFIX + to_string(id) + "/";
+    return Directory::getInstance()->getCacheDirectory() + DIRECTORY_PREFIX + to_string(id) + "/";
 }
 
 size_t CacheGame::getSize()
@@ -244,6 +245,34 @@ list<CacheGame *> *CacheGame::getItems(sqlite3 *sqlite)
 	sqlite3_finalize(statement);
 	return items;
 }
+
+list<CacheGame*>* CacheGame::getItems(sqlite3* sqlite, int64_t platformId)
+{
+	list<CacheGame *> *items = new list<CacheGame *>;
+	string query = "select CacheGame.id, CacheGame.gameId, CacheGame.timestamp from CacheGame join Game on CacheGame.gameId = Game.id where Game.platformId = ? order by CacheGame.timestamp";
+	sqlite3_stmt *statement;
+	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	{
+            sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
+		while (sqlite3_step(statement) == SQLITE_ROW)
+		{
+			CacheGame *item = new CacheGame();
+			item->id = (int64_t)sqlite3_column_int64(statement, 0);
+			item->gameId = (int64_t)sqlite3_column_int64(statement, 1);
+			item->timestamp = string((const char*) sqlite3_column_text(statement, 2));
+
+			items->push_back(item);
+		}
+	}
+	else
+	{
+		cerr << "CacheGame::getItems " << sqlite3_errmsg(sqlite) << endl;
+	}
+
+	sqlite3_finalize(statement);
+	return items;
+}
+
 
 CacheGame *CacheGame::getItem(list<CacheGame *> *items, unsigned int index)
 {

@@ -24,10 +24,11 @@
 
 #include "thegamesdb.h"
 #include "Utils.h"
-#include "Settings.h"
 #include "HttpConnector.h"
 #include "ApiDatabase.h"
 #include "Database.h"
+#include "Directory.h"
+#include "Preferences.h"
 
 #include <unistd.h>
 #include <jansson.h>
@@ -182,7 +183,7 @@ TheGamesDB::Elasticsearch* TheGamesDB::Elasticsearch::getInstance()
 
 void *TheGamesDB::Elasticsearch::processWorker(void *requesterRef)
 {
-    string command = Settings::getInstance()->getElasticseachBinary() + " -E http.port=" + to_string(Settings::getInstance()->getElasticsearchPort());    
+    string command = Preferences::getInstance()->getElasticseachBinary() + " -E http.port=" + to_string(Preferences::getInstance()->getElasticsearchPort());    
     cout << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " command: " << command << endl;
     system(command.c_str());
     
@@ -191,7 +192,7 @@ void *TheGamesDB::Elasticsearch::processWorker(void *requesterRef)
 
 void *TheGamesDB::Elasticsearch::processStartListenerWorker(void *requesterRef)
 {         
-    string url = URL + ":" + to_string(Settings::getInstance()->getElasticsearchPort());
+    string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort());
     
     cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " url: " << url << endl;
     
@@ -252,7 +253,7 @@ void *TheGamesDB::Elasticsearch::getGenresWorker(void *requesterRef)
     do
     {
         hits = 0;
-        string url = URL + ":" + to_string(Settings::getInstance()->getElasticsearchPort()) + "/genre/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
+        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/genre/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
         
         //cout << "TheGamesDB::Database::" << __FUNCTION__ << " url: " << url << endl;
         
@@ -323,7 +324,7 @@ void *TheGamesDB::Elasticsearch::getDevelopersWorker(void *requesterRef)
     do
     {
         hits = 0;
-        string url = URL + ":" + to_string(Settings::getInstance()->getElasticsearchPort()) + "/developer/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
+        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/developer/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
         
         //cout << "TheGamesDB::Database::" << __FUNCTION__ << " url: " << url << endl;
         
@@ -394,7 +395,7 @@ void *TheGamesDB::Elasticsearch::getPublishersWorker(void *requesterRef)
     do
     {
         hits = 0;
-        string url = URL + ":" + to_string(Settings::getInstance()->getElasticsearchPort()) + "/publisher/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
+        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/publisher/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
         
         //cout << "TheGamesDB::Database::" << __FUNCTION__ << " url: " << url << endl;
         
@@ -465,7 +466,7 @@ void *TheGamesDB::Elasticsearch::getEsrbRatingsWorker(void *requesterRef)
     do
     {
         hits = 0;
-        string url = URL + ":" + to_string(Settings::getInstance()->getElasticsearchPort()) + "/esrbrating/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
+        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/esrbrating/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
         
         //cout << "TheGamesDB::Database::" << __FUNCTION__ << " url: " << url << endl;
         
@@ -541,7 +542,7 @@ void *TheGamesDB::Elasticsearch::getPlatformsWorker(void *requesterRef)
     do
     {
         hits = 0;
-        string url = URL + ":" + to_string(Settings::getInstance()->getElasticsearchPort()) + "/platform/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
+        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/platform/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
         
         //cout << "TheGamesDB::Database::" << __FUNCTION__ << " url: " << url << endl;
         
@@ -606,7 +607,7 @@ void *TheGamesDB::Elasticsearch::getGamesWorker(void *requesterRef)
     string query = ((RequesterRef_t *)requesterRef)->query;
     int error = 0;
     list<TheGamesDB::Game *> *games = new list<TheGamesDB::Game *>;    
-    string url = URL + ":" + to_string(Settings::getInstance()->getElasticsearchPort()) + "/platform" + to_string(apiPlatformId) + "/_search?q=name:" + Utils::getInstance()->urlEncode(query) + "&from=0&size=20";
+    string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/platform" + to_string(apiPlatformId) + "/_search?q=name:" + Utils::getInstance()->urlEncode(query) + "&from=0&size=20";
 
     cout << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " url: " << url << endl;
 
@@ -796,70 +797,7 @@ string TheGamesDB::PlatformImage::getLarge()
 
 string TheGamesDB::PlatformImage::getFileName()
 {
-    return Settings::getInstance()->getCacheDirectory() + "apiPlatformImage_" + to_string(TheGamesDB::API_ID) + "_" + to_string(id);
-}
-
-int TheGamesDB::PlatformImage::load(sqlite3 *sqlite)
-{
-	int result = 0;
-	string query = "select id, platformId, type, original, small, thumb, croppedCenterThumb, medium, large from PlatformImage where  id = ?";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
-		if (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			id = (int64_t)sqlite3_column_int64(statement, 0);
-			platformId = (int64_t)sqlite3_column_int64(statement, 1);
-			type = string((const char*) sqlite3_column_text(statement, 2));
-			original = string((const char*) sqlite3_column_text(statement, 3));
-			small = string((const char*) sqlite3_column_text(statement, 4));
-			thumb = string((const char*) sqlite3_column_text(statement, 5));
-			croppedCenterThumb = string((const char*) sqlite3_column_text(statement, 6));
-			medium = string((const char*) sqlite3_column_text(statement, 7));
-			large = string((const char*) sqlite3_column_text(statement, 8));
-			result = 1;
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::PlatformImage::load " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return result;
-}
-
-list<TheGamesDB::PlatformImage *> *TheGamesDB::PlatformImage::getItems(sqlite3 *sqlite)
-{
-	list<TheGamesDB::PlatformImage *> *items = new list<TheGamesDB::PlatformImage *>;
-	string query = "select id, platformId, type, original, small, thumb, croppedCenterThumb, medium, large from PlatformImage";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			TheGamesDB::PlatformImage *item = new PlatformImage();
-			item->id = (int64_t)sqlite3_column_int64(statement, 0);
-			item->platformId = (int64_t)sqlite3_column_int64(statement, 1);
-			item->type = string((const char*) sqlite3_column_text(statement, 2));
-			item->original = string((const char*) sqlite3_column_text(statement, 3));
-			item->small = string((const char*) sqlite3_column_text(statement, 4));
-			item->thumb = string((const char*) sqlite3_column_text(statement, 5));
-			item->croppedCenterThumb = string((const char*) sqlite3_column_text(statement, 6));
-			item->medium = string((const char*) sqlite3_column_text(statement, 7));
-			item->large = string((const char*) sqlite3_column_text(statement, 8));
-
-			items->push_back(item);
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::PlatformImage::getItems " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return items;
+    return Directory::getInstance()->getCacheDirectory() + "apiPlatformImage_" + to_string(TheGamesDB::API_ID) + "_" + to_string(id);
 }
 
 TheGamesDB::PlatformImage *TheGamesDB::PlatformImage::getItem(list<TheGamesDB::PlatformImage *> *items, unsigned int index)
@@ -980,58 +918,6 @@ list<TheGamesDB::PlatformImage*> *TheGamesDB::Platform::getPlatformImages()
     return platformImages;
 }
 
-int TheGamesDB::Platform::load(sqlite3 *sqlite)
-{
-	int result = 0;
-	string query = "select id, name, alias from Platform where  id = ?";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
-		if (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			id = (int64_t)sqlite3_column_int64(statement, 0);
-			name = string((const char*) sqlite3_column_text(statement, 1));
-			alias = string((const char*) sqlite3_column_text(statement, 2));
-			result = 1;
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::Platform::load " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return result;
-}
-
-
-list<TheGamesDB::Platform *> *TheGamesDB::Platform::getItems(sqlite3 *sqlite)
-{
-	list<TheGamesDB::Platform *> *items = new list<TheGamesDB::Platform *>;
-	string query = "select id, name, alias from Platform";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			TheGamesDB::Platform *item = new Platform();
-			item->id = (int64_t)sqlite3_column_int64(statement, 0);
-			item->name = string((const char*) sqlite3_column_text(statement, 1));
-			item->alias = string((const char*) sqlite3_column_text(statement, 2));
-
-			items->push_back(item);
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::Platform::getItems " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return items;
-}
-
 TheGamesDB::Platform *TheGamesDB::Platform::getItem(list<TheGamesDB::Platform *> *items, unsigned int index)
 {
 	if(index >= items->size())
@@ -1112,55 +998,6 @@ string TheGamesDB::Genre::getName()
 	return name;
 }
 
-int TheGamesDB::Genre::load(sqlite3 *sqlite)
-{
-	int result = 0;
-	string query = "select id, name from Genre where  id = ?";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
-		if (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			id = (int64_t)sqlite3_column_int64(statement, 0);
-			name = string((const char*) sqlite3_column_text(statement, 1));
-			result = 1;
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::Genre::load " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return result;
-}
-
-list<TheGamesDB::Genre *> *TheGamesDB::Genre::getItems(sqlite3 *sqlite)
-{
-	list<TheGamesDB::Genre *> *items = new list<TheGamesDB::Genre *>;
-	string query = "select id, name from Genre";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			TheGamesDB::Genre *item = new Genre();
-			item->id = (int64_t)sqlite3_column_int64(statement, 0);
-			item->name = string((const char*) sqlite3_column_text(statement, 1));
-
-			items->push_back(item);
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::Genre::getItems " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return items;
-}
-
 TheGamesDB::Genre *TheGamesDB::Genre::getItem(list<TheGamesDB::Genre *> *items, unsigned int index)
 {
 	if(index >= items->size())
@@ -1236,55 +1073,6 @@ int64_t TheGamesDB::Developer::getId()
 string TheGamesDB::Developer::getName()
 {
 	return name;
-}
-
-int TheGamesDB::Developer::load(sqlite3 *sqlite)
-{
-	int result = 0;
-	string query = "select id, name from Developer where  id = ?";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
-		if (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			id = (int64_t)sqlite3_column_int64(statement, 0);
-			name = string((const char*) sqlite3_column_text(statement, 1));
-			result = 1;
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::Developer::load " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return result;
-}
-
-list<TheGamesDB::Developer *> *TheGamesDB::Developer::getItems(sqlite3 *sqlite)
-{
-	list<TheGamesDB::Developer *> *items = new list<TheGamesDB::Developer *>;
-	string query = "select id, name from Developer";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			TheGamesDB::Developer *item = new Developer();
-			item->id = (int64_t)sqlite3_column_int64(statement, 0);
-			item->name = string((const char*) sqlite3_column_text(statement, 1));
-
-			items->push_back(item);
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::Developer::getItems " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return items;
 }
 
 TheGamesDB::Developer *TheGamesDB::Developer::getItem(list<TheGamesDB::Developer *> *items, unsigned int index)
@@ -1364,55 +1152,6 @@ string TheGamesDB::Publisher::getName()
 	return name;
 }
 
-int TheGamesDB::Publisher::load(sqlite3 *sqlite)
-{
-	int result = 0;
-	string query = "select id, name from Publisher where  id = ?";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
-		if (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			id = (int64_t)sqlite3_column_int64(statement, 0);
-			name = string((const char*) sqlite3_column_text(statement, 1));
-			result = 1;
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::Publisher::load " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return result;
-}
-
-list<TheGamesDB::Publisher *> *TheGamesDB::Publisher::getItems(sqlite3 *sqlite)
-{
-	list<TheGamesDB::Publisher *> *items = new list<TheGamesDB::Publisher *>;
-	string query = "select id, name from Publisher";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			TheGamesDB::Publisher *item = new Publisher();
-			item->id = (int64_t)sqlite3_column_int64(statement, 0);
-			item->name = string((const char*) sqlite3_column_text(statement, 1));
-
-			items->push_back(item);
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::Publisher::getItems " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return items;
-}
-
 TheGamesDB::Publisher *TheGamesDB::Publisher::getItem(list<TheGamesDB::Publisher *> *items, unsigned int index)
 {
 	if(index >= items->size())
@@ -1489,55 +1228,6 @@ int64_t TheGamesDB::EsrbRating::getId()
 string TheGamesDB::EsrbRating::getName()
 {
 	return name;
-}
-
-int TheGamesDB::EsrbRating::load(sqlite3 *sqlite)
-{
-	int result = 0;
-	string query = "select id, name from EsrbRating where  id = ?";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
-		if (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			id = (int64_t)sqlite3_column_int64(statement, 0);
-			name = string((const char*) sqlite3_column_text(statement, 1));
-			result = 1;
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::EsrbRating::load " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return result;
-}
-
-list<TheGamesDB::EsrbRating *> *TheGamesDB::EsrbRating::getItems(sqlite3 *sqlite)
-{
-	list<TheGamesDB::EsrbRating *> *items = new list<TheGamesDB::EsrbRating *>;
-	string query = "select id, name from EsrbRating";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			TheGamesDB::EsrbRating *item = new EsrbRating();
-			item->id = (int64_t)sqlite3_column_int64(statement, 0);
-			item->name = string((const char*) sqlite3_column_text(statement, 1));
-
-			items->push_back(item);
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::EsrbRating::getItems " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return items;
 }
 
 TheGamesDB::EsrbRating *TheGamesDB::EsrbRating::getItem(list<TheGamesDB::EsrbRating *> *items, unsigned int index)
@@ -1716,72 +1406,7 @@ string TheGamesDB::GameImage::getLarge()
 
 string TheGamesDB::GameImage::getFileName()
 {
-    return Settings::getInstance()->getCacheDirectory() + "apiGameImage_" + to_string(TheGamesDB::API_ID) + "_" + to_string(id);
-}
-
-int TheGamesDB::GameImage::load(sqlite3 *sqlite)
-{
-	int result = 0;
-	string query = "select id, gameId, type, side, original, small, thumb, croppedCenterThumb, medium, large from GameImage where  id = ?";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
-		if (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			id = (int64_t)sqlite3_column_int64(statement, 0);
-			gameId = (int64_t)sqlite3_column_int64(statement, 1);
-			type = string((const char*) sqlite3_column_text(statement, 2));
-			side = string((const char*) sqlite3_column_text(statement, 3));
-			original = string((const char*) sqlite3_column_text(statement, 4));
-			small = string((const char*) sqlite3_column_text(statement, 5));
-			thumb = string((const char*) sqlite3_column_text(statement, 6));
-			croppedCenterThumb = string((const char*) sqlite3_column_text(statement, 7));
-			medium = string((const char*) sqlite3_column_text(statement, 8));
-			large = string((const char*) sqlite3_column_text(statement, 9));
-			result = 1;
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::GameImage::load " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return result;
-}
-
-list<TheGamesDB::GameImage *> *TheGamesDB::GameImage::getItems(sqlite3 *sqlite)
-{
-	list<TheGamesDB::GameImage *> *items = new list<TheGamesDB::GameImage *>;
-	string query = "select id, gameId, type, side, original, small, thumb, croppedCenterThumb, medium, large from GameImage";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			TheGamesDB::GameImage *item = new GameImage();
-			item->id = (int64_t)sqlite3_column_int64(statement, 0);
-			item->gameId = (int64_t)sqlite3_column_int64(statement, 1);
-			item->type = string((const char*) sqlite3_column_text(statement, 2));
-			item->side = string((const char*) sqlite3_column_text(statement, 3));
-			item->original = string((const char*) sqlite3_column_text(statement, 4));
-			item->small = string((const char*) sqlite3_column_text(statement, 5));
-			item->thumb = string((const char*) sqlite3_column_text(statement, 6));
-			item->croppedCenterThumb = string((const char*) sqlite3_column_text(statement, 7));
-			item->medium = string((const char*) sqlite3_column_text(statement, 8));
-			item->large = string((const char*) sqlite3_column_text(statement, 9));
-
-			items->push_back(item);
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::GameImage::getItems " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return items;
+    return Directory::getInstance()->getCacheDirectory() + "apiGameImage_" + to_string(TheGamesDB::API_ID) + "_" + to_string(id);
 }
 
 TheGamesDB::GameImage *TheGamesDB::GameImage::getItem(list<TheGamesDB::GameImage *> *items, unsigned int index)
@@ -1861,56 +1486,6 @@ int64_t TheGamesDB::GameGenre::getGameId()
 int64_t TheGamesDB::GameGenre::getGenreId()
 {
 	return genreId;
-}
-
-int TheGamesDB::GameGenre::load(sqlite3 *sqlite)
-{
-	int result = 0;
-	string query = "select gameId, genreId from GameGenre where  gameId = ? and  genreId = ?";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
-		sqlite3_bind_int64(statement, 2, (sqlite3_int64)genreId);
-		if (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			gameId = (int64_t)sqlite3_column_int64(statement, 0);
-			genreId = (int64_t)sqlite3_column_int64(statement, 1);
-			result = 1;
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::GameGenre::load " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return result;
-}
-
-list<TheGamesDB::GameGenre *> *TheGamesDB::GameGenre::getItems(sqlite3 *sqlite)
-{
-	list<GameGenre *> *items = new list<TheGamesDB::GameGenre *>;
-	string query = "select gameId, genreId from GameGenre";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			TheGamesDB::GameGenre *item = new GameGenre();
-			item->gameId = (int64_t)sqlite3_column_int64(statement, 0);
-			item->genreId = (int64_t)sqlite3_column_int64(statement, 1);
-
-			items->push_back(item);
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::GameGenre::getItems " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return items;
 }
 
 TheGamesDB::GameGenre *TheGamesDB::GameGenre::getItem(list<TheGamesDB::GameGenre *> *items, unsigned int index)
@@ -1994,56 +1569,6 @@ int64_t TheGamesDB::GameDeveloper::getDeveloperId()
 	return developerId;
 }
 
-int TheGamesDB::GameDeveloper::load(sqlite3 *sqlite)
-{
-	int result = 0;
-	string query = "select gameId, developerId from GameDeveloper where  gameId = ? and  developerId = ?";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
-		sqlite3_bind_int64(statement, 2, (sqlite3_int64)developerId);
-		if (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			gameId = (int64_t)sqlite3_column_int64(statement, 0);
-			developerId = (int64_t)sqlite3_column_int64(statement, 1);
-			result = 1;
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::GameDeveloper::load " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return result;
-}
-
-list<TheGamesDB::GameDeveloper *> *TheGamesDB::GameDeveloper::getItems(sqlite3 *sqlite)
-{
-	list<TheGamesDB::GameDeveloper *> *items = new list<TheGamesDB::GameDeveloper *>;
-	string query = "select gameId, developerId from GameDeveloper";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			TheGamesDB::GameDeveloper *item = new GameDeveloper();
-			item->gameId = (int64_t)sqlite3_column_int64(statement, 0);
-			item->developerId = (int64_t)sqlite3_column_int64(statement, 1);
-
-			items->push_back(item);
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::GameDeveloper::getItems " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return items;
-}
-
 TheGamesDB::GameDeveloper *TheGamesDB::GameDeveloper::getItem(list<TheGamesDB::GameDeveloper *> *items, unsigned int index)
 {
 	if(index >= items->size())
@@ -2121,56 +1646,6 @@ int64_t TheGamesDB::GamePublisher::getGameId()
 int64_t TheGamesDB::GamePublisher::getPublisherId()
 {
 	return publisherId;
-}
-
-int TheGamesDB::GamePublisher::load(sqlite3 *sqlite)
-{
-	int result = 0;
-	string query = "select gameId, publisherId from GamePublisher where  gameId = ? and  publisherId = ?";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
-		sqlite3_bind_int64(statement, 2, (sqlite3_int64)publisherId);
-		if (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			gameId = (int64_t)sqlite3_column_int64(statement, 0);
-			publisherId = (int64_t)sqlite3_column_int64(statement, 1);
-			result = 1;
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::GamePublisher::load " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return result;
-}
-
-list<TheGamesDB::GamePublisher *> *TheGamesDB::GamePublisher::getItems(sqlite3 *sqlite)
-{
-	list<TheGamesDB::GamePublisher *> *items = new list<TheGamesDB::GamePublisher *>;
-	string query = "select gameId, publisherId from GamePublisher";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			TheGamesDB::GamePublisher *item = new GamePublisher();
-			item->gameId = (int64_t)sqlite3_column_int64(statement, 0);
-			item->publisherId = (int64_t)sqlite3_column_int64(statement, 1);
-
-			items->push_back(item);
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::GamePublisher::getItems " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return items;
 }
 
 TheGamesDB::GamePublisher *TheGamesDB::GamePublisher::getItem(list<TheGamesDB::GamePublisher *> *items, unsigned int index)
@@ -2400,63 +1875,6 @@ list<TheGamesDB::GameDeveloper *> *TheGamesDB::Game::getGameDevelopers()
 list<TheGamesDB::GamePublisher *> *TheGamesDB::Game::getGamePublishers()
 {
     return gamePublishers;
-}
-
-int TheGamesDB::Game::load(sqlite3 *sqlite)
-{
-	int result = 0;
-	string query = "select id, platformId, name, releaseDate, description, esrbRatingId from Game where  id = ?";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
-		if (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			id = (int64_t)sqlite3_column_int64(statement, 0);
-			platformId = (int64_t)sqlite3_column_int64(statement, 1);
-			name = string((const char*) sqlite3_column_text(statement, 2));
-			releaseDate = string((const char*) sqlite3_column_text(statement, 3));
-			description = string((const char*) sqlite3_column_text(statement, 4));
-			esrbRatingId = (int64_t)sqlite3_column_int64(statement, 5);
-			result = 1;
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::Game::load " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return result;
-}
-
-list<TheGamesDB::Game *> *TheGamesDB::Game::getItems(sqlite3 *sqlite)
-{
-	list<TheGamesDB::Game *> *items = new list<TheGamesDB::Game *>;
-	string query = "select id, platformId, name, releaseDate, description, esrbRatingId from Game";
-	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-	{
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			TheGamesDB::Game *item = new Game();
-			item->id = (int64_t)sqlite3_column_int64(statement, 0);
-			item->platformId = (int64_t)sqlite3_column_int64(statement, 1);
-			item->name = string((const char*) sqlite3_column_text(statement, 2));
-			item->releaseDate = string((const char*) sqlite3_column_text(statement, 3));
-			item->description = string((const char*) sqlite3_column_text(statement, 4));
-			item->esrbRatingId = (int64_t)sqlite3_column_int64(statement, 5);
-
-			items->push_back(item);
-		}
-	}
-	else
-	{
-		cerr << "TheGamesDB::Game::getItems " << sqlite3_errmsg(sqlite) << endl;
-	}
-
-	sqlite3_finalize(statement);
-	return items;
 }
 
 TheGamesDB::Game *TheGamesDB::Game::getItem(list<TheGamesDB::Game *> *items, unsigned int index)

@@ -26,16 +26,13 @@
 #include "UiUtils.h"
 #include "PlatformPanel.h"
 #include "HomePanel.h"
-#include "SettingsDialog.h"
 #include "MessageDialog.h"
 #include "PlatformDialog.h"
 #include "PlatformImage.h"
 #include "FirstSetupPanel.h"
-
 #include "Build.h"
 #include "Database.h"
 #include "Preferences.h"
-#include "Settings.h"
 #include "Genre.h"
 #include "Game.h"
 #include "thegamesdb.h"
@@ -45,6 +42,10 @@
 #include "Platform.h"
 #include "NotificationManager.h"
 #include "Notifications.h"
+#include "Directory.h"
+#include "ParseDirectoryProcess.h"
+#include "DownloadGameImagesProcess.h"
+#include "Utils.h"
 
 
 #include <string>
@@ -62,7 +63,7 @@ MainWindow::MainWindow()
     platforms = NULL;
     selectedPlatformId = 0;
     
-    builder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "MainWindow.ui").c_str());
+    builder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "MainWindow.ui").c_str());
 
     mainWindow = (GtkApplicationWindow *)gtk_builder_get_object (builder, "mainWindow");    
     g_signal_connect(G_OBJECT(mainWindow), "configure-event", G_CALLBACK(signalMainWindowConfigureEvent), this);    
@@ -79,10 +80,7 @@ MainWindow::MainWindow()
     {        
         gtk_window_set_position(GTK_WINDOW(mainWindow), GTK_WIN_POS_CENTER);        
     }    
-    
-    settingsButton = (GtkButton *)gtk_builder_get_object (builder, "settingsButton");
-    g_signal_connect (settingsButton, "clicked", G_CALLBACK (signalSettingsButtonClicked), this);
-    
+
     addPlatformButton = (GtkButton *)gtk_builder_get_object (builder, "addPlatformButton");
     g_signal_connect (addPlatformButton, "clicked", G_CALLBACK (signalAddPlatformButtonClicked), this);
     
@@ -141,6 +139,7 @@ MainWindow::MainWindow()
     
     processUiThreadHandler = new UiThreadHandler(this, serialProcessStatusCallBack);
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_PLATFORM_UPDATED, this, notificationReceived);
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_ADD_DIRECTORY, this, notificationReceived);
     
     loadStartGui();
 }
@@ -185,7 +184,6 @@ void MainWindow::loadStartGui()
             gtk_widget_show_all(GTK_WIDGET(addPlatformButton));
         }
         
-        gtk_widget_show_all(GTK_WIDGET(settingsButton));
         gtk_widget_show_all(GTK_WIDGET(platformListContainerBox));
         
         loadPlatformList();
@@ -193,7 +191,6 @@ void MainWindow::loadStartGui()
     }
     else
     {
-        gtk_widget_hide(GTK_WIDGET(settingsButton));
         gtk_widget_hide(GTK_WIDGET(addPlatformButton));
         gtk_widget_hide(GTK_WIDGET(platformListContainerBox));
         
@@ -219,16 +216,6 @@ void MainWindow::showPanel(Panel* panel)
     gtk_container_add(GTK_CONTAINER(contentBox), GTK_WIDGET(currentPanel->getPanelBox()));
     
     currentPanel->show();
-}
-
-void MainWindow::showSettingsDialog()
-{    
-    SettingsDialog *settingsDialog = new SettingsDialog();   
-    if(settingsDialog->execute() == GTK_RESPONSE_ACCEPT)
-    {
-
-    }
-    delete settingsDialog;
 }
 
 void MainWindow::showHome()
@@ -272,7 +259,7 @@ void MainWindow::loadPlatformList()
     Database::getInstance()->release();
     for(unsigned int c = 0; c < platforms->size() + 1; c++)
     {
-        GtkBuilder *rowBuilder = gtk_builder_new_from_file((Settings::getInstance()->getUiTemplatesDirectory() + "PlatformRowBox.ui").c_str());
+        GtkBuilder *rowBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "PlatformRowBox.ui").c_str());
         GtkWidget *platformRowBox = (GtkWidget *)gtk_builder_get_object (rowBuilder, "platformRowBox");
         GtkImage *image = (GtkImage *)gtk_builder_get_object (rowBuilder, "image");                                        
         GtkLabel *nameLabel = (GtkLabel *)gtk_builder_get_object (rowBuilder, "nameLabel");
@@ -282,7 +269,7 @@ void MainWindow::loadPlatformList()
         if(c == 0)
         {
             gtk_label_set_text(nameLabel, "Home");
-            gtk_label_set_text(gamesLabel, "The landing page");
+            gtk_label_set_text(gamesLabel, "Welcome to EMU-nexus");
             UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageHome(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
             
             gtk_widget_set_name(platformRowBox, to_string(0).c_str());
@@ -304,12 +291,23 @@ void MainWindow::loadPlatformList()
             PlatformImage *platformImage = PlatformImage::getPrimaryImage(sqlite, platform->getId());        
             if(platformImage)
             {
-                UiUtils::getInstance()->loadImage(image, platformImage->getThumbnailFileName(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
+                if(Utils::getInstance()->fileExists(platformImage->getThumbnailFileName()))
+                {
+                    UiUtils::getInstance()->loadImage(image, platformImage->getThumbnailFileName(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
+                }
+                else if(Utils::getInstance()->fileExists(platformImage->getFileName()))
+                {
+                    UiUtils::getInstance()->loadImage(image, platformImage->getFileName(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
+                }
+                else
+                {
+                    UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageLogo(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
+                }
                 delete platformImage;
             }
             else
             {
-                gtk_image_clear(image);
+                UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageLogo(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
             }
             gtk_widget_set_name(platformRowBox, to_string(platform->getId()).c_str());
         }
@@ -361,7 +359,18 @@ void MainWindow::updatePlatform(int64_t platformId)
             PlatformImage *platformImage = PlatformImage::getPrimaryImage(sqlite, updatedPlatform->getId());        
             if(platformImage)
             {
-                UiUtils::getInstance()->loadImage(image, platformImage->getThumbnailFileName(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
+                if(Utils::getInstance()->fileExists(platformImage->getThumbnailFileName()))
+                {
+                    UiUtils::getInstance()->loadImage(image, platformImage->getThumbnailFileName(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
+                }
+                else if(Utils::getInstance()->fileExists(platformImage->getFileName()))
+                {
+                    UiUtils::getInstance()->loadImage(image, platformImage->getFileName(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
+                }
+                else
+                {
+                    UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageLogo(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
+                }
                 delete platformImage;
             }
             else
@@ -373,7 +382,7 @@ void MainWindow::updatePlatform(int64_t platformId)
             
             break;
         }
-    }
+    }        
 }
 
 void MainWindow::selectPlatform(int64_t platformId)
@@ -416,6 +425,8 @@ void MainWindow::removePlatform(int64_t platformId)
         Database::getInstance()->release();
         
         loadPlatformList();
+        
+        showHome();
     }
     delete messageDialog;
     delete platform;
@@ -507,11 +518,6 @@ void MainWindow::signalPlatformMenuRemoveActivate(GtkMenuItem* menuitem, gpointe
     ((MainWindow *)mainWindow)->removePlatform(((MainWindow *)mainWindow)->selectedPlatformId);
 }
 
-void MainWindow::signalSettingsButtonClicked(GtkButton* button, gpointer mainWindow)
-{
-    ((MainWindow *)mainWindow)->showSettingsDialog();
-}
-
 void MainWindow::signalAddPlatformButtonClicked(GtkButton* button, gpointer mainWindow)
 {
     ((MainWindow *)mainWindow)->showPlatformDialog(0);
@@ -524,7 +530,7 @@ void MainWindow::signalAddGameButtonClicked(GtkButton* button, gpointer mainWind
 
 void MainWindow::signalAddDirectoryButtonClicked(GtkButton* button, gpointer mainWindow)
 {
-    cout << __FUNCTION__ << endl;
+    ((PlatformPanel *) ((MainWindow *)mainWindow)->currentPanel)->showAddDirectoryDialog();
 }
 
 void MainWindow::signalGameSearchEntrySearchChanged(GtkSearchEntry* searchEntry, gpointer mainWindow)
@@ -532,7 +538,7 @@ void MainWindow::signalGameSearchEntrySearchChanged(GtkSearchEntry* searchEntry,
     ((PlatformPanel *) ((MainWindow *)mainWindow)->currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(searchEntry))));
 }
 
-int MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
+void MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;  
     
@@ -553,7 +559,7 @@ int MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
         {
             gtk_widget_show(GTK_WIDGET(mainWindow->processProgressBar));
             gtk_progress_bar_set_fraction(mainWindow->processProgressBar, ((double)status->progress) / 100.0);
-        }    
+        }
     }
     else
     {
@@ -565,21 +571,44 @@ int MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
         if(status->serialProcess->getType().compare(ElasticsearchProcess::TYPE) == 0)
         {
             gtk_widget_show_all(GTK_WIDGET(mainWindow->addPlatformButton));
-        }            
+            
+            if(status->serialProcess->getStatus() == SerialProcess::STATUS_SUCCESS)
+            {
+                // Runs a parseDirectoryProcess in case there are pending
+                ParseDirectoryProcess *parseDirectoryProcess = new ParseDirectoryProcess(((MainWindow *)mainWindow)->processUiThreadHandler, UiThreadHandler::callback);
+                SerialProcessExecutor::getInstance()->schedule(parseDirectoryProcess);
+            }
+        }        
+        else if(status->serialProcess->getType().compare(ParseDirectoryProcess::TYPE) == 0)
+        {
+            ParseDirectory *parseDirectory = ((ParseDirectoryProcess *)status->serialProcess)->getParseDirectory();
+            if(parseDirectory && parseDirectory->getPlatformId() == mainWindow->selectedPlatformId)
+            {
+                mainWindow->updatePlatform(parseDirectory->getPlatformId());
+                mainWindow->selectPlatform(parseDirectory->getPlatformId());
+            }
+            
+            // Schedules a process for downloading images
+            DownloadGameImagesProcess *downloadGameImagesProcess = new DownloadGameImagesProcess(((MainWindow *)mainWindow)->processUiThreadHandler, UiThreadHandler::callback);
+            SerialProcessExecutor::getInstance()->schedule(downloadGameImagesProcess);
+        }
         
-        delete status->serialProcess;
+        delete status->serialProcess;                
     }
     
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);   
-    
-    return G_SOURCE_REMOVE;
+    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 
 void MainWindow::notificationReceived(string notification, void* mainWindow, void* notificationData)
 {    
     if(notification.compare(NOTIFICATION_PLATFORM_UPDATED) == 0)
-    {        
+    {
         Platform *platform = (Platform *)notificationData;        
         ((MainWindow *)mainWindow)->updatePlatform(platform->getId());
-    }    
+    }
+    if(notification.compare(NOTIFICATION_ADD_DIRECTORY) == 0)
+    {
+        ParseDirectoryProcess *parseDirectoryProcess = new ParseDirectoryProcess(((MainWindow *)mainWindow)->processUiThreadHandler, UiThreadHandler::callback);
+        SerialProcessExecutor::getInstance()->schedule(parseDirectoryProcess);
+    }
 }

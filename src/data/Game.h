@@ -102,6 +102,7 @@ public:
 
 	json_t *toJson();
 
+        static Game* getGameWithFileName(sqlite3 *sqlite, int64_t platformId, string fileName);
 	static list<Game *> *getItems(sqlite3 *sqlite, int64_t platformId, string query);
 	static Game *getItem(list<Game *> *items, unsigned int index);
 	static void releaseItems(list<Game *> *items);

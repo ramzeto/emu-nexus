@@ -47,7 +47,7 @@ GameSearchDialog::GameSearchDialog(int64_t apiPlatformId, string query) : Dialog
     gtk_window_set_title(GTK_WINDOW(dialog), "Select a game");
     
     UiThreadHandler *uiThreadHandler = new UiThreadHandler(this, callbackElasticsearchGames);
-    TheGamesDB::Elasticsearch::getInstance()->getGames(apiPlatformId, query, uiThreadHandler, UiThreadHandler::callback);   
+    TheGamesDB::Elasticsearch::getInstance()->getGames(apiPlatformId, query, uiThreadHandler, UiThreadHandler::callback);
 }
 
 GameSearchDialog::~GameSearchDialog()
@@ -113,7 +113,7 @@ TheGamesDB::Game* GameSearchDialog::getSelectedApiGame()
 }
 
 
-int GameSearchDialog::callbackElasticsearchGames(gpointer pUiThreadHandlerResult)
+void GameSearchDialog::callbackElasticsearchGames(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;
     GameSearchDialog *gameSearchDialog = (GameSearchDialog *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
@@ -124,8 +124,6 @@ int GameSearchDialog::callbackElasticsearchGames(gpointer pUiThreadHandlerResult
     
     
     UiThreadHandler::releaseResult(uiThreadHandlerResult);
-    
-    return G_SOURCE_REMOVE;
 }
 
 void GameSearchDialog::signalListRowSelected (GtkListBox *listBox, GtkWidget *row, gpointer dialog)

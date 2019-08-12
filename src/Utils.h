@@ -73,6 +73,13 @@ public:
     int writeToFile(unsigned char *data, size_t dataSize, string fileName);
     
     /**
+     * 
+     * @param fileName
+     * @return Contents of the file.
+     */
+    string getFileContents(string fileName);
+    
+    /**
      * Checks if a directory exists
      * @param directoryName
      * @return 1 if exists, 0 otherwise

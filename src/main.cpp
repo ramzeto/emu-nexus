@@ -25,13 +25,11 @@
 #include <gtk/gtk.h>
 #include <iostream>
 
-#include "Settings.h"
 #include "Database.h"
 #include "MainWindow.h"
 #include "Build.h"
 #include "ApplicationVersion.h"
 #include "Utils.h"
-#include "Settings.h"
 
 using namespace std;
 

@@ -67,6 +67,7 @@ public:
 	json_t *toJson();
 
 	static list<CacheGame *> *getItems(sqlite3 *sqlite);
+        static list<CacheGame *> *getItems(sqlite3 *sqlite, int64_t platformId);
 	static CacheGame *getItem(list<CacheGame *> *items, unsigned int index);
 	static void releaseItems(list<CacheGame *> *items);
 	static json_t *toJsonArray(list<CacheGame *> *items);        

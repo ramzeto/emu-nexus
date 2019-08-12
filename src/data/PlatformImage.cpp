@@ -23,7 +23,6 @@
 */
 
 #include "PlatformImage.h"
-#include "Settings.h"
 
 #include <iostream>
 #include <unistd.h>

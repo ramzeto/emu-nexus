@@ -25,10 +25,14 @@
 #include "Preferences.h"
 
 #include "Database.h"
+#include "Directory.h"
 #include <iostream>
 
 Preferences *Preferences::instance = NULL;
 
+const string Preferences::ELASTICSEARCH_BINARY = "bin/elasticsearch";
+const unsigned int Preferences::ELASTICSEARCH_MIN_PORT = 9301;
+const unsigned int Preferences::ELASTICSEARCH_MAX_PORT = 9350;
 
 Preferences::Preferences()
 {
@@ -36,6 +40,9 @@ Preferences::Preferences()
     windowWidth = 1024;
     windowHeight = 768;
     lastPath = "";
+    cacheSize = 9000;
+    mameExecutable = "mame";
+    elasticsearchPort = ELASTICSEARCH_MIN_PORT;
 }
 
 Preferences::~Preferences()
@@ -82,11 +89,42 @@ void Preferences::setLastPath(string lastPath)
 	this->lastPath = lastPath;
 }
 
+int64_t Preferences::getCacheSize()
+{
+    return cacheSize;
+}
+
+void Preferences::setCacheSize(int64_t cacheSize)
+{
+    this->cacheSize = cacheSize;
+}
+
+void Preferences::setMameExecutable(string mameExecutable)
+{
+    this->mameExecutable = mameExecutable;
+}
+
+string Preferences::getMameExecutable() const
+{
+    return mameExecutable;
+}
+
+
+int64_t Preferences::getElasticsearchPort()
+{
+    return elasticsearchPort;
+}
+
+void Preferences::setElasticsearchPort(int64_t elasticsearchPort)
+{
+    this->elasticsearchPort = elasticsearchPort;
+}
+
 int Preferences::load(sqlite3 *sqlite)
 {
 	int result = 0;
 
-	string query = "select maximized, windowWidth, windowHeight, lastPath from Preferences";
+	string query = "select maximized, windowWidth, windowHeight, lastPath, cacheSize, mameExecutable, elasticsearchPort from Preferences";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -96,6 +134,10 @@ int Preferences::load(sqlite3 *sqlite)
 			windowWidth = (int64_t)sqlite3_column_int64(statement, 1);
 			windowHeight = (int64_t)sqlite3_column_int64(statement, 2);
 			lastPath = string((const char*) sqlite3_column_text(statement, 3));
+                        cacheSize = (int64_t) sqlite3_column_int64(statement, 4);
+                        mameExecutable = string((const char*) sqlite3_column_text(statement, 5));
+                        elasticsearchPort = (int64_t)sqlite3_column_int64(statement, 6);
+            
 			result = 1;
 		}
 	}
@@ -133,11 +175,11 @@ int Preferences::save(sqlite3 *sqlite)
     string insertOrUpdate;
     if (exists)
     {
-        insertOrUpdate = "update Preferences set maximized = ?, windowWidth = ?, windowHeight = ?, lastPath = ?";
+        insertOrUpdate = "update Preferences set maximized = ?, windowWidth = ?, windowHeight = ?, lastPath = ?, cacheSize = ?, mameExecutable = ?, elasticsearchPort = ?";
     }
     else
     {
-        insertOrUpdate = "insert into Preferences (maximized, windowWidth, windowHeight, lastPath) values(?, ?, ?, ?)";
+        insertOrUpdate = "insert into Preferences (maximized, windowWidth, windowHeight, lastPath, cacheSize, mameExecutable, elasticsearchPort) values(?, ?, ?, ?, ?, ?, ?)";
     }
 
     if (sqlite3_prepare_v2(sqlite, insertOrUpdate.c_str(), insertOrUpdate.length(), &statement, NULL) == SQLITE_OK)
@@ -146,7 +188,10 @@ int Preferences::save(sqlite3 *sqlite)
         sqlite3_bind_int64(statement, 2, (sqlite3_int64) windowWidth);
         sqlite3_bind_int64(statement, 3, (sqlite3_int64) windowHeight);
         sqlite3_bind_text(statement, 4, lastPath.c_str(), lastPath.length(), NULL);
-
+        sqlite3_bind_int64(statement, 5, (sqlite3_int64) cacheSize);
+        sqlite3_bind_text(statement, 6, mameExecutable.c_str(), mameExecutable.length(), NULL);
+        sqlite3_bind_int64(statement, 7, (sqlite3_int64) elasticsearchPort);
+        
         result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
     }
     else
@@ -158,6 +203,12 @@ int Preferences::save(sqlite3 *sqlite)
                 
     return result;
 }
+
+string Preferences::getElasticseachBinary()
+{
+    return Directory::getInstance()->getElasticseachDirectory() + ELASTICSEARCH_BINARY;
+}
+
 
 Preferences* Preferences::getInstance()
 {

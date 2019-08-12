@@ -28,6 +28,8 @@
 #include "SerialProcess.h"
 #include "HttpConnector.h"
 
+using namespace std;
+
 class ElasticsearchProcess : public SerialProcess
 {
 public:

@@ -206,7 +206,7 @@ private:
     static int downloadingGameImages;
     static void downloadGameImage(GameDialog *gameDialog, GameImage *gameImage);
     static void *downloadGameImagesWorker(void *);
-    static int callbackDownloadGameImage(gpointer pUiThreadHandlerResult);
+    static void callbackDownloadGameImage(gpointer pUiThreadHandlerResult);
 };
 
 #endif /* GAMEDIALOG_H */

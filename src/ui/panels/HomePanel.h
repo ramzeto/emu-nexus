@@ -49,6 +49,7 @@ private:
     
     GtkBox *recentsBox;
     GtkBox *recentsGridBox;
+    GtkImage *logoImage;
     GtkLabel *informationLabel;
     
     int isShown;
@@ -101,9 +102,8 @@ private:
     /**
      * 
      * @param pUiThreadHandlerResult
-     * @return 
      */
-    static int callbackGameLauncher(gpointer pUiThreadHandlerResult);
+    static void callbackGameLauncher(gpointer pUiThreadHandlerResult);
 };
 
 #endif /* HOMEPANEL_H */

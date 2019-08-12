@@ -185,7 +185,7 @@ void FirstSetupPanel::signalSuccessButtonClicked(GtkButton* button, gpointer fir
     ((FirstSetupPanel *)firstSetupPanel)->setupReady();
 }
 
-int FirstSetupPanel::callbackElasticsearchProcessListener(gpointer pUiThreadHandlerResult)
+void FirstSetupPanel::callbackElasticsearchProcessListener(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
     FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
@@ -214,11 +214,9 @@ int FirstSetupPanel::callbackElasticsearchProcessListener(gpointer pUiThreadHand
     }
 
     UiThreadHandler::releaseResult(uiThreadHandlerResult);
-    
-    return G_SOURCE_REMOVE;
 }
 
-int FirstSetupPanel::callbackElasticsearchGenres(gpointer pUiThreadHandlerResult)
+void FirstSetupPanel::callbackElasticsearchGenres(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
     FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
@@ -264,11 +262,9 @@ int FirstSetupPanel::callbackElasticsearchGenres(gpointer pUiThreadHandlerResult
     
     TheGamesDB::Genre::releaseItems(apiGenres);
     UiThreadHandler::releaseResult(uiThreadHandlerResult);
-    
-    return G_SOURCE_REMOVE;
 }
 
-int FirstSetupPanel::callbackElasticsearchDevelopers(gpointer pUiThreadHandlerResult)
+void FirstSetupPanel::callbackElasticsearchDevelopers(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
     FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
@@ -314,11 +310,9 @@ int FirstSetupPanel::callbackElasticsearchDevelopers(gpointer pUiThreadHandlerRe
       
     TheGamesDB::Developer::releaseItems(apiDevelopers);
     UiThreadHandler::releaseResult(uiThreadHandlerResult);
-    
-    return G_SOURCE_REMOVE;
 }
 
-int FirstSetupPanel::callbackElasticsearchPublishers(gpointer pUiThreadHandlerResult)
+void FirstSetupPanel::callbackElasticsearchPublishers(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;
     FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
@@ -364,11 +358,9 @@ int FirstSetupPanel::callbackElasticsearchPublishers(gpointer pUiThreadHandlerRe
    
     TheGamesDB::Publisher::releaseItems(apiPublishers);
     UiThreadHandler::releaseResult(uiThreadHandlerResult);
-    
-    return G_SOURCE_REMOVE;
 }
 
-int FirstSetupPanel::callbackElasticsearchEsrbRatings(gpointer pUiThreadHandlerResult)
+void FirstSetupPanel::callbackElasticsearchEsrbRatings(gpointer pUiThreadHandlerResult)
 {
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
     FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
@@ -406,6 +398,4 @@ int FirstSetupPanel::callbackElasticsearchEsrbRatings(gpointer pUiThreadHandlerR
 
     TheGamesDB::EsrbRating::releaseItems(apiEsrbRatings);
     UiThreadHandler::releaseResult(uiThreadHandlerResult);
-    
-    return G_SOURCE_REMOVE;
 }
