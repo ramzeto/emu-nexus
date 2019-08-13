@@ -120,8 +120,7 @@ namespace TheGamesDB
 
     private:
         static const string URL;
-        static const int WAIT_TIME_FOR_ENGINE_START;
-        static const int WAIT_TIME_FOR_ENGINE_REQUEST;
+        static const int WAIT_TIME_ELASTICSEARCH;
         static const int REQUEST_MAX_RETRIES;
         static const int REQUEST_TIME_TO_RETRY;
 

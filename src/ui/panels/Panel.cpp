@@ -56,7 +56,7 @@ void Panel::show()
 
 void Panel::close()
 {    
-    gtk_widget_hide_on_delete(GTK_WIDGET(panelBox));
+    //gtk_widget_hide_on_delete(GTK_WIDGET(panelBox));
     closed = 1;
 }
 

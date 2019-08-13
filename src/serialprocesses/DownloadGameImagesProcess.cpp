@@ -41,6 +41,7 @@ DownloadGameImagesProcess::DownloadGameImagesProcess(void *requester, void (*sta
 
 DownloadGameImagesProcess::~DownloadGameImagesProcess()
 {
+    delete postNotificationThreadHandler;
 }
 
 int DownloadGameImagesProcess::execute()
@@ -95,7 +96,6 @@ int DownloadGameImagesProcess::execute()
 
 void DownloadGameImagesProcess::postGameChangedNotification(Game* game)
 {
-    cout << "DownloadGameImagesProcess::" << __FUNCTION__ << " gameId: " << game->getId() << endl;
     UiThreadHandler::callback(postNotificationThreadHandler, game);
 }
 
@@ -104,9 +104,6 @@ void DownloadGameImagesProcess::callbackPostNotificationReady(void* pUiThreadHan
     UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;      
     Game *game = (Game *)uiThreadHandlerResult->data;
     
-    cout << "DownloadGameImagesProcess::" << __FUNCTION__ << " gameId: " << game->getId() << endl;
     NotificationManager::getInstance()->postNotification(NOTIFICATION_GAME_UPDATED, game);
-            
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 

@@ -1658,7 +1658,4 @@ void GameDialog::callbackDownloadGameImage(gpointer pUiThreadHandlerResult)
         }
         pthread_mutex_unlock(&downloadGameImagesMutex);        
     }
-
-    
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }

@@ -718,8 +718,6 @@ void PlatformDialog::callbackElasticsearchPlatforms(gpointer pUiThreadHandlerRes
         }
         gtk_combo_box_set_active(platformDialog->apiPlatformComboBox, selectedIndex);
     }
-        
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 
 
@@ -864,8 +862,5 @@ void PlatformDialog::callbackDownloadPlatformImage(gpointer pUiThreadHandlerResu
         }
         pthread_mutex_unlock(&downloadPlatformImagesMutex);        
     }
-
-    
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 

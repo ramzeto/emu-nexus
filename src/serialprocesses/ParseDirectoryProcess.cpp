@@ -211,6 +211,9 @@ string ParseDirectoryProcess::cleanName(string rawName, string extension)
         }
     }
     
+    name = Utils::getInstance()->strReplace(name, "!", "");
+    name = Utils::getInstance()->strReplace(name, "?", "");
+
     return Utils::getInstance()->trim(name);
 }
 
@@ -398,8 +401,11 @@ void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProc
     ParseDirectoryProcess *parseDirectoryProcess = (ParseDirectoryProcess *)pParseDirectoryProcess;
     TheGamesDB::Elasticsearch::Result_t *result = (TheGamesDB::Elasticsearch::Result_t *)pResult;
     ParseDirectoryGame *parseDirectoryGame = ParseDirectoryGame::getItem(parseDirectoryProcess->parseDirectoryGames, parseDirectoryProcess->parseDirectoryGamesIndex);
-    list<string> nameTokens = parseDirectoryProcess->tokenizeName(parseDirectoryProcess->parseDirectory->getUseMame() ? parseDirectoryGame->getMameName() : parseDirectoryGame->getName());
+    string gameName = parseDirectoryProcess->parseDirectory->getUseMame() ? parseDirectoryGame->getMameName() : parseDirectoryGame->getName();
+    list<string> gameNameTokens = parseDirectoryProcess->tokenizeName(gameName);
     Game *game = NULL;
+    
+    //cout << "ParseDirectoryProcess::" << __FUNCTION__ << " gameName: " << gameName << endl;
     
     typedef struct{
         TheGamesDB::Game *apiGame;
@@ -414,6 +420,8 @@ void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProc
     for(unsigned int index = 0; index < apiGames->size(); index++)
     {
         TheGamesDB::Game *apiGame = TheGamesDB::Game::getItem(apiGames, index);
+    
+        //cout << "ParseDirectoryProcess::" << __FUNCTION__ << " apiGame: " << apiGame->getName() << endl;
         
         gameItems[index].apiGame = apiGame;
         gameItems[index].nameTokens = parseDirectoryProcess->tokenizeName(apiGame->getName());
@@ -422,30 +430,65 @@ void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProc
         
         
         // Checks the number of words that are in both, the game file name and in the api game name
-        for(list<string>::iterator nameToken = nameTokens.begin(); nameToken != nameTokens.end(); nameToken++)
+        if(gameNameTokens.size() > gameItems[index].nameTokens.size())
         {
-            int is = 0;
-            for(list<string>::iterator gameItemNameToken = gameItems[index].nameTokens.begin(); gameItemNameToken != gameItems[index].nameTokens.end(); gameItemNameToken++)
+            for(list<string>::iterator gameNameToken = gameNameTokens.begin(); gameNameToken != gameNameTokens.end(); gameNameToken++)
             {
-                if((*nameToken).compare((*gameItemNameToken)) == 0)
+                int is = 0;
+                for(list<string>::iterator gameItemNameToken = gameItems[index].nameTokens.begin(); gameItemNameToken != gameItems[index].nameTokens.end(); gameItemNameToken++)
                 {
-                    is = 1;
-                    break;
+                    //cout << "ParseDirectoryProcess::" << __FUNCTION__ << " apiGame: " << apiGame->getName() << "    gameNameToken: " << *gameNameToken << "    gameItemNameToken: " << *gameItemNameToken << endl;
+
+                    if((*gameNameToken).compare((*gameItemNameToken)) == 0)
+                    {
+                        is = 1;
+                        break;
+                    }
                 }
-            }
-            
-            if(is)
-            {
-                gameItems[index].coincidences++;
-                if(gameItems[index].coincidences > maxCoincidences)
+
+                if(is)
                 {
-                    maxCoincidences = gameItems[index].coincidences;
+                    gameItems[index].coincidences++;
+                    if(gameItems[index].coincidences > maxCoincidences)
+                    {
+                        maxCoincidences = gameItems[index].coincidences;
+                    }
                 }
-            }
-            else
-            {
-                gameItems[index].notCoincidences++;
+                else
+                {
+                    gameItems[index].notCoincidences++;
+                }
             }            
+        }
+        else
+        {
+            for(list<string>::iterator gameItemNameToken = gameItems[index].nameTokens.begin(); gameItemNameToken != gameItems[index].nameTokens.end(); gameItemNameToken++)            
+            {
+                int is = 0;
+                for(list<string>::iterator gameNameToken = gameNameTokens.begin(); gameNameToken != gameNameTokens.end(); gameNameToken++)
+                {
+                    //cout << "ParseDirectoryProcess::" << __FUNCTION__ << " apiGame: " << apiGame->getName() << "    gameNameToken: " << *gameNameToken << "    gameItemNameToken: " << *gameItemNameToken << endl;
+
+                    if((*gameNameToken).compare((*gameItemNameToken)) == 0)
+                    {
+                        is = 1;
+                        break;
+                    }
+                }
+
+                if(is)
+                {
+                    gameItems[index].coincidences++;
+                    if(gameItems[index].coincidences > maxCoincidences)
+                    {
+                        maxCoincidences = gameItems[index].coincidences;
+                    }
+                }
+                else
+                {
+                    gameItems[index].notCoincidences++;
+                }
+            }
         }
     }
 
@@ -487,6 +530,8 @@ void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProc
             
             if(matches)
             {
+                cout << "ParseDirectoryProcess::" << __FUNCTION__ << " gameName: " << gameName << "     matchGameItem->apiGame->getName(): " << matchGameItem->apiGame->getName()<< endl;
+                
                 game = new Game((int64_t)0);
                 game->setApiId(TheGamesDB::API_ID);
                 game->setApiItemId(matchGameItem->apiGame->getId());
@@ -684,7 +729,7 @@ void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProc
         game->setApiItemId(0);
         game->setPlatformId(parseDirectoryProcess->parseDirectory->getPlatformId());
         game->setTimestamp(Utils::getInstance()->nowIsoDateTime());
-        game->setName(parseDirectoryProcess->parseDirectory->getUseMame() ? parseDirectoryGame->getMameName() : parseDirectoryGame->getName());
+        game->setName(gameName);
         game->setFileName(parseDirectoryGame->getFileName());
 
         sqlite3 *sqlite = Database::getInstance()->acquire();

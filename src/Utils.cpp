@@ -376,33 +376,40 @@ string Utils::nowIsoDateTime()
 
 int Utils::scaleImage(string inFileName, int outWidth, int outHeight, string outFileName)
 {
-    array2d<rgb_pixel> image;
-    load_image(image, inFileName);
-    
-    if(image.size() > 0)
+    try
     {
-        double aspectRatio = 1.0;
-        long width = image.nc();
-        long height = image.nr();
-                
-        if(width > height)
+        array2d<rgb_pixel> image;
+        load_image(image, inFileName);
+
+        if(image.size() > 0)
         {
-            aspectRatio = (double)width / (double)height;
-            outWidth = outHeight * aspectRatio;
-        }
-        else
-        {
-            aspectRatio = (double)height / (double)width;
-            outHeight = outWidth * aspectRatio;
-        }
-        //cout << __FUNCTION__ << " width: " << width << " height: " << height << " aspectRatio: " << aspectRatio << " outWidth: " << outWidth << " outHeight: " << outHeight << endl;
-    
-        array2d<rgb_pixel> resizedImage(outHeight, outWidth);
-        resize_image(image, resizedImage, interpolate_bilinear());
-        save_jpeg(resizedImage, outFileName);
-        //save_png(resizedImage, outFileName);
+            double aspectRatio = 1.0;
+            long width = image.nc();
+            long height = image.nr();
+
+            if(width > height)
+            {
+                aspectRatio = (double)width / (double)height;
+                outWidth = outHeight * aspectRatio;
+            }
+            else
+            {
+                aspectRatio = (double)height / (double)width;
+                outHeight = outWidth * aspectRatio;
+            }
+            //cout << __FUNCTION__ << " width: " << width << " height: " << height << " aspectRatio: " << aspectRatio << " outWidth: " << outWidth << " outHeight: " << outHeight << endl;
+
+            array2d<rgb_pixel> resizedImage(outHeight, outWidth);
+            resize_image(image, resizedImage, interpolate_bilinear());
+            save_jpeg(resizedImage, outFileName);
+            //save_png(resizedImage, outFileName);
+
+            return 0;
+        }        
+    }
+    catch(exception ex)
+    {
         
-        return 0;
     }
     
     return 1;

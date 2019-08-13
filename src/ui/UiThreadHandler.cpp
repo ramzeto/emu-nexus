@@ -115,6 +115,8 @@ int UiThreadHandler::callbackUiThreadReady(void* pResult)
     Result_t *result = (Result_t *)pResult;
     result->uiThreadHandler->callbackInUiThread(result);
     
+    UiThreadHandler::releaseResult(result);
+    
     return G_SOURCE_REMOVE;
 }
 

@@ -147,13 +147,9 @@ int HttpConnector::get()
     if(curlCode == CURLE_OK)
     {        
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpStatus);
-        curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &contentLength);
-        
-        cout << __FUNCTION__ << " httpStatus: " << httpStatus << endl;
+        curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &contentLength);        
     }
-    
-    cout << __FUNCTION__ << " curlCode: " << curlCode << endl;
-    
+        
     if(headerList)
     {
         curl_slist_free_all(headerList);

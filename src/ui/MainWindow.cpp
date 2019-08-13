@@ -119,8 +119,8 @@ MainWindow::MainWindow()
     }
     else
     {
-        GdkScreen *screen = gtk_window_get_screen(GTK_WINDOW(mainWindow));
-        gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER(cssProvider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+        //GdkScreen *screen = gtk_window_get_screen(GTK_WINDOW(mainWindow));
+        //gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER(cssProvider), GTK_STYLE_PROVIDER_PRIORITY_USER);
     }
     
     
@@ -375,7 +375,7 @@ void MainWindow::updatePlatform(int64_t platformId)
             }
             else
             {
-                gtk_image_clear(image);
+                UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageLogo(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
             }
             
             delete platform;
@@ -581,11 +581,15 @@ void MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
         }        
         else if(status->serialProcess->getType().compare(ParseDirectoryProcess::TYPE) == 0)
         {
-            ParseDirectory *parseDirectory = ((ParseDirectoryProcess *)status->serialProcess)->getParseDirectory();
-            if(parseDirectory && parseDirectory->getPlatformId() == mainWindow->selectedPlatformId)
+            if(status->serialProcess->getStatus() == SerialProcess::STATUS_SUCCESS)
             {
-                mainWindow->updatePlatform(parseDirectory->getPlatformId());
-                mainWindow->selectPlatform(parseDirectory->getPlatformId());
+                ParseDirectory *parseDirectory = ((ParseDirectoryProcess *)status->serialProcess)->getParseDirectory();
+                if(parseDirectory && parseDirectory->getPlatformId() == mainWindow->selectedPlatformId)
+                {
+                    cout << "MainWindow::" << __FUNCTION__ << " parseDirectory->getPlatformId() << " << parseDirectory->getPlatformId() << endl;
+                    mainWindow->updatePlatform(parseDirectory->getPlatformId());
+                    ((PlatformPanel *)mainWindow->currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(mainWindow->gameSearchEntry))));
+                }
             }
             
             // Schedules a process for downloading images
@@ -595,8 +599,6 @@ void MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
         
         delete status->serialProcess;                
     }
-    
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 
 void MainWindow::notificationReceived(string notification, void* mainWindow, void* notificationData)

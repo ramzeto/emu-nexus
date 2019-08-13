@@ -46,7 +46,7 @@ public:
     /**
      * 
      * @param requesterInUiThread Pointer to the object that requested the operation in the UI thread.
-     * @param callbackInUiThread Pointer to the callback that will receive the result from the operation. Receives a pointer to a Result_t structure. The requester in the UI thread is responsible to free this pointer by calling UiThreadHandler::releaseResult.
+     * @param callbackInUiThread Pointer to the callback that will receive the result from the operation. Receives a pointer to a Result_t structure. This pointer will be freed automatically (If it contains complex objects, those should be freed by the requester).
      */
     UiThreadHandler(void *requesterInUiThread, void (*callbackInUiThread)(void *));
     
@@ -59,12 +59,7 @@ public:
     void *getRequesterInUiThread();
 
     
-    /**
-     * Deletes the Result_t from the operation. The Result_t->data pointer will be freed automatically. If it contains pointers to dynamically allocated objects, this should be freed by the requester. This method IS REQUIRED to be called immediately after the requester uses the data to allow the next data (if available) to be processed.
-     */
-    static void releaseResult(Result_t *result);
-        
-    
+           
     
     /**
      * Callback that should be called by the background thread. This function will execute the uiThreadHandler->callback in the UI thread.
@@ -83,6 +78,11 @@ private:
     
     void pushData(void *data);
     void postToUiThread();
+    
+    /**
+     * Deletes the Result_t from the operation. The Result_t->data pointer will be freed automatically. If it contains pointers to dynamically allocated objects, this should be freed by the requester..
+     */
+    static void releaseResult(Result_t *result);
     
     static int callbackUiThreadReady(void *pResult);        
 };

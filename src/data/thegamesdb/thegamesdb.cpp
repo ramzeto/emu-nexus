@@ -38,8 +38,7 @@
 TheGamesDB::Elasticsearch *TheGamesDB::Elasticsearch::instance = NULL;
 
 const string TheGamesDB::Elasticsearch::URL = "http://localhost";
-const int TheGamesDB::Elasticsearch::WAIT_TIME_FOR_ENGINE_START = 20;
-const int TheGamesDB::Elasticsearch::WAIT_TIME_FOR_ENGINE_REQUEST = 5;
+const int TheGamesDB::Elasticsearch::WAIT_TIME_ELASTICSEARCH = 10;
 const int TheGamesDB::Elasticsearch::REQUEST_MAX_RETRIES = 5;
 const int TheGamesDB::Elasticsearch::REQUEST_TIME_TO_RETRY = 1;
 const int TheGamesDB::Elasticsearch::STATUS_OK = 0;
@@ -191,36 +190,51 @@ void *TheGamesDB::Elasticsearch::processWorker(void *requesterRef)
 }
 
 void *TheGamesDB::Elasticsearch::processStartListenerWorker(void *requesterRef)
-{         
-    string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort());
-    
+{
+    string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort());    
     cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " url: " << url << endl;
-    
-    int error = 1;
-    json_t *jsonResponse = NULL;
-    sleep(WAIT_TIME_FOR_ENGINE_START);        
-    HttpConnector *httpConnector = new HttpConnector(url);
-    int httpStatus = httpConnector->get();
 
-    if(httpStatus == HttpConnector::HTTP_OK)
+    json_t *jsonResponse = NULL;
+    int maxTries = 10;
+    int error = 1;
+    int tries = 0;
+    while(error)
     {
-        json_error_t jsonError;
-        jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
-        if(!jsonResponse)
+        sleep(WAIT_TIME_ELASTICSEARCH); 
+                
+        HttpConnector *httpConnector = new HttpConnector(url);
+        int httpStatus = httpConnector->get();
+
+        if(httpStatus == HttpConnector::HTTP_OK)
         {
-            cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonError: " << jsonError.text << endl;
+            json_error_t jsonError;
+            jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
+            if(!jsonResponse)
+            {
+                cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonError: " << jsonError.text << endl;
+            }
+            else
+            {            
+                char *jsonDump = json_dumps(jsonResponse, 0);
+                cout << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonResponse: " << jsonDump << endl;
+                free(jsonDump);
+
+                error = 0;
+            }                   
         }
-        else
-        {            
-            char *jsonDump = json_dumps(jsonResponse, 0);
-            cout << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonResponse: " << jsonDump << endl;
-            free(jsonDump);
+        delete httpConnector;
+        
+        if(error)
+        {
+            tries++;
             
-            error = 0;
+            if(tries > maxTries)
+            {
+                break;
+            }
         }
-        sleep(WAIT_TIME_FOR_ENGINE_REQUEST);        
     }
-    delete httpConnector;
+
     
     if(!error)
     {

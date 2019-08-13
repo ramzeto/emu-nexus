@@ -372,7 +372,5 @@ void HomePanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
         }
     }
     homePanel->launchDialog->setStatus(activity, message);
-    
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 

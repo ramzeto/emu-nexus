@@ -264,6 +264,11 @@ void PlatformPanel::loadGridPage()
 
 void PlatformPanel::updateGame(int64_t gameId)
 {
+    if(games == NULL)
+    {
+        return;
+    }
+    
     Game *game = NULL;
     for(unsigned int c = 0; c < games->size(); c++)
     {
@@ -494,18 +499,23 @@ gint PlatformPanel::callbackFirstShowHackyTimeout(gpointer platformPanel)
 
 void PlatformPanel::notificationReceived(string notification, void* platformPanel, void* notificationData)
 {
-    if(((PlatformPanel *)platformPanel)->closed)
+    try
     {
-        return;
+        if(((PlatformPanel *)platformPanel)->closed)
+        {
+            return;
+        }
+
+        if(notification.compare(NOTIFICATION_GAME_UPDATED) == 0)
+        {
+            Game *game = (Game *)notificationData;
+            ((PlatformPanel *)platformPanel)->updateGame(game->getId());
+        }
     }
-    
-    if(notification.compare(NOTIFICATION_GAME_UPDATED) == 0)
-    {        
-        Game *game = (Game *)notificationData;
+    catch(exception ex)
+    {
         
-        cout << "PlatformPanel::" <<  __FUNCTION__ << " game: " << game->getId() << endl; 
-        ((PlatformPanel *)platformPanel)->updateGame(game->getId());
-    }    
+    }
 }
 
 void PlatformPanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
@@ -565,6 +575,4 @@ void PlatformPanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
         }
     }
     platformPanel->launchDialog->setStatus(activity, message);
-    
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }

@@ -212,8 +212,6 @@ void FirstSetupPanel::callbackElasticsearchProcessListener(gpointer pUiThreadHan
     {
         firstSetupPanel->startDatabaseFinished(0);
     }
-
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 
 void FirstSetupPanel::callbackElasticsearchGenres(gpointer pUiThreadHandlerResult)
@@ -261,7 +259,6 @@ void FirstSetupPanel::callbackElasticsearchGenres(gpointer pUiThreadHandlerResul
     
     
     TheGamesDB::Genre::releaseItems(apiGenres);
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 
 void FirstSetupPanel::callbackElasticsearchDevelopers(gpointer pUiThreadHandlerResult)
@@ -309,7 +306,6 @@ void FirstSetupPanel::callbackElasticsearchDevelopers(gpointer pUiThreadHandlerR
     
       
     TheGamesDB::Developer::releaseItems(apiDevelopers);
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 
 void FirstSetupPanel::callbackElasticsearchPublishers(gpointer pUiThreadHandlerResult)
@@ -357,7 +353,6 @@ void FirstSetupPanel::callbackElasticsearchPublishers(gpointer pUiThreadHandlerR
     
    
     TheGamesDB::Publisher::releaseItems(apiPublishers);
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 
 void FirstSetupPanel::callbackElasticsearchEsrbRatings(gpointer pUiThreadHandlerResult)
@@ -397,5 +392,4 @@ void FirstSetupPanel::callbackElasticsearchEsrbRatings(gpointer pUiThreadHandler
        
 
     TheGamesDB::EsrbRating::releaseItems(apiEsrbRatings);
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }

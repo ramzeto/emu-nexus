@@ -248,6 +248,10 @@ void GameDetailWidget::updateGameImageGrid()
                 {
                     UiUtils::getInstance()->loadImage(image, gameImage->getThumbnailFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
                 }
+                else if(Utils::getInstance()->fileExists(gameImage->getFileName()))
+                {
+                    UiUtils::getInstance()->loadImage(image, gameImage->getFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
+                }
                 else
                 {
                     UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageDownloading(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);

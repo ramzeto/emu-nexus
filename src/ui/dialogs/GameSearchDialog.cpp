@@ -121,9 +121,6 @@ void GameSearchDialog::callbackElasticsearchGames(gpointer pUiThreadHandlerResul
     TheGamesDB::Elasticsearch::Result_t *dbResult = (TheGamesDB::Elasticsearch::Result_t *)uiThreadHandlerResult->data;    
     gameSearchDialog->apiGames = (list<TheGamesDB::Game *> *)dbResult->data;
     gameSearchDialog->updateList();
-    
-    
-    UiThreadHandler::releaseResult(uiThreadHandlerResult);
 }
 
 void GameSearchDialog::signalListRowSelected (GtkListBox *listBox, GtkWidget *row, gpointer dialog)
