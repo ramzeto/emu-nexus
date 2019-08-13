@@ -40,8 +40,8 @@
 
 const int PlatformDialog::THUMBNAIL_IMAGE_WIDTH = 90;
 const int PlatformDialog::THUMBNAIL_IMAGE_HEIGHT = 90;
-const int PlatformDialog::IMAGE_WIDTH = 300;
-const int PlatformDialog::IMAGE_HEIGHT = 300;
+const int PlatformDialog::IMAGE_WIDTH = 200;
+const int PlatformDialog::IMAGE_HEIGHT = 200;
 
 PlatformDialog::PlatformDialog(int64_t platformId) : Dialog("PlatformDialog.ui", "platformDialog")
 {
@@ -67,11 +67,6 @@ PlatformDialog::PlatformDialog(int64_t platformId) : Dialog("PlatformDialog.ui",
     
     nameEntry = (GtkEntry *)gtk_builder_get_object (builder, "nameEntry");
     gtk_entry_set_text(nameEntry, platform->getName().c_str());
-    
-    descriptionTextView = (GtkTextView *)gtk_builder_get_object (builder, "descriptionTextView");
-    GtkTextBuffer *descriptionTextBuffer = gtk_text_buffer_new(NULL);
-    gtk_text_buffer_set_text(descriptionTextBuffer, platform->getDescription().c_str(), platform->getDescription().length());
-    gtk_text_view_set_buffer(descriptionTextView, descriptionTextBuffer);        
     
     commandEntry = (GtkEntry *)gtk_builder_get_object (builder, "commandEntry");
     gtk_entry_set_text(commandEntry, platform->getCommand().c_str());   
@@ -591,10 +586,7 @@ void PlatformDialog::save()
     }
     
     platform->setName(name);
-    
-    GtkTextIter start, end;
-    gtk_text_buffer_get_bounds(gtk_text_view_get_buffer(descriptionTextView), &start, &end);    
-    platform->setDescription(string(gtk_text_buffer_get_text (gtk_text_view_get_buffer(descriptionTextView), &start, &end, FALSE)));
+    platform->setDescription("");
 
     platform->setCommand(string(gtk_entry_get_text(commandEntry)));
     platform->setDeflate(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(deflateCheckButton)));

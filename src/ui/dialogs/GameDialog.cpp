@@ -45,7 +45,7 @@
 const int GameDialog::THUMBNAIL_IMAGE_WIDTH = 90;
 const int GameDialog::THUMBNAIL_IMAGE_HEIGHT = 90;
 const int GameDialog::IMAGE_WIDTH = 300;
-const int GameDialog::IMAGE_HEIGHT = 500;
+const int GameDialog::IMAGE_HEIGHT = 400;
 
 GameDialog::GameDialog(int64_t platformId, int64_t gameId) : Dialog("GameDialog.ui", "gameDialog")
 {

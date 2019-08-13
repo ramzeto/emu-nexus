@@ -56,6 +56,11 @@ ElasticsearchProcess::~ElasticsearchProcess()
 int ElasticsearchProcess::execute()
 {
     status = STATUS_RUNNING;
+    
+    // @TODO Find a more elegant way to do this. Kills the elasticseach process in case it is running.
+    system("pkill -9 elasticsearch");
+    sleep(1);
+    
     postStatus(string("Downloading database"));
     
     HttpConnector *md5HttpConnector = new HttpConnector(URL_MD5);

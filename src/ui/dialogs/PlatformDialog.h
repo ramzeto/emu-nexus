@@ -75,7 +75,6 @@ private:
     
     GtkComboBox *apiPlatformComboBox;
     GtkEntry *nameEntry;
-    GtkTextView *descriptionTextView;
     GtkEntry *commandEntry;
     GtkCheckButton *deflateCheckButton;
     GtkEntry *deflateFileExtensionsEntry;

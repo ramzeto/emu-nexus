@@ -36,6 +36,28 @@ box button:active{
     border: #5e6e87;
 }
 
+headerbar button{
+    background: #252930;
+    border: #252930;
+}
+
+headerbar button:active{
+    background: #5e6e87;
+    border: #5e6e87;
+}
+
+headerbar button label{
+    color: white;
+}
+
+headerbar label{
+    color: #5e6e87;
+}
+
+/*headerbar{
+    background: black;
+}*/
+
 entry{
     background: #252a30;
     border: #252a30;
@@ -43,7 +65,7 @@ entry{
 }
 
 textview{
-    background: #252a30;
+    background-color: #252a30;
     border: #252a30;
     color: white;
     padding: 5px;
@@ -70,12 +92,19 @@ list row:hover{
     background-color: #475366;
 }
 
+notebook{
+    background-color: #353b44;
+    border-color: #353b44;
+}
+
 notebook stack{
-    border-color: transparent;
+    border-color: #353b44;
+    background-color: #353b44;
 }
 
 notebook header{
-    border-color: transparent;
+    border-color: #353b44;
+    background-color: #353b44;
 }
 
 notebook tab{
@@ -152,4 +181,17 @@ list#SearchableListDialog_listBox row:hover{
 
 box#homeBox{
     background-color: #252a30;
+}
+
+spinner {
+    color: #5e6e87;
+}
+
+progressbar {
+    color: #5e6e87;
+}
+
+menu{
+    background: #252930;
+    color: white;
 }

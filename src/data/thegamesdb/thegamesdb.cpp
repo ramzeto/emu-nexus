@@ -38,7 +38,7 @@
 TheGamesDB::Elasticsearch *TheGamesDB::Elasticsearch::instance = NULL;
 
 const string TheGamesDB::Elasticsearch::URL = "http://localhost";
-const int TheGamesDB::Elasticsearch::WAIT_TIME_FOR_ENGINE_START = 10;
+const int TheGamesDB::Elasticsearch::WAIT_TIME_FOR_ENGINE_START = 20;
 const int TheGamesDB::Elasticsearch::WAIT_TIME_FOR_ENGINE_REQUEST = 5;
 const int TheGamesDB::Elasticsearch::REQUEST_MAX_RETRIES = 5;
 const int TheGamesDB::Elasticsearch::REQUEST_TIME_TO_RETRY = 1;
