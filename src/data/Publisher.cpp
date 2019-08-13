@@ -25,7 +25,7 @@
 #include "Publisher.h"
 #include <iostream>
 
-const unsigned int Publisher::BULK_INSERT_BATCH_SIZE = 500;
+const unsigned int Publisher::BULK_INSERT_BATCH_SIZE = 100;
 
 Publisher::Publisher()
 {

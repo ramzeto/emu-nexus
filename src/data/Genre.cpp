@@ -25,7 +25,7 @@
 #include "Genre.h"
 #include <iostream>
 
-const unsigned int Genre::BULK_INSERT_BATCH_SIZE = 500;
+const unsigned int Genre::BULK_INSERT_BATCH_SIZE = 100;
 
 Genre::Genre()
 {
