@@ -36,6 +36,7 @@ using namespace std;
 class Genre
 {
 private:
+        static const unsigned int BULK_INSERT_BATCH_SIZE;
 	int64_t id;
 	string name;
 	int64_t apiId;

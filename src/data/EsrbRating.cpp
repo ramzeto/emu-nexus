@@ -25,6 +25,8 @@
 #include "EsrbRating.h"
 #include <iostream>
 
+const unsigned int EsrbRating::BULK_INSERT_BATCH_SIZE = 500;
+
 EsrbRating::EsrbRating()
 {
 }
@@ -266,36 +268,68 @@ json_t *EsrbRating::toJsonArray(list<EsrbRating *> *items)
 
 int EsrbRating::bulkInsert(sqlite3 *sqlite, list<EsrbRating*>* items)
 {
-    string insert = "insert into EsrbRating (name, apiId, apiItemId) values ";
-    string separator = "";
-    for(unsigned int index = 0; index < items->size(); index++)
-    {        
-        insert += separator + "(?, ?, ?)";
-        separator = ",";
-    }
- 
     int result = 1;
-    sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+    
+    if(items->size() > BULK_INSERT_BATCH_SIZE)
     {
-        int valueIndex = 1;
+        list<EsrbRating *> *batchItems = new list<EsrbRating *>;
         for(unsigned int index = 0; index < items->size(); index++)
         {
             EsrbRating *item = EsrbRating::getItem(items, index);
-            
-            sqlite3_bind_text(statement, valueIndex++, item->name.c_str(), item->name.length(), NULL);
-            sqlite3_bind_int64(statement, valueIndex++, (sqlite3_int64)item->apiId);
-            sqlite3_bind_int64(statement, valueIndex++, (sqlite3_int64)item->apiItemId);            
+        
+            batchItems->push_back(item);
+            if(batchItems->size() == BULK_INSERT_BATCH_SIZE)
+            {
+                result = EsrbRating::bulkInsert(sqlite, batchItems);                
+                batchItems->clear();
+                
+                if(result)
+                {
+                    break;
+                }
+            }
         }
-
-        result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
+        if(!result && batchItems->size() > 0)
+        {
+            result = EsrbRating::bulkInsert(sqlite, batchItems);
+        }
+        
+        delete batchItems;
+                
+        return result;
     }
     else
     {
-        cerr << "EsrbRating::" << __FUNCTION__ << " sqlite3_errmsg: " << sqlite3_errmsg(sqlite) << endl;
-    }
+        string insert = "insert into EsrbRating (name, apiId, apiItemId) values ";
+        string separator = "";
+        for(unsigned int index = 0; index < items->size(); index++)
+        {        
+            insert += separator + "(?, ?, ?)";
+            separator = ",";
+        }
 
-    sqlite3_finalize(statement);    
+        sqlite3_stmt *statement;
+        if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+        {
+            int valueIndex = 1;
+            for(unsigned int index = 0; index < items->size(); index++)
+            {
+                EsrbRating *item = EsrbRating::getItem(items, index);
+
+                sqlite3_bind_text(statement, valueIndex++, item->name.c_str(), item->name.length(), NULL);
+                sqlite3_bind_int64(statement, valueIndex++, (sqlite3_int64)item->apiId);
+                sqlite3_bind_int64(statement, valueIndex++, (sqlite3_int64)item->apiItemId);            
+            }
+
+            result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
+        }
+        else
+        {
+            cerr << "EsrbRating::" << __FUNCTION__ << " sqlite3_errmsg: " << sqlite3_errmsg(sqlite) << endl;
+        }
+
+        sqlite3_finalize(statement);
+    }
     
     return result;
 }

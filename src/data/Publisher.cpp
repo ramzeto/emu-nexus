@@ -25,6 +25,8 @@
 #include "Publisher.h"
 #include <iostream>
 
+const unsigned int Publisher::BULK_INSERT_BATCH_SIZE = 500;
+
 Publisher::Publisher()
 {
 }
@@ -298,36 +300,68 @@ Publisher* Publisher::getPublisher(sqlite3* sqlite, int64_t apiId, int64_t apiIt
 
 int Publisher::bulkInsert(sqlite3 *sqlite, list<Publisher*>* items)
 {
-    string insert = "insert into Publisher (name, apiId, apiItemId) values ";
-    string separator = "";
-    for(unsigned int index = 0; index < items->size(); index++)
-    {        
-        insert += separator + "(?, ?, ?)";
-        separator = ",";
-    }
- 
     int result = 1;
-    sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+    
+    if(items->size() > BULK_INSERT_BATCH_SIZE)
     {
-        int valueIndex = 1;
+        list<Publisher *> *batchItems = new list<Publisher *>;
         for(unsigned int index = 0; index < items->size(); index++)
         {
             Publisher *item = Publisher::getItem(items, index);
-            
-            sqlite3_bind_text(statement, valueIndex++, item->name.c_str(), item->name.length(), NULL);
-            sqlite3_bind_int64(statement, valueIndex++, (sqlite3_int64)item->apiId);
-            sqlite3_bind_int64(statement, valueIndex++, (sqlite3_int64)item->apiItemId);            
+        
+            batchItems->push_back(item);
+            if(batchItems->size() == BULK_INSERT_BATCH_SIZE)
+            {
+                result = Publisher::bulkInsert(sqlite, batchItems);                
+                batchItems->clear();
+                
+                if(result)
+                {
+                    break;
+                }
+            }
         }
-
-        result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
+        if(!result && batchItems->size() > 0)
+        {
+            result = Publisher::bulkInsert(sqlite, batchItems);
+        }
+        
+        delete batchItems;
+                
+        return result;
     }
     else
     {
-        cerr << "Publisher::" << __FUNCTION__ << " sqlite3_errmsg: " << sqlite3_errmsg(sqlite) << endl;
-    }
+        string insert = "insert into Publisher (name, apiId, apiItemId) values ";
+        string separator = "";
+        for(unsigned int index = 0; index < items->size(); index++)
+        {        
+            insert += separator + "(?, ?, ?)";
+            separator = ",";
+        }
 
-    sqlite3_finalize(statement);    
+        sqlite3_stmt *statement;
+        if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+        {
+            int valueIndex = 1;
+            for(unsigned int index = 0; index < items->size(); index++)
+            {
+                Publisher *item = Publisher::getItem(items, index);
+
+                sqlite3_bind_text(statement, valueIndex++, item->name.c_str(), item->name.length(), NULL);
+                sqlite3_bind_int64(statement, valueIndex++, (sqlite3_int64)item->apiId);
+                sqlite3_bind_int64(statement, valueIndex++, (sqlite3_int64)item->apiItemId);            
+            }
+
+            result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
+        }
+        else
+        {
+            cerr << "Publisher::" << __FUNCTION__ << " sqlite3_errmsg: " << sqlite3_errmsg(sqlite) << endl;
+        }
+
+        sqlite3_finalize(statement);
+    }
     
     return result;
 }
