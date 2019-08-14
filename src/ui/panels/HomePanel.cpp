@@ -85,6 +85,7 @@ void HomePanel::loadRecentsGrid()
     
     cout << "HomePanel::" << __FUNCTION__ << endl;
     
+    gameGridItems->clear();
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(recentsGridBox), 1);
     
     
@@ -223,11 +224,15 @@ void HomePanel::updateGame(int64_t gameId)
 }
 
 void HomePanel::selectGame(int64_t gameId)
-{    
+{
+    cout << "HomePanel::" << __FUNCTION__ << " A gameId: " << gameId << " selectedGameId: " << selectedGameId << endl;
+    
     if(selectedGameId)
     {
         if(gameGridItems->find(selectedGameId) != gameGridItems->end())
         {
+            cout << "HomePanel::" << __FUNCTION__ << " AA gameId: " << gameId << " selectedGameId: " << selectedGameId << endl;
+
             GtkWidget *gameGridItemBox = gameGridItems->at(selectedGameId);
             gtk_widget_set_state_flags(gameGridItemBox, GTK_STATE_FLAG_NORMAL, 1);
         }
@@ -236,8 +241,12 @@ void HomePanel::selectGame(int64_t gameId)
     selectedGameId = gameId;
     if(selectedGameId)
     {
+        cout << "HomePanel::" << __FUNCTION__ << " B gameId: " << gameId << " selectedGameId: " << selectedGameId << endl;
+
         if(gameGridItems->find(selectedGameId) != gameGridItems->end())
         {
+            cout << "HomePanel::" << __FUNCTION__ << " BB gameId: " << gameId << " selectedGameId: " << selectedGameId << endl;
+
             GtkWidget *gameGridItemBox = gameGridItems->at(selectedGameId);
             gtk_widget_set_state_flags(gameGridItemBox, GTK_STATE_FLAG_SELECTED, 1);        
         }        
