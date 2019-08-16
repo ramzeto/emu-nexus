@@ -75,6 +75,11 @@ int ElasticsearchProcess::execute()
         int isCurrentVersion = apiDatabase->load(sqlite);
         Database::getInstance()->release();
         
+        if(!Utils::getInstance()->directoryExists(Directory::getInstance()->getElasticseachDirectory()))
+        {
+            isCurrentVersion = 0;
+        }
+        
         if(!isCurrentVersion)
         {
             HttpConnector *downloadHttpConnector = new HttpConnector(URL_DOWNLOAD);
@@ -155,6 +160,8 @@ int ElasticsearchProcess::execute()
                     unlink(tarFileName.c_str());*/
                     
                     postStatus(string("Extracting database"));
+                    Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
+                    
                     FileExtractor *fileExtractor = new FileExtractor(targzFileName);
                     if(!fileExtractor->extract(Directory::getInstance()->getDataDirectory()))
                     {
@@ -199,7 +206,8 @@ void ElasticsearchProcess::callbackElasticsearchListener(void *pElasticsearchPro
     }
     else
     {
-        elasticsearchProcess->status = STATUS_FAIL;        
+        elasticsearchProcess->status = STATUS_FAIL;
+        Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
     }    
     delete result;
     

@@ -241,7 +241,7 @@ void *TheGamesDB::Elasticsearch::processStartListenerWorker(void *requesterRef)
         Elasticsearch::instance->status = STATUS_OK;
     }
     else
-    {
+    {        
         Elasticsearch::instance->status = STATUS_STOPPED;
     }
     
@@ -619,8 +619,14 @@ void *TheGamesDB::Elasticsearch::getGamesWorker(void *requesterRef)
 {
     int64_t apiPlatformId = ((RequesterRef_t *)requesterRef)->apiPlatformId;
     string query = ((RequesterRef_t *)requesterRef)->query;
+    query = Utils::getInstance()->strReplace(query, "!", " ");
+    query = Utils::getInstance()->strReplace(query, "?", " ");
+    query = Utils::getInstance()->strReplace(query, "/", " ");
+    query = Utils::getInstance()->strReplace(query, ":", " ");
+
+    
     int error = 0;
-    list<TheGamesDB::Game *> *games = new list<TheGamesDB::Game *>;    
+    list<TheGamesDB::Game *> *games = new list<TheGamesDB::Game *>;
     string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/platform" + to_string(apiPlatformId) + "/_search?q=name:" + Utils::getInstance()->urlEncode(query) + "&from=0&size=20";
 
     cout << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " url: " << url << endl;

@@ -408,6 +408,7 @@ void MainWindow::selectPlatform(int64_t platformId)
     gtk_widget_show(GTK_WIDGET(gameSearchEntry));
     
     showPanel(new PlatformPanel(selectedPlatformId));
+    ((PlatformPanel *)currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(gameSearchEntry))));
 }
 
 void MainWindow::removePlatform(int64_t platformId)
@@ -578,17 +579,27 @@ void MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
                 ParseDirectoryProcess *parseDirectoryProcess = new ParseDirectoryProcess(((MainWindow *)mainWindow)->processUiThreadHandler, UiThreadHandler::callback);
                 SerialProcessExecutor::getInstance()->schedule(parseDirectoryProcess);
             }
+            else
+            {
+                MessageDialog *messageDialog = new MessageDialog("Database failed to start. Please restart EMU-nexus", "Ok", "");   
+                messageDialog->execute();
+                delete messageDialog;
+            }
         }        
         else if(status->serialProcess->getType().compare(ParseDirectoryProcess::TYPE) == 0)
         {
             if(status->serialProcess->getStatus() == SerialProcess::STATUS_SUCCESS)
             {
                 ParseDirectory *parseDirectory = ((ParseDirectoryProcess *)status->serialProcess)->getParseDirectory();
-                if(parseDirectory && parseDirectory->getPlatformId() == mainWindow->selectedPlatformId)
+                if(parseDirectory)
                 {
                     cout << "MainWindow::" << __FUNCTION__ << " parseDirectory->getPlatformId() << " << parseDirectory->getPlatformId() << endl;
                     mainWindow->updatePlatform(parseDirectory->getPlatformId());
-                    ((PlatformPanel *)mainWindow->currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(mainWindow->gameSearchEntry))));
+                    
+                    if(parseDirectory->getPlatformId() == mainWindow->selectedPlatformId)
+                    {                                        
+                        ((PlatformPanel *)mainWindow->currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(mainWindow->gameSearchEntry))));
+                    }
                 }
             }
             

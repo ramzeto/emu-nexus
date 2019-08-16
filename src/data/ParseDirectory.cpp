@@ -438,7 +438,7 @@ json_t *ParseDirectory::toJson()
 ParseDirectory* ParseDirectory::getPengingItem(sqlite3* sqlite)
 {
     ParseDirectory *item = NULL;
-    string query = "select id, platformId, timestamp, start, end, directory, fileExtensions, useMame, mame, boxFrontImagesDirectory, boxBackImagesDirectory, screenshotImagesDirectory, logoImagesDirectory, bannerImagesDirectory from ParseDirectory where end = '' order by timestamp desc limit 1";
+    string query = "select id, platformId, timestamp, start, end, directory, fileExtensions, useMame, mame, boxFrontImagesDirectory, boxBackImagesDirectory, screenshotImagesDirectory, logoImagesDirectory, bannerImagesDirectory from ParseDirectory where end = '' order by timestamp limit 1";
     sqlite3_stmt *statement;
     if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {

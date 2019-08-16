@@ -42,9 +42,15 @@ public:
      * @param fileName Compressed and/or packed file name to extract.
      */
     FileExtractor(string fileName);
-    
-    
+        
     virtual ~FileExtractor();
+    
+    /**
+     * 
+     * @param progressListener Object that will receive the progress updates.
+     * @param progressListenerCallback Pointer to a callback function that will be executed when a progress update happens. The function receives this parameters (pointer to the progressListener, pointer to the FileExtractor object, fileSize, progressBytes)
+     */
+    void setProgressListener(void *progressListener, void (*progressListenerCallback)(void*, FileExtractor*, size_t, size_t));
     
     /**
      * Extracts to a desired directory.
@@ -55,6 +61,11 @@ public:
     
 private:
     string fileName;
+    size_t fileSize;
+    size_t progressBytes;
+    void *progressListener;
+    void (*progressListenerCallback)(void *, FileExtractor *, size_t, size_t);
+    
     int copyData(struct archive *ar, struct archive *aw);
 };
 

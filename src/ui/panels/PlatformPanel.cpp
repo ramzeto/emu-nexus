@@ -574,5 +574,5 @@ void PlatformPanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
             message = "Execution finished";
         }
     }
-    platformPanel->launchDialog->setStatus(activity, message);
+    platformPanel->launchDialog->setStatus(activity, message, gameLauncherStatus->progress);
 }

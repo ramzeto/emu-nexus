@@ -23,6 +23,7 @@
  */
 
 #include "FileExtractor.h"
+#include "Utils.h"
 
 #include <iostream>
 
@@ -30,14 +31,28 @@
 FileExtractor::FileExtractor(string fileName)
 {
     this->fileName = fileName;
+    fileSize = Utils::getInstance()->getFileSize(fileName);
+    progressBytes = 0;
+    
+    progressListener = NULL;
+    progressListenerCallback = NULL;
 }
 
 FileExtractor::~FileExtractor()
 {
 }
 
+void FileExtractor::setProgressListener(void* progressListener, void(*progressListenerCallback)(void*, FileExtractor*, size_t, size_t))
+{
+    this->progressListener = progressListener;
+    this->progressListenerCallback = progressListenerCallback;
+}
+
+
 int FileExtractor::extract(string directory)
 {
+    progressBytes = 0;
+    
     struct archive *a;
     struct archive *ext;
     struct archive_entry *entry;
@@ -116,6 +131,12 @@ int FileExtractor::copyData(archive* ar, archive* aw)
                 cerr << "FileExtractor::" << __FUNCTION__ << " " << archive_error_string(aw) << endl;
                 return (r);
             }
+            
+            progressBytes += size;
+            if(progressListener && progressListenerCallback)
+            {
+                progressListenerCallback(progressListener, this, fileSize * 2 /*Uncompressed size aprox.*/, progressBytes);                
+            }            
     }
 }
 

@@ -28,7 +28,6 @@
 #include "Database.h"
 #include "CacheGame.h"
 #include "Utils.h"
-#include "FileExtractor.h"
 #include "RecentGame.h"
 #include "Preferences.h"
 
@@ -201,6 +200,7 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
             instance->postStatus(gameLauncherData, error, STATE_INFLATING, -1);
             
             FileExtractor *fileExtractor = new FileExtractor(game->getFileName());
+            fileExtractor->setProgressListener(gameLauncherData, fileExtractorProgressListenerCallback);
             if(fileExtractor->extract(cacheGame->getDirectory()))
             {
                error = ERROR_INFLATE_NOT_SUPPORTED; 
@@ -333,4 +333,9 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
     
     return NULL;
 }
- 
+
+void GameLauncher::fileExtractorProgressListenerCallback(void* pGameLauncherData, FileExtractor* fileExtractor, size_t fileSize, size_t progressBytes)
+{
+    //cout << "GameLauncher::" << __FUNCTION__ << " progressBytes: " << progressBytes << " fileSize: " << fileSize << endl;
+    instance->postStatus((GameLauncherData_t *)pGameLauncherData, 0, STATE_INFLATING, ((double) progressBytes / (double)fileSize) * 100.0);
+}

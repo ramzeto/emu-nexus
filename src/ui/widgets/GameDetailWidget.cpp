@@ -49,6 +49,7 @@ const int GameDetailWidget::WIDGET_WIDTH = 400;
 GameDetailWidget::GameDetailWidget(int64_t gameId) : Widget("GameDetailWidget.ui", "gameDetailBox")
 {
     nameLabel = (GtkLabel *)gtk_builder_get_object (builder, "nameLabel");
+    fileNameLabel = (GtkLabel *)gtk_builder_get_object (builder, "fileNameLabel");
     platformLabel = (GtkLabel *)gtk_builder_get_object (builder, "platformLabel");
     imageBox = (GtkEventBox *)gtk_builder_get_object (builder, "imageBox");
     image = (GtkImage *)gtk_builder_get_object (builder, "image");
@@ -85,6 +86,7 @@ GameDetailWidget::GameDetailWidget(int64_t gameId) : Widget("GameDetailWidget.ui
     
     
     gtk_label_set_text(nameLabel, game->getName().c_str());
+    gtk_label_set_text(fileNameLabel, Utils::getInstance()->getFileBasename(game->getFileName()).c_str());
     gtk_label_set_text(imageTypeLabel, "");
     
     gtk_label_set_text(platformLabel, platform->getName().c_str());

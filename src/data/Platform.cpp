@@ -465,7 +465,7 @@ list<Platform *> *Platform::getItems(sqlite3 *sqlite)
 {
 	list<Platform *> *items = new list<Platform *>;
 
-	string query = "select id, name, description, command, deflate, deflateFileExtensions, apiId, apiItemId from Platform";
+	string query = "select id, name, description, command, deflate, deflateFileExtensions, apiId, apiItemId from Platform order by name";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{

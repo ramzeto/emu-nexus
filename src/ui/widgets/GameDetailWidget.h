@@ -79,6 +79,7 @@ private:
 
     
     GtkLabel *nameLabel;
+    GtkLabel *fileNameLabel;
     GtkLabel *platformLabel;
     GtkEventBox *imageBox;
     GtkImage *image;

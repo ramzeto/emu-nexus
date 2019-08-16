@@ -37,11 +37,12 @@ public:
     LaunchDialog(int64_t gameId);
     virtual ~LaunchDialog();
     
-    void setStatus(int activity, string message);
+    void setStatus(int activity, string message, int progress);
     
 private:
     GtkSpinner *spinner;
     GtkLabel *messageLabel;
+    GtkProgressBar *progressBar;
     GtkButton *closeButton;
     
     void close();

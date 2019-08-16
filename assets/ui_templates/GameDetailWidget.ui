@@ -33,17 +33,10 @@
       </packing>
     </child>
     <child>
-      <object class="GtkLabel" id="platformLabel">
+      <object class="GtkLabel" id="fileNameLabel">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
-        <property name="margin_bottom">10</property>
         <property name="label" translatable="yes">label</property>
-        <property name="justify">center</property>
-        <property name="wrap">True</property>
-        <property name="wrap_mode">word-char</property>
-        <property name="selectable">True</property>
-        <property name="ellipsize">end</property>
-        <property name="lines">3</property>
       </object>
       <packing>
         <property name="expand">False</property>
@@ -56,15 +49,21 @@
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <child>
-          <object class="GtkImage" id="image">
-            <property name="height_request">400</property>
+          <object class="GtkLabel" id="platformLabel">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="margin_left">10</property>
-            <property name="margin_right">10</property>
             <property name="margin_top">10</property>
-            <property name="margin_bottom">5</property>
-            <property name="stock">gtk-missing-image</property>
+            <property name="margin_bottom">10</property>
+            <property name="label" translatable="yes">label</property>
+            <property name="justify">center</property>
+            <property name="wrap">True</property>
+            <property name="wrap_mode">word-char</property>
+            <property name="selectable">True</property>
+            <property name="ellipsize">end</property>
+            <property name="lines">3</property>
+            <attributes>
+              <attribute name="weight" value="bold"/>
+            </attributes>
           </object>
         </child>
       </object>
@@ -72,6 +71,23 @@
         <property name="expand">False</property>
         <property name="fill">True</property>
         <property name="position">2</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkImage" id="image">
+        <property name="height_request">400</property>
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="margin_left">10</property>
+        <property name="margin_right">10</property>
+        <property name="margin_top">10</property>
+        <property name="margin_bottom">5</property>
+        <property name="stock">gtk-missing-image</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">3</property>
       </packing>
     </child>
     <child>
@@ -87,7 +103,7 @@
       <packing>
         <property name="expand">False</property>
         <property name="fill">True</property>
-        <property name="position">3</property>
+        <property name="position">4</property>
       </packing>
     </child>
     <child>
@@ -102,7 +118,7 @@
       <packing>
         <property name="expand">False</property>
         <property name="fill">True</property>
-        <property name="position">4</property>
+        <property name="position">5</property>
       </packing>
     </child>
     <child>
@@ -119,7 +135,7 @@
       <packing>
         <property name="expand">False</property>
         <property name="fill">True</property>
-        <property name="position">5</property>
+        <property name="position">6</property>
       </packing>
     </child>
     <child>
@@ -134,7 +150,7 @@
       <packing>
         <property name="expand">False</property>
         <property name="fill">True</property>
-        <property name="position">6</property>
+        <property name="position">7</property>
       </packing>
     </child>
     <child>
@@ -154,7 +170,7 @@
       <packing>
         <property name="expand">False</property>
         <property name="fill">True</property>
-        <property name="position">7</property>
+        <property name="position">8</property>
       </packing>
     </child>
   </object>

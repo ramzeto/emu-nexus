@@ -30,6 +30,8 @@
 #include <string>
 #include <list>
 
+#include "FileExtractor.h"
+
 using namespace std;
 
 class GameLauncher 
@@ -76,6 +78,8 @@ private:
     
     static GameLauncher *instance;    
     static void *launchWorker(void *pGameLauncherData);
+    
+    static void fileExtractorProgressListenerCallback(void *pGameLauncherData, FileExtractor *fileExtractor, size_t fileSize, size_t progressBytes);
 };
 
 #endif /* GAMELAUNCHER_H */

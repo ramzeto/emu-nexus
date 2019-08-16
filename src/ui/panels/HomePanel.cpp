@@ -380,6 +380,6 @@ void HomePanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
             homePanel->loadRecentsGrid();
         }
     }
-    homePanel->launchDialog->setStatus(activity, message);
+    homePanel->launchDialog->setStatus(activity, message, gameLauncherStatus->progress);
 }
 

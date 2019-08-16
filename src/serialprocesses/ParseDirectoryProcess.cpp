@@ -168,7 +168,7 @@ void ParseDirectoryProcess::parseGameFiles(list<string> extensions, string direc
                             Database::getInstance()->release();
                         }
                         
-                        postStatus(parseDirectoryGame->getFileName());
+                        postStatus("Processing files", parseDirectoryGame->getFileName());
                         
                         delete parseDirectoryGame;
                         break;
@@ -211,15 +211,12 @@ string ParseDirectoryProcess::cleanName(string rawName, string extension)
         }
     }
     
-    name = Utils::getInstance()->strReplace(name, "!", "");
-    name = Utils::getInstance()->strReplace(name, "?", "");
-
     return Utils::getInstance()->trim(name);
 }
 
 string ParseDirectoryProcess::queryMame(string name)
 {    
-    string mameName = "";
+    string mameName = name;
     string mameOutput = "";
     string command = parseDirectory->getMame() + " -lx " + name;
     cout << "ParseDirectoryProcess::" << __FUNCTION__ << " command: " << command << endl;
@@ -405,7 +402,7 @@ void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProc
     list<string> gameNameTokens = parseDirectoryProcess->tokenizeName(gameName);
     Game *game = NULL;
     
-    //cout << "ParseDirectoryProcess::" << __FUNCTION__ << " gameName: " << gameName << endl;
+    cout << "ParseDirectoryProcess::" << __FUNCTION__ << " gameName: " << gameName << endl;
     
     typedef struct{
         TheGamesDB::Game *apiGame;
@@ -421,7 +418,7 @@ void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProc
     {
         TheGamesDB::Game *apiGame = TheGamesDB::Game::getItem(apiGames, index);
     
-        //cout << "ParseDirectoryProcess::" << __FUNCTION__ << " apiGame: " << apiGame->getName() << endl;
+        cout << "ParseDirectoryProcess::" << __FUNCTION__ << " apiGame: " << apiGame->getName() << endl;
         
         gameItems[index].apiGame = apiGame;
         gameItems[index].nameTokens = parseDirectoryProcess->tokenizeName(apiGame->getName());
@@ -491,10 +488,15 @@ void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProc
             }
         }
     }
+    
+    for(unsigned int index = 0; index < apiGames->size(); index++)
+    {
+        cout << "ParseDirectoryProcess::" << __FUNCTION__ << " apiGame: " << gameItems[index].apiGame->getName() << "    coincidences: " << gameItems[index].coincidences << "    notCoincidences: " << gameItems[index].notCoincidences << endl;
+    }
 
+    GameItem_t *matchGameItem = NULL;
     if(maxCoincidences > 0)
     {
-        GameItem_t *matchGameItem = NULL;
         unsigned int minNotCoincidences = UINT_MAX;
         for(unsigned int index = 0; index < apiGames->size(); index++)
         {
@@ -611,111 +613,11 @@ void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProc
                         delete gameDeveloper;
                         delete developer;
                     }
-                }
-                
-                
-                int areBoxFrontImages = 0;                
-                if(parseDirectoryProcess->parseDirectory->getBoxFrontImagesDirectory().length() > 0)
-                {
-                    parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getBoxFrontImagesDirectory(), GameImage::TYPE_BOX_FRONT);
-                    
-                    sqlite = Database::getInstance()->acquire();
-                    list<GameImage *> *boxFrontGameImages = GameImage::getItems(sqlite, game->getId(), GameImage::TYPE_BOX_FRONT);                
-                    Database::getInstance()->release();
-                    
-                    areBoxFrontImages = boxFrontGameImages->size() > 0;
-                    GameImage::releaseItems(boxFrontGameImages);
-                }
-                
-                int areBoxBackImages = 0;
-                if(parseDirectoryProcess->parseDirectory->getBoxBackImagesDirectory().length() > 0)
-                {
-                    parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getBoxBackImagesDirectory(), GameImage::TYPE_BOX_BACK);
-                    
-                    sqlite = Database::getInstance()->acquire();
-                    list<GameImage *> *boxFrontGameImages = GameImage::getItems(sqlite, game->getId(), GameImage::TYPE_BOX_BACK);                
-                    Database::getInstance()->release();
-                    
-                    areBoxBackImages = boxFrontGameImages->size() > 0;
-                    GameImage::releaseItems(boxFrontGameImages);
-                }
-                if(parseDirectoryProcess->parseDirectory->getScreenshotImagesDirectory().length() > 0)
-                {
-                    parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getScreenshotImagesDirectory(), GameImage::TYPE_SCREENSHOT);
-                }
-                if(parseDirectoryProcess->parseDirectory->getLogoImagesDirectory().length() > 0)
-                {
-                    parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getLogoImagesDirectory(), GameImage::TYPE_CLEAR_LOGO);
-                }
-                if(parseDirectoryProcess->parseDirectory->getBannerImagesDirectory().length() > 0)
-                {
-                    parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getBannerImagesDirectory(), GameImage::TYPE_BANNER);
-                }
-                
-                
-                list<TheGamesDB::GameImage *> *apiGameImages = matchGameItem->apiGame->getGameImages();
-                for(unsigned int index = 0; index < apiGameImages->size(); index++)
-                {
-                    TheGamesDB::GameImage *apiGameImage = TheGamesDB::GameImage::getItem(apiGameImages, index);
-                    
-                    if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_BOXART) == 0)
-                    {
-                        if(apiGameImage->getSide().compare(TheGamesDB::GameImage::SIDE_FRONT) == 0)
-                        {
-                            if(!areBoxFrontImages)
-                            {
-                                GameImage *gameImage = new GameImage((int64_t)0);
-                                gameImage->setApiId(TheGamesDB::API_ID);
-                                gameImage->setApiItemId(apiGameImage->getId());
-                                gameImage->setGameId(game->getId());
-                                gameImage->setType(GameImage::TYPE_BOX_FRONT);
-                                gameImage->setExternal(0);
-                                gameImage->setDownloaded(0);
-                                gameImage->setUrl(apiGameImage->getOriginal());
-
-                                // Saves before to generate the id
-                                sqlite = Database::getInstance()->acquire();
-                                gameImage->save(sqlite);
-                                Database::getInstance()->release();
-                                
-                                gameImage->setFileName(game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId()));
-                                
-                                sqlite = Database::getInstance()->acquire();
-                                gameImage->save(sqlite);
-                                Database::getInstance()->release();
-                                
-                                delete gameImage;
-                            }
-                        }
-                        else if(apiGameImage->getSide().compare(TheGamesDB::GameImage::SIDE_BACK) == 0)
-                        {
-                            if(!areBoxBackImages)
-                            {
-                                GameImage *gameImage = new GameImage((int64_t)0);
-                                gameImage->setApiId(TheGamesDB::API_ID);
-                                gameImage->setApiItemId(apiGameImage->getId());
-                                gameImage->setGameId(game->getId());
-                                gameImage->setType(GameImage::TYPE_BOX_BACK);
-                                gameImage->setExternal(0);
-                                gameImage->setDownloaded(0);
-                                gameImage->setUrl(apiGameImage->getOriginal());
-                                
-                                // Saves before to generate the id
-                                sqlite = Database::getInstance()->acquire();
-                                gameImage->save(sqlite);
-                                Database::getInstance()->release();
-                                
-                                gameImage->setFileName(game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId()));
-                                
-                                sqlite = Database::getInstance()->acquire();
-                                gameImage->save(sqlite);
-                                Database::getInstance()->release();
-                                
-                                delete gameImage;
-                            }
-                        }
-                    }
-                }                                
+                }                                                                                                
+            }
+            else
+            {
+                matchGameItem = NULL;
             }
         }
     }
@@ -736,6 +638,116 @@ void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProc
         game->save(sqlite);
         Database::getInstance()->release();
     }
+    
+    
+    // Loads the images from the filesystem if applies
+    int areBoxFrontImages = 0;                
+    if(parseDirectoryProcess->parseDirectory->getBoxFrontImagesDirectory().length() > 0)
+    {
+        parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getBoxFrontImagesDirectory(), GameImage::TYPE_BOX_FRONT);
+
+        sqlite3 *sqlite = Database::getInstance()->acquire();
+        list<GameImage *> *boxFrontGameImages = GameImage::getItems(sqlite, game->getId(), GameImage::TYPE_BOX_FRONT);                
+        Database::getInstance()->release();
+
+        areBoxFrontImages = boxFrontGameImages->size() > 0;
+        GameImage::releaseItems(boxFrontGameImages);
+    }
+
+    int areBoxBackImages = 0;
+    if(parseDirectoryProcess->parseDirectory->getBoxBackImagesDirectory().length() > 0)
+    {
+        parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getBoxBackImagesDirectory(), GameImage::TYPE_BOX_BACK);
+
+        sqlite3 *sqlite = Database::getInstance()->acquire();
+        list<GameImage *> *boxFrontGameImages = GameImage::getItems(sqlite, game->getId(), GameImage::TYPE_BOX_BACK);                
+        Database::getInstance()->release();
+
+        areBoxBackImages = boxFrontGameImages->size() > 0;
+        GameImage::releaseItems(boxFrontGameImages);
+    }
+    if(parseDirectoryProcess->parseDirectory->getScreenshotImagesDirectory().length() > 0)
+    {
+        parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getScreenshotImagesDirectory(), GameImage::TYPE_SCREENSHOT);
+    }
+    if(parseDirectoryProcess->parseDirectory->getLogoImagesDirectory().length() > 0)
+    {
+        parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getLogoImagesDirectory(), GameImage::TYPE_CLEAR_LOGO);
+    }
+    if(parseDirectoryProcess->parseDirectory->getBannerImagesDirectory().length() > 0)
+    {
+        parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getBannerImagesDirectory(), GameImage::TYPE_BANNER);
+    }
+
+
+    // If there is a match, gets the images. If there are box front and box back images already loaded from the filesystem, then no more images are acquired.
+    if(matchGameItem)
+    {
+        list<TheGamesDB::GameImage *> *apiGameImages = matchGameItem->apiGame->getGameImages();
+        for(unsigned int index = 0; index < apiGameImages->size(); index++)
+        {
+            TheGamesDB::GameImage *apiGameImage = TheGamesDB::GameImage::getItem(apiGameImages, index);
+
+            if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_BOXART) == 0)
+            {
+                if(apiGameImage->getSide().compare(TheGamesDB::GameImage::SIDE_FRONT) == 0)
+                {
+                    if(!areBoxFrontImages)
+                    {
+                        GameImage *gameImage = new GameImage((int64_t)0);
+                        gameImage->setApiId(TheGamesDB::API_ID);
+                        gameImage->setApiItemId(apiGameImage->getId());
+                        gameImage->setGameId(game->getId());
+                        gameImage->setType(GameImage::TYPE_BOX_FRONT);
+                        gameImage->setExternal(0);
+                        gameImage->setDownloaded(0);
+                        gameImage->setUrl(apiGameImage->getOriginal());
+
+                        // Saves before to generate the id
+                        sqlite3 *sqlite = Database::getInstance()->acquire();
+                        gameImage->save(sqlite);
+                        Database::getInstance()->release();
+
+                        gameImage->setFileName(game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId()));
+
+                        sqlite = Database::getInstance()->acquire();
+                        gameImage->save(sqlite);
+                        Database::getInstance()->release();
+
+                        delete gameImage;
+                    }
+                }
+                else if(apiGameImage->getSide().compare(TheGamesDB::GameImage::SIDE_BACK) == 0)
+                {
+                    if(!areBoxBackImages)
+                    {
+                        GameImage *gameImage = new GameImage((int64_t)0);
+                        gameImage->setApiId(TheGamesDB::API_ID);
+                        gameImage->setApiItemId(apiGameImage->getId());
+                        gameImage->setGameId(game->getId());
+                        gameImage->setType(GameImage::TYPE_BOX_BACK);
+                        gameImage->setExternal(0);
+                        gameImage->setDownloaded(0);
+                        gameImage->setUrl(apiGameImage->getOriginal());
+
+                        // Saves before to generate the id
+                        sqlite3 *sqlite = Database::getInstance()->acquire();
+                        gameImage->save(sqlite);
+                        Database::getInstance()->release();
+
+                        gameImage->setFileName(game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId()));
+
+                        sqlite = Database::getInstance()->acquire();
+                        gameImage->save(sqlite);
+                        Database::getInstance()->release();
+
+                        delete gameImage;
+                    }
+                }
+            }
+        }        
+    }
+    
     
     delete game;
     

@@ -37,6 +37,9 @@ LaunchDialog::LaunchDialog(int64_t gameId) : Dialog("LaunchDialog.ui", "launchDi
     messageLabel = (GtkLabel *)gtk_builder_get_object(builder, "messageLabel");
     gtk_label_set_text(messageLabel, "");
     
+    progressBar = (GtkProgressBar *)gtk_builder_get_object(builder, "progressBar");
+    gtk_widget_hide(GTK_WIDGET(progressBar));
+    
     closeButton = (GtkButton *)gtk_builder_get_object(builder, "closeButton");
     g_signal_connect (closeButton, "clicked", G_CALLBACK (signalCloseButtonClicked), this);
     gtk_widget_hide(GTK_WIDGET(closeButton));
@@ -56,16 +59,27 @@ LaunchDialog::~LaunchDialog()
 {
 }
 
-void LaunchDialog::setStatus(int activity, string message)
+void LaunchDialog::setStatus(int activity, string message, int progress)
 {
     if(activity)
     {
         gtk_spinner_start(spinner);
         gtk_widget_hide(GTK_WIDGET(closeButton));
+        
+        if(progress >= 0)
+        {
+            gtk_widget_show(GTK_WIDGET(progressBar));
+            gtk_progress_bar_set_fraction(progressBar, ((double)progress) / 100.0);
+        }
+        else
+        {
+            gtk_widget_hide(GTK_WIDGET(progressBar));
+        }
     }
     else
     {
         gtk_spinner_stop(spinner);
+        gtk_widget_hide(GTK_WIDGET(progressBar));
         gtk_widget_show(GTK_WIDGET(closeButton));
     }
     
