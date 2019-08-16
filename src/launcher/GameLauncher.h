@@ -56,6 +56,12 @@ public:
         int progress;
     }Status_t;
     
+    /**
+     * Launches a game
+     * @param gameId Game id to launch
+     * @param requester Pointer to the object that requested the launch.
+     * @param callback Callback that receives status updates. The parameters of this callback are a pointer to the requester object and a pointer to a GameLauncher::Status_t struct (the requester is responsible for freeing this pointer).
+     */
     void launch(int64_t gameId, void *requester, void (*callback)(void *, void *));
         
     static GameLauncher *getInstance();

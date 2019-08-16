@@ -62,7 +62,6 @@ int DownloadGameImagesProcess::execute()
         Database::getInstance()->release();
 
         int progress = ((double)index / (double)gameImages->size()) * 100.0;
-        cout << "index: " << index << " gameImages->size(): " << gameImages->size() << " progress: " << progress << endl; 
         postStatus("Downloading images", game->getName(), progress);
 
         

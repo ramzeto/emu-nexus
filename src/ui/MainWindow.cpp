@@ -593,11 +593,10 @@ void MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
                 ParseDirectory *parseDirectory = ((ParseDirectoryProcess *)status->serialProcess)->getParseDirectory();
                 if(parseDirectory)
                 {
-                    cout << "MainWindow::" << __FUNCTION__ << " parseDirectory->getPlatformId() << " << parseDirectory->getPlatformId() << endl;
                     mainWindow->updatePlatform(parseDirectory->getPlatformId());
                     
                     if(parseDirectory->getPlatformId() == mainWindow->selectedPlatformId)
-                    {                                        
+                    {
                         ((PlatformPanel *)mainWindow->currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(mainWindow->gameSearchEntry))));
                     }
                 }
@@ -608,7 +607,8 @@ void MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
             SerialProcessExecutor::getInstance()->schedule(downloadGameImagesProcess);
         }
         
-        delete status->serialProcess;                
+        // @TODO Find a way to safely delete the SerialProcess. The communication between threads makes it confusing.
+        //delete status->serialProcess;                
     }
 }
 

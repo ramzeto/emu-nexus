@@ -55,7 +55,7 @@ ParseDirectoryProcess::ParseDirectoryProcess(void *requester, void (*statusCallb
 }
 
 ParseDirectoryProcess::~ParseDirectoryProcess()
-{
+{    
     if(parseDirectory)
     {
         delete parseDirectory;

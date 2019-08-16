@@ -331,6 +331,8 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
 
     instance->postStatus(gameLauncherData, error, STATE_FINISHED, -1);
     
+    delete gameLauncherData;
+    
     return NULL;
 }
 
