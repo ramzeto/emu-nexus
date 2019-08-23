@@ -39,6 +39,7 @@
 #include "NotificationManager.h"
 #include "thegamesdb.h"
 #include "Directory.h"
+#include "UiThreadBridge.h"
 
 #include <iostream>
 
@@ -255,17 +256,16 @@ void GameDialog::deleteWhenReady(GameDialog *gameDialog)
 {
     // Checks if the GameDialog is waiting for GameImages to be downloaded
     int isDownloading = 0;
-    pthread_mutex_lock(&downloadGameImagesMutex);    
-    for(list<UiThreadHandler *>::iterator downloadGameImageHandler = downloadGameImageHandlers->begin(); downloadGameImageHandler != downloadGameImageHandlers->end(); downloadGameImageHandler++)
+    pthread_mutex_lock(&downloadGameImageRefsMutex);    
+    for(list<DownloadGameImageRef_t *>::iterator downloadGameImageRef = downloadGameImageRefs->begin(); downloadGameImageRef != downloadGameImageRefs->end(); downloadGameImageRef++)
     {
-        DownloadGameImage_t *downloadGameImage = (DownloadGameImage_t *)(*downloadGameImageHandler)->getRequesterInUiThread();
-        if(downloadGameImage->gameDialog == gameDialog)
+        if((*downloadGameImageRef)->gameDialog == gameDialog)
         {
             isDownloading = 1;
             break;
         }
     }
-    pthread_mutex_unlock(&downloadGameImagesMutex);
+    pthread_mutex_unlock(&downloadGameImageRefsMutex);
     
     gameDialog->dismiss();
     if(!isDownloading)
@@ -708,12 +708,11 @@ void GameDialog::removeNewGameImages()
             continue;
         }
                 
-        pthread_mutex_lock(&downloadGameImagesMutex);
+        pthread_mutex_lock(&downloadGameImageRefsMutex);
         int isDownloading = 0;
-        for(list<UiThreadHandler *>::iterator downloadGameImageHandler = downloadGameImageHandlers->begin(); downloadGameImageHandler != downloadGameImageHandlers->end(); downloadGameImageHandler++)
+        for(list<DownloadGameImageRef_t *>::iterator downloadGameImageRef = downloadGameImageRefs->begin(); downloadGameImageRef != downloadGameImageRefs->end(); downloadGameImageRef++)
         {
-            DownloadGameImage_t *downloadGameImage = (DownloadGameImage_t *)(*downloadGameImageHandler)->getRequesterInUiThread();
-            if(downloadGameImage->gameDialog == this && downloadGameImage->gameImage == (*gameImage))
+            if((*downloadGameImageRef)->gameDialog == this && (*downloadGameImageRef)->gameImage == (*gameImage))
             {
                 isDownloading = 1;
                 break;
@@ -723,7 +722,7 @@ void GameDialog::removeNewGameImages()
         {            
             delete (*gameImage);
         }
-        pthread_mutex_unlock(&downloadGameImagesMutex);                
+        pthread_mutex_unlock(&downloadGameImageRefsMutex);                
     }
     
     gameImages->clear();
@@ -1186,18 +1185,17 @@ void GameDialog::search()
 
                 // Checks if there is GameImage for this TheGamesDB::GameImage being downloaded, if it is, then appends it to the list
                 int isDownloading = 0;
-                pthread_mutex_lock(&downloadGameImagesMutex);        
-                for(list<UiThreadHandler *>::iterator downloadGameImageHandler = downloadGameImageHandlers->begin(); downloadGameImageHandler != downloadGameImageHandlers->end(); downloadGameImageHandler++)
-                {
-                    DownloadGameImage_t *downloadGameImage = (DownloadGameImage_t *)(*downloadGameImageHandler)->getRequesterInUiThread();
-                    if(downloadGameImage->gameDialog == this && downloadGameImage->gameImage->getApiId() == TheGamesDB::API_ID && downloadGameImage->gameImage->getApiItemId() == apiGameImage->getId())
+                pthread_mutex_lock(&downloadGameImageRefsMutex);        
+                for(list<DownloadGameImageRef_t *>::iterator downloadGameImageRef = downloadGameImageRefs->begin(); downloadGameImageRef != downloadGameImageRefs->end(); downloadGameImageRef++)
+                {                    
+                    if((*downloadGameImageRef)->gameDialog == this && (*downloadGameImageRef)->gameImage->getApiId() == TheGamesDB::API_ID && (*downloadGameImageRef)->gameImage->getApiItemId() == apiGameImage->getId())
                     {
-                        gameImages->push_back(downloadGameImage->gameImage);
+                        gameImages->push_back((*downloadGameImageRef)->gameImage);
                         isDownloading = 1;
                         break;
                     }
                 }
-                pthread_mutex_unlock(&downloadGameImagesMutex);
+                pthread_mutex_unlock(&downloadGameImageRefsMutex);
 
                 if(!isDownloading)
                 {
@@ -1370,17 +1368,16 @@ void GameDialog::save()
         {
             // Checks if the image is still downloading, in this case, the image should be saved after it is downloaded
             int isDownloading = 0;
-            pthread_mutex_lock(&downloadGameImagesMutex);            
-            for(list<UiThreadHandler *>::iterator downloadGameImageHandler = downloadGameImageHandlers->begin(); downloadGameImageHandler != downloadGameImageHandlers->end(); downloadGameImageHandler++)
+            pthread_mutex_lock(&downloadGameImageRefsMutex);            
+            for(list<DownloadGameImageRef_t *>::iterator downloadGameImageRef = downloadGameImageRefs->begin(); downloadGameImageRef != downloadGameImageRefs->end(); downloadGameImageRef++)
             {
-                DownloadGameImage_t *downloadGameImage = (DownloadGameImage_t *)(*downloadGameImageHandler)->getRequesterInUiThread();
-                if(downloadGameImage->gameDialog == this && downloadGameImage->gameImage == gameImage)
+                if((*downloadGameImageRef)->gameDialog == this && (*downloadGameImageRef)->gameImage == gameImage)
                 {
                     isDownloading = 1;
                     break;
                 }
             }
-            pthread_mutex_unlock(&downloadGameImagesMutex);
+            pthread_mutex_unlock(&downloadGameImageRefsMutex);
 
             if(!isDownloading)
             {
@@ -1396,7 +1393,12 @@ void GameDialog::save()
     }
             
     saved = 1;
-    NotificationManager::getInstance()->postNotification(NOTIFICATION_GAME_UPDATED, game);
+    
+    CallbackResult *callbackResult = new CallbackResult(NULL);
+    callbackResult->setType(NOTIFICATION_GAME_UPDATED);
+    callbackResult->setData(new Game(*game));
+    NotificationManager::getInstance()->postNotification(callbackResult);
+    
     gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);        
 }
 
@@ -1519,21 +1521,19 @@ void GameDialog::signalSaveButtonClicked(GtkButton *button, gpointer gameDialog)
 
 
 
-
-list<UiThreadHandler *> *GameDialog::downloadGameImageHandlers = new list<UiThreadHandler *>;
+list<GameDialog::DownloadGameImageRef_t *> *GameDialog::downloadGameImageRefs = new list<GameDialog::DownloadGameImageRef_t *>;
 pthread_t GameDialog::downloadGameImagesThread;
-pthread_mutex_t GameDialog::downloadGameImagesMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t GameDialog::downloadGameImageRefsMutex = PTHREAD_MUTEX_INITIALIZER;
 int GameDialog::downloadingGameImages = 0;
 
 void GameDialog::downloadGameImage(GameDialog *gameDialog, GameImage *gameImage)
 {
-    pthread_mutex_lock(&downloadGameImagesMutex);
+    pthread_mutex_lock(&downloadGameImageRefsMutex);
     
-    DownloadGameImage_t *downloadGameImage = new DownloadGameImage_t;
-    downloadGameImage->gameDialog = gameDialog;
-    downloadGameImage->gameImage = gameImage;
-    UiThreadHandler *uiThreadHandler = new UiThreadHandler(downloadGameImage, callbackDownloadGameImage);
-    downloadGameImageHandlers->push_back(uiThreadHandler);
+    DownloadGameImageRef_t *downloadGameImageRef = new DownloadGameImageRef_t;
+    downloadGameImageRef->gameDialog = gameDialog;
+    downloadGameImageRef->gameImage = gameImage;
+    downloadGameImageRefs->push_back(downloadGameImageRef);
         
     if(!downloadingGameImages)
     {
@@ -1544,65 +1544,61 @@ void GameDialog::downloadGameImage(GameDialog *gameDialog, GameImage *gameImage)
             exit(EXIT_FAILURE);
         }
     }
-    pthread_mutex_unlock(&downloadGameImagesMutex);
+    pthread_mutex_unlock(&downloadGameImageRefsMutex);
 }
 
 void *GameDialog::downloadGameImagesWorker(void *)
 {
-    UiThreadHandler *downloadGameImageHandler = NULL;
+    DownloadGameImageRef_t *downloadGameImageRef = NULL;
     do
     {
-        downloadGameImageHandler = NULL;
+        downloadGameImageRef = NULL;
         
-        pthread_mutex_lock(&downloadGameImagesMutex);
-        for(list<UiThreadHandler *>::iterator aDownloadGameImageHandler = downloadGameImageHandlers->begin(); aDownloadGameImageHandler != downloadGameImageHandlers->end(); aDownloadGameImageHandler++)
+        pthread_mutex_lock(&downloadGameImageRefsMutex);
+        for(list<DownloadGameImageRef_t *>::iterator aDownloadGameImageRef = downloadGameImageRefs->begin(); aDownloadGameImageRef != downloadGameImageRefs->end(); aDownloadGameImageRef++)
         {
-            DownloadGameImage_t *downloadGameImage = (DownloadGameImage_t *)(*aDownloadGameImageHandler)->getRequesterInUiThread();
-            if(!downloadGameImage->gameImage->getDownloaded())
+            if(!(*aDownloadGameImageRef)->gameImage->getDownloaded())
             {
-                downloadGameImageHandler = (*aDownloadGameImageHandler);
+                downloadGameImageRef = (*aDownloadGameImageRef);
                 break;
             }
         }
-        pthread_mutex_unlock(&downloadGameImagesMutex);
+        pthread_mutex_unlock(&downloadGameImageRefsMutex);
         
-        if(downloadGameImageHandler)
-        {
-            DownloadGameImage_t *downloadGameImage = (DownloadGameImage_t *)downloadGameImageHandler->getRequesterInUiThread();
-            
-            HttpConnector *httpConnector = new HttpConnector(downloadGameImage->gameImage->getUrl());
+        if(downloadGameImageRef)
+        {            
+            HttpConnector *httpConnector = new HttpConnector(downloadGameImageRef->gameImage->getUrl());
             httpConnector->get();
-            cout  << "GameDialog::" << __FUNCTION__ << " fileName: " << downloadGameImage->gameImage->getFileName() << " url: " << downloadGameImage->gameImage->getUrl() << " httpStatus: " << httpConnector->getHttpStatus() << endl;
+            cout  << "GameDialog::" << __FUNCTION__ << " fileName: " << downloadGameImageRef->gameImage->getFileName() << " url: " << downloadGameImageRef->gameImage->getUrl() << " httpStatus: " << httpConnector->getHttpStatus() << endl;
             if(httpConnector->getHttpStatus() == HttpConnector::HTTP_OK)
             {
-                Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), downloadGameImage->gameImage->getFileName());
-                downloadGameImage->gameImage->setDownloaded(1);
+                Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), downloadGameImageRef->gameImage->getFileName());
+                downloadGameImageRef->gameImage->setDownloaded(1);
             }
             delete httpConnector;
             
-            UiThreadHandler::callback(downloadGameImageHandler, new char[1]); //Sends dummy data to avoid NULL
+            UiThreadBridge::postToUiThread(downloadGameImageRef, callbackDownloadGameImage);
         }
         
-    }while(downloadGameImageHandler);
+    }while(downloadGameImageRef);
     
     downloadingGameImages = 0;    
     return NULL;
 }
 
-void GameDialog::callbackDownloadGameImage(gpointer pUiThreadHandlerResult)
+void GameDialog::callbackDownloadGameImage(void *pDownloadGameImageRef)
 {
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;
-    DownloadGameImage_t *downloadGameImage = (DownloadGameImage_t *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();    
+    DownloadGameImageRef_t *downloadGameImageRef = (DownloadGameImageRef_t *)pDownloadGameImageRef;    
     
-    pthread_mutex_lock(&downloadGameImagesMutex);
-    downloadGameImageHandlers->remove(uiThreadHandlerResult->uiThreadHandler);
-    pthread_mutex_unlock(&downloadGameImagesMutex);
+    pthread_mutex_lock(&downloadGameImageRefsMutex);
+    downloadGameImageRefs->remove(downloadGameImageRef);
+    pthread_mutex_unlock(&downloadGameImageRefsMutex);
     
     // Checks if the GameImage is still present in the list of the GameDialog
     int isImage = 0;
-    for(list<GameImage *>::iterator gameImage = downloadGameImage->gameDialog->gameImages->begin(); gameImage != downloadGameImage->gameDialog->gameImages->end(); gameImage++)
+    for(list<GameImage *>::iterator gameImage = downloadGameImageRef->gameDialog->gameImages->begin(); gameImage != downloadGameImageRef->gameDialog->gameImages->end(); gameImage++)
     {
-        if(downloadGameImage->gameImage == (*gameImage))
+        if(downloadGameImageRef->gameImage == (*gameImage))
         {
             isImage = 1;
             break;
@@ -1612,37 +1608,36 @@ void GameDialog::callbackDownloadGameImage(gpointer pUiThreadHandlerResult)
     if(isImage)
     {
         // Checks if the GameDialog is still been shown
-        if(!downloadGameImage->gameDialog->dismissed)
+        if(!downloadGameImageRef->gameDialog->dismissed)
         {
             // Checks if the GameImage has been downloaded
-            if(downloadGameImage->gameImage->getDownloaded())
+            if(downloadGameImageRef->gameImage->getDownloaded())
             {
-                downloadGameImage->gameDialog->updateGameImageGrid();
+                downloadGameImageRef->gameDialog->updateGameImageGrid();
             }            
         }
         // Checks if the GameDialog was dismissed with the save instruction
         else
         {
-            if(downloadGameImage->gameDialog->saved)
+            if(downloadGameImageRef->gameDialog->saved)
             {
-               downloadGameImage->gameDialog->saveNewGameImage(downloadGameImage->gameImage); 
+               downloadGameImageRef->gameDialog->saveNewGameImage(downloadGameImageRef->gameImage); 
             }
         }
     }
     else
     {
-        delete downloadGameImage->gameImage;
+        delete downloadGameImageRef->gameImage;
     }
     
     // Checks if the GameDialog was dismissed and if all its images has finished downloading
-    if(downloadGameImage->gameDialog->dismissed)
+    if(downloadGameImageRef->gameDialog->dismissed)
     {
-        pthread_mutex_lock(&downloadGameImagesMutex);
+        pthread_mutex_lock(&downloadGameImageRefsMutex);
         int isDialog = 0;
-        for(list<UiThreadHandler *>::iterator aDownloadGameImageHandler = downloadGameImageHandlers->begin(); aDownloadGameImageHandler != downloadGameImageHandlers->end(); aDownloadGameImageHandler++)
+        for(list<DownloadGameImageRef_t *>::iterator aDownloadGameImageRef = downloadGameImageRefs->begin(); aDownloadGameImageRef != downloadGameImageRefs->end(); aDownloadGameImageRef++)
         {
-            DownloadGameImage_t *aDownloadGameImage = (DownloadGameImage_t *)(*aDownloadGameImageHandler)->getRequesterInUiThread();
-            if(aDownloadGameImage->gameDialog == downloadGameImage->gameDialog)
+            if((*aDownloadGameImageRef)->gameDialog == downloadGameImageRef->gameDialog)
             {
                 isDialog = 1;
                 break;
@@ -1650,12 +1645,15 @@ void GameDialog::callbackDownloadGameImage(gpointer pUiThreadHandlerResult)
         }
         if(!isDialog)
         {
-            if(downloadGameImage->gameDialog->saved)
+            if(downloadGameImageRef->gameDialog->saved)
             {
-                NotificationManager::getInstance()->postNotification(NOTIFICATION_GAME_UPDATED, downloadGameImage->gameDialog->game);
+                CallbackResult *callbackResult = new CallbackResult(NULL);
+                callbackResult->setType(NOTIFICATION_GAME_UPDATED);
+                callbackResult->setData(new Game(*(downloadGameImageRef->gameDialog->game)));
+                NotificationManager::getInstance()->postNotification(callbackResult);    
             }
-            delete downloadGameImage->gameDialog;                
+            delete downloadGameImageRef->gameDialog;                
         }
-        pthread_mutex_unlock(&downloadGameImagesMutex);        
+        pthread_mutex_unlock(&downloadGameImageRefsMutex);        
     }
 }

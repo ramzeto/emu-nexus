@@ -28,6 +28,8 @@
 #include "Panel.h"
 #include "RecentGame.h"
 #include "LaunchDialog.h"
+#include "UiThreadBridge.h"
+#include "CallbackResult.h"
 
 #include <list>
 #include <map>
@@ -61,6 +63,8 @@ private:
     map<int64_t, GtkWidget *> *gameGridItems;
     list<RecentGame *> *recentGames;
     LaunchDialog *launchDialog;
+    
+    UiThreadBridge *launcherUiThreadBridge;
     
     void loadRecentsGrid();
     void launchGame(int64_t gameId);
@@ -101,9 +105,9 @@ private:
     
     /**
      * 
-     * @param pUiThreadHandlerResult
+     * @param callbackResult
      */
-    static void callbackGameLauncher(gpointer pUiThreadHandlerResult);
+    static void callbackGameLauncher(CallbackResult *callbackResult);
 };
 
 #endif /* HOMEPANEL_H */

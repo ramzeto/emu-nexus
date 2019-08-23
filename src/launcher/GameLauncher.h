@@ -31,6 +31,7 @@
 #include <list>
 
 #include "FileExtractor.h"
+#include "CallbackResult.h"
 
 using namespace std;
 
@@ -48,21 +49,13 @@ public:
     static const int STATE_RUNNING;
     static const int STATE_FINISHED;
     
-    typedef struct
-    {
-        int64_t gameId;
-        int error;
-        int state;
-        int progress;
-    }Status_t;
-    
     /**
      * Launches a game
      * @param gameId Game id to launch
      * @param requester Pointer to the object that requested the launch.
-     * @param callback Callback that receives status updates. The parameters of this callback are a pointer to the requester object and a pointer to a GameLauncher::Status_t struct (the requester is responsible for freeing this pointer).
+     * @param callback Callback that receives status updates. The parameter of this callback is a pointer to a CallbackResult object (the requester is responsible for freeing this pointer).
      */
-    void launch(int64_t gameId, void *requester, void (*callback)(void *, void *));
+    void launch(int64_t gameId, void *requester, void (*callback)(CallbackResult *));
         
     static GameLauncher *getInstance();
     
@@ -74,7 +67,7 @@ private:
     {
         int64_t gameId;
         void *requester;
-        void (*callback)(void *, void *);
+        void (*callback)(CallbackResult *);
     }GameLauncherData_t;
     
     pthread_mutex_t mutex;

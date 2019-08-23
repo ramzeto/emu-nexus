@@ -30,6 +30,8 @@
 #include <jansson.h>
 #include <pthread.h>
 
+#include "CallbackResult.h"
+
 using namespace std;
 
 #ifdef __cplusplus
@@ -47,63 +49,65 @@ namespace TheGamesDB
         static const int STATUS_STARTING;
         static const int STATUS_UPDATING;
         static const int STATUS_STOPPED;
-
-        typedef struct{
-            int error;
-            void *data;
-        }Result_t;
-             
+        
+        static const string RESULT_TYPE_START;
+        static const string RESULT_TYPE_GENRES;
+        static const string RESULT_TYPE_DEVELOPERS;
+        static const string RESULT_TYPE_PUBLISHERS;
+        static const string RESULT_TYPE_ESRB_RATINGS;
+        static const string RESULT_TYPE_PLATFORMS;
+        static const string RESULT_TYPE_GAMES;
 
         /**
          * Starts the engine. This method will return immediately. The requester should listen to the callback to start using the engine.
          * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that indicates that the engine has started or not. Receives the pointer of the requester and a pointer to a Result_t structure. Result_t->data is the response from the engine in a json_t pointer (The requester is responsible to free Result_t->data using json_decref and to free the pointer to the Result_t structure). It will be called in a new thread.
+         * @param callback Callback that indicates that the engine has started or not. Receives a pointer to a CallbackResult object. CallbackResult->getData() is the response from the engine in a json_t pointer. It will be called in a new thread.
          */
-        void start(void *requester, void (*callback)(void *, void*));
+        void start(void *requester, void (*callback)(CallbackResult *));
 
         /**
          * Gets the genres in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
          * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the genres. Receives the pointer of the requester and a pointer to a Result_t structure. Result_t->data is a pointer to a list<TheGamesDB::Genre *> object (The requester is responsible to free the list using TheGamesDB::Genre::releaseItems and to free the pointer to the Result_t structure). It will be called in a new thread.
+         * @param callback Callback that receives the genres. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::Genre *> object. It will be called in a new thread.
          */
-        void getGenres(void *requester, void (*callback)(void *, void*));
+        void getGenres(void *requester, void (*callback)(CallbackResult *));
 
         /**
          * Gets the developers in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
          * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the developers. Receives the pointer of the requester and a pointer to a Result_t structure. Result_t->data is a pointer to a list<TheGamesDB::Developer *> object (The requester is responsible to free the list using TheGamesDB::Developer::releaseItems and to free the pointer to the Result_t structure). It will be called in a new thread.
+         * @param callback Callback that receives the developers. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::Developer *> object. It will be called in a new thread.
          */
-        void getDevelopers(void *requester, void (*callback)(void *, void*));
+        void getDevelopers(void *requester, void (*callback)(CallbackResult *));
 
         /**
          * Gets the publishers in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
          * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the publishers. Receives the pointer of the requester and a pointer to a Result_t structure. Result_t->data is a pointer to a list<TheGamesDB::Publisher *> object (The requester is responsible to free the list using TheGamesDB::Publisher::releaseItems and to free the pointer to the Result_t structure). It will be called in a new thread.
+         * @param callback Callback that receives the publishers. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::Publisher *> object. It will be called in a new thread.
          */
-        void getPublishers(void *requester, void (*callback)(void *, void*));
+        void getPublishers(void *requester, void (*callback)(CallbackResult *));
 
         /**
          * Gets the ESRB ratings in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
          * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the ESRB ratings. Receives the pointer of the requester and a pointer to a Result_t structure. Result_t->data is a pointer to a list<TheGamesDB::EsrbRating *> object (The requester is responsible to free the list using TheGamesDB::EsrbRating::releaseItems and to free the pointer to the Result_t structure). It will be called in a new thread.
+         * @param callback Callback that receives the ESRB ratings. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::EsrbRating *> object. It will be called in a new thread.
          */
-        void getEsrbRatings(void *requester, void (*callback)(void *, void*));
+        void getEsrbRatings(void *requester, void (*callback)(CallbackResult *));
 
         /**
          * Gets the platforms in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
          * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the platforms. Receives the pointer of the requester and a pointer to a Result_t structure. Result_t->data is a pointer to a list<TheGamesDB::Platform *> object (The requester is responsible to free the list using TheGamesDB::Platform::releaseItems and to free the pointer to the Result_t structure). It will be called in a new thread.
+         * @param callback Callback that receives the platforms. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::Platform *> object. It will be called in a new thread.
          */
-        void getPlatforms(void *requester, void (*callback)(void *, void*));
+        void getPlatforms(void *requester, void (*callback)(CallbackResult *));
                 
         /**
          * Gets matching games (according to the query parameter) in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
          * @param apiPlatformId Id of the TheGamesDB::Platform in which the game will be looked for.
          * @param query Query to search.
          * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the games. Receives the pointer of the requester and a pointer to a Result_t structure. Result_t->data is a pointer to a list<TheGamesDB::Game *> object (The requester is responsible to free the list using TheGamesDB::Game::releaseItems and to free the pointer to the Result_t structure). It will be called in a new thread.
+         * @param callback Callback that receives the games. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::Game *> object. It will be called in a new thread.
          */
-        void getGames(int64_t apiPlatformId, string query, void *requester, void (*callback)(void *, void*));
+        void getGames(int64_t apiPlatformId, string query, void *requester, void (*callback)(CallbackResult *));
 
 
         /**
@@ -126,7 +130,7 @@ namespace TheGamesDB
 
         typedef struct{
             void *requester;
-            void (*callback)(void *, void*);
+            void (*callback)(CallbackResult*);
             int64_t apiPlatformId;
             string query;
         }RequesterRef_t;           
@@ -146,6 +150,8 @@ namespace TheGamesDB
         static void *getEsrbRatingsWorker(void *pRequesterRef);            
         static void *getPlatformsWorker(void *pRequesterRef);
         static void *getGamesWorker(void *pRequesterRef);
+        
+        static void callbackResultDestroy(CallbackResult *callbackResult);
     };
 
 

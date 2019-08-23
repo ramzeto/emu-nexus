@@ -29,7 +29,7 @@
 #include "Publisher.h"
 #include "EsrbRating.h"
 #include "Database.h"
-#include "UiThreadHandler.h"
+#include "UiThreadBridge.h"
 #include "SerialProcessExecutor.h"
 #include "SerialProcess.h"
 #include "thegamesdb.h"
@@ -61,10 +61,15 @@ FirstSetupPanel::FirstSetupPanel()  : Panel("FirstSetupPanel.ui", "FirstSetupPan
     g_signal_connect (successButton, "clicked", G_CALLBACK (signalSuccessButtonClicked), this);
     
     UiUtils::getInstance()->loadImage(logoImage, Asset::getInstance()->getImageLogoBig(), 300, 300);
+    
+    processUiThreadBridge = UiThreadBridge::registerBridge(this, callbackElasticsearchProcess);
+    dataUiThreadBridge = UiThreadBridge::registerBridge(this, callbackElasticsearchData);
 }
 
 FirstSetupPanel::~FirstSetupPanel()
-{
+{    
+    UiThreadBridge::unregisterBridge(processUiThreadBridge);
+    UiThreadBridge::unregisterBridge(dataUiThreadBridge);
 }
 
 void FirstSetupPanel::setOnSetupReadyCallback(void(*onSetupReadyCallback)(void *), void *onSetupReadyCallbackReferenceData)
@@ -126,8 +131,8 @@ void FirstSetupPanel::startDatabase()
     gtk_spinner_start(spinner);    
     gtk_label_set_text(progressLabel, "Preparing database");
     
-    UiThreadHandler *uiThreadHandler = new UiThreadHandler(this, callbackElasticsearchProcessListener);
-    ElasticsearchProcess *elasticsearchProcess = new ElasticsearchProcess(uiThreadHandler, UiThreadHandler::callback);
+    
+    ElasticsearchProcess *elasticsearchProcess = new ElasticsearchProcess(processUiThreadBridge, UiThreadBridge::callback);
     SerialProcessExecutor::getInstance()->schedule(elasticsearchProcess);
 }
 
@@ -149,8 +154,7 @@ void FirstSetupPanel::preloadData()
     gtk_spinner_start(spinner);    
     gtk_label_set_text(progressLabel, "Preloading data");
 
-    UiThreadHandler *uiThreadHandler = new UiThreadHandler(this, callbackElasticsearchGenres);
-    TheGamesDB::Elasticsearch::getInstance()->getGenres(uiThreadHandler, UiThreadHandler::callback);
+    TheGamesDB::Elasticsearch::getInstance()->getGenres(dataUiThreadBridge, UiThreadBridge::callback);
 }
 
 void FirstSetupPanel::preloadDataFinished(int error)
@@ -185,44 +189,43 @@ void FirstSetupPanel::signalSuccessButtonClicked(GtkButton* button, gpointer fir
     ((FirstSetupPanel *)firstSetupPanel)->setupReady();
 }
 
-void FirstSetupPanel::callbackElasticsearchProcessListener(gpointer pUiThreadHandlerResult)
-{
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
-    FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
-    SerialProcess::Status_t *status = (SerialProcess::Status_t *)uiThreadHandlerResult->data;
-    
-    if(status->serialProcess->getStatus() == SerialProcess::STATUS_RUNNING)
+void FirstSetupPanel::callbackElasticsearchProcess(CallbackResult *callbackResult)
+{    
+    FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)callbackResult->getRequester();        
+    if(callbackResult->getStatus() == SerialProcess::STATUS_RUNNING)
     {
         gtk_widget_show_all(GTK_WIDGET(firstSetupPanel->progressBox));
         gtk_spinner_start(firstSetupPanel->spinner);        
 
-        string statusMessage = status->title;            
-        if(status->progress >= 0)
+        string statusTitle = callbackResult->getTitle();            
+        if(callbackResult->getProgress() >= 0)
         {
-            statusMessage += " (" + to_string(status->progress) + "%)";
+            statusTitle += " (" + to_string(callbackResult->getProgress()) + "%)";
         }
-        
-        gtk_label_set_text(firstSetupPanel->progressLabel, statusMessage.c_str());
+
+        gtk_label_set_text(firstSetupPanel->progressLabel, statusTitle.c_str());
     }
-    else if(status->serialProcess->getStatus() == SerialProcess::STATUS_FAIL)
+    else if(callbackResult->getStatus() == SerialProcess::STATUS_FAIL)
     {
         firstSetupPanel->startDatabaseFinished(1);
     }
-    else if(status->serialProcess->getStatus() == SerialProcess::STATUS_SUCCESS)
+    else if(callbackResult->getStatus() == SerialProcess::STATUS_SUCCESS)
     {
         firstSetupPanel->startDatabaseFinished(0);
     }
 }
 
-void FirstSetupPanel::callbackElasticsearchGenres(gpointer pUiThreadHandlerResult)
+void FirstSetupPanel::callbackElasticsearchData(CallbackResult *callbackResult)
 {
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
-    FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
-    TheGamesDB::Elasticsearch::Result_t *dbResult = (TheGamesDB::Elasticsearch::Result_t *)uiThreadHandlerResult->data;
-    
-    list<TheGamesDB::Genre *> *apiGenres = (list<TheGamesDB::Genre *> *)dbResult->data;
-    if(!dbResult->error)
+    FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)callbackResult->getRequester();
+    if(callbackResult->getError())
     {
+        firstSetupPanel->preloadDataFinished(callbackResult->getError());
+    }
+    
+    if(callbackResult->getType().compare(TheGamesDB::Elasticsearch::RESULT_TYPE_GENRES) == 0)
+    {        
+        list<TheGamesDB::Genre *> *apiGenres = (list<TheGamesDB::Genre *> *)callbackResult->getData();
         list<Genre *> *genres = new list<Genre *>;
         for(unsigned int index = 0; index < apiGenres->size(); index++)
         {
@@ -244,32 +247,17 @@ void FirstSetupPanel::callbackElasticsearchGenres(gpointer pUiThreadHandlerResul
 
         if(!error)
         {
-            UiThreadHandler *uiThreadHandler = new UiThreadHandler(firstSetupPanel, callbackElasticsearchDevelopers);
-            TheGamesDB::Elasticsearch::getInstance()->getDevelopers(uiThreadHandler, UiThreadHandler::callback);
+            TheGamesDB::Elasticsearch::getInstance()->getDevelopers(firstSetupPanel->dataUiThreadBridge, UiThreadBridge::callback);
         }
         else
         {
             firstSetupPanel->preloadDataFinished(error);
-        }                
-    }
-    else
-    {
-        firstSetupPanel->preloadDataFinished(dbResult->error);
+        }
     }
     
-    
-    TheGamesDB::Genre::releaseItems(apiGenres);
-}
-
-void FirstSetupPanel::callbackElasticsearchDevelopers(gpointer pUiThreadHandlerResult)
-{
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
-    FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
-    TheGamesDB::Elasticsearch::Result_t *dbResult = (TheGamesDB::Elasticsearch::Result_t *)uiThreadHandlerResult->data;
-    
-    list<TheGamesDB::Developer *> *apiDevelopers = (list<TheGamesDB::Developer *> *)dbResult->data;
-    if(!dbResult->error)
+    else if(callbackResult->getType().compare(TheGamesDB::Elasticsearch::RESULT_TYPE_DEVELOPERS) == 0)
     {
+        list<TheGamesDB::Developer *> *apiDevelopers = (list<TheGamesDB::Developer *> *)callbackResult->getData();
         list<Developer *> *developers = new list<Developer *>;
         for(unsigned int index = 0; index < apiDevelopers->size(); index++)
         {
@@ -291,32 +279,17 @@ void FirstSetupPanel::callbackElasticsearchDevelopers(gpointer pUiThreadHandlerR
 
         if(!error)
         {
-            UiThreadHandler *uiThreadHandler = new UiThreadHandler(firstSetupPanel, callbackElasticsearchPublishers);
-            TheGamesDB::Elasticsearch::getInstance()->getPublishers(uiThreadHandler, UiThreadHandler::callback);
+            TheGamesDB::Elasticsearch::getInstance()->getPublishers(firstSetupPanel->dataUiThreadBridge, UiThreadBridge::callback);
         }
         else
         {
             firstSetupPanel->preloadDataFinished(error);
-        }        
-    }
-    else
-    {
-        firstSetupPanel->preloadDataFinished(dbResult->error);
+        }
     }
     
-      
-    TheGamesDB::Developer::releaseItems(apiDevelopers);
-}
-
-void FirstSetupPanel::callbackElasticsearchPublishers(gpointer pUiThreadHandlerResult)
-{
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;
-    FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
-    TheGamesDB::Elasticsearch::Result_t *dbResult = (TheGamesDB::Elasticsearch::Result_t *)uiThreadHandlerResult->data;
-    
-    list<TheGamesDB::Publisher *> *apiPublishers = (list<TheGamesDB::Publisher *> *)dbResult->data;    
-    if(!dbResult->error)
+    else if(callbackResult->getType().compare(TheGamesDB::Elasticsearch::RESULT_TYPE_PUBLISHERS) == 0)
     {
+        list<TheGamesDB::Publisher *> *apiPublishers = (list<TheGamesDB::Publisher *> *)callbackResult->getData();
         list<Publisher *> *publishers = new list<Publisher *>;
         for(unsigned int index = 0; index < apiPublishers->size(); index++)
         {
@@ -338,32 +311,18 @@ void FirstSetupPanel::callbackElasticsearchPublishers(gpointer pUiThreadHandlerR
 
         if(!error)
         {    
-            UiThreadHandler *uiThreadHandler = new UiThreadHandler(firstSetupPanel, callbackElasticsearchEsrbRatings);
-            TheGamesDB::Elasticsearch::getInstance()->getEsrbRatings(uiThreadHandler, UiThreadHandler::callback);
+            TheGamesDB::Elasticsearch::getInstance()->getEsrbRatings(firstSetupPanel->dataUiThreadBridge, UiThreadBridge::callback);
         }
         else
         {
             firstSetupPanel->preloadDataFinished(error);
-        }        
-    }
-    else
-    {
-        firstSetupPanel->preloadDataFinished(dbResult->error);
+        }
     }
     
-   
-    TheGamesDB::Publisher::releaseItems(apiPublishers);
-}
-
-void FirstSetupPanel::callbackElasticsearchEsrbRatings(gpointer pUiThreadHandlerResult)
-{
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
-    FirstSetupPanel *firstSetupPanel = (FirstSetupPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
-    TheGamesDB::Elasticsearch::Result_t *dbResult = (TheGamesDB::Elasticsearch::Result_t *)uiThreadHandlerResult->data;
-    
-    list<TheGamesDB::EsrbRating *> *apiEsrbRatings = (list<TheGamesDB::EsrbRating *> *)dbResult->data;
-    if(!dbResult->error)
+    else if(callbackResult->getType().compare(TheGamesDB::Elasticsearch::RESULT_TYPE_ESRB_RATINGS) == 0)
     {
+        list<TheGamesDB::EsrbRating *> *apiEsrbRatings = (list<TheGamesDB::EsrbRating *> *)callbackResult->getData();
+        
         list<EsrbRating *> *esrbRatings = new list<EsrbRating *>;
         for(unsigned int index = 0; index < apiEsrbRatings->size(); index++)
         {
@@ -384,12 +343,5 @@ void FirstSetupPanel::callbackElasticsearchEsrbRatings(gpointer pUiThreadHandler
         EsrbRating::releaseItems(esrbRatings);
 
         firstSetupPanel->preloadDataFinished(error);
-    }
-    else
-    {
-        firstSetupPanel->preloadDataFinished(dbResult->error);
-    }
-       
-
-    TheGamesDB::EsrbRating::releaseItems(apiEsrbRatings);
+    }    
 }

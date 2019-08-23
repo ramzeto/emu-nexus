@@ -29,7 +29,6 @@
 #include "MessageDialog.h"
 #include "Database.h"
 #include "PlatformImage.h"
-#include "UiThreadHandler.h"
 #include "HttpConnector.h"
 #include "Asset.h"
 #include "NotificationManager.h"
@@ -96,13 +95,17 @@ PlatformDialog::PlatformDialog(int64_t platformId) : Dialog("PlatformDialog.ui",
     saveButton = (GtkButton *)gtk_builder_get_object(builder, "saveButton");
     g_signal_connect (saveButton, "clicked", G_CALLBACK (signalSaveButtonClicked), this);
             
+    dataUiThreadBridge = UiThreadBridge::registerBridge(this, callbackElasticsearch);
+    
     loadApiPlatforms();
     loadPlatformImageTypes();
-    updateImageGrid();
+    updateImageGrid();        
 }
 
 PlatformDialog::~PlatformDialog()
 {
+    UiThreadBridge::unregisterBridge(dataUiThreadBridge);
+    
     PlatformImage::releaseItems(platformImages);    
     PlatformImage::releaseItems(platformImagesToRemove);
     
@@ -124,17 +127,16 @@ void PlatformDialog::deleteWhenReady(PlatformDialog *platformDialog)
 {
     // Checks if the PlatformDialog is waiting for PlatformImages to be downloaded
     int isDownloading = 0;
-    pthread_mutex_lock(&downloadPlatformImagesMutex);    
-    for(list<UiThreadHandler *>::iterator downloadPlatformImageHandler = downloadPlatformImageHandlers->begin(); downloadPlatformImageHandler != downloadPlatformImageHandlers->end(); downloadPlatformImageHandler++)
+    pthread_mutex_lock(&downloadPlatformImageRefsMutex);
+    for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
     {
-        DownloadPlatformImage_t *downloadPlatformImage = (DownloadPlatformImage_t *)(*downloadPlatformImageHandler)->getRequesterInUiThread();
-        if(downloadPlatformImage->platformDialog == platformDialog)
+        if((*aDownloadPlatformImageRef)->platformDialog == platformDialog)
         {
             isDownloading = 1;
             break;
         }
     }
-    pthread_mutex_unlock(&downloadPlatformImagesMutex);
+    pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
     
     platformDialog->dismiss();
     if(!isDownloading)
@@ -150,8 +152,7 @@ void PlatformDialog::loadApiPlatforms()
         gtk_widget_set_sensitive(GTK_WIDGET(apiPlatformComboBox), 0);
     }
     
-    UiThreadHandler *uiThreadHandler = new UiThreadHandler(this, callbackElasticsearchPlatforms);
-    TheGamesDB::Elasticsearch::getInstance()->getPlatforms(uiThreadHandler, UiThreadHandler::callback);    
+    TheGamesDB::Elasticsearch::getInstance()->getPlatforms(dataUiThreadBridge, UiThreadBridge::callback);    
 }
 
 void PlatformDialog::updateApiPlatform()
@@ -191,18 +192,17 @@ void PlatformDialog::updateApiPlatform()
         
         // Checks if there is PlatformImage for this TheGamesDB::PlatformImage being downloaded, if it is, then appends it to the list
         int isDownloading = 0;
-        pthread_mutex_lock(&downloadPlatformImagesMutex);        
-        for(list<UiThreadHandler *>::iterator downloadPlatformImageHandler = downloadPlatformImageHandlers->begin(); downloadPlatformImageHandler != downloadPlatformImageHandlers->end(); downloadPlatformImageHandler++)
+        pthread_mutex_lock(&downloadPlatformImageRefsMutex);        
+        for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
         {
-            DownloadPlatformImage_t *downloadPlatformImage = (DownloadPlatformImage_t *)(*downloadPlatformImageHandler)->getRequesterInUiThread();
-            if(downloadPlatformImage->platformDialog == this && downloadPlatformImage->platformImage->getApiId() == TheGamesDB::API_ID && downloadPlatformImage->platformImage->getApiItemId() == apiPlatformImage->getId())
+            if((*aDownloadPlatformImageRef)->platformDialog == this && (*aDownloadPlatformImageRef)->platformImage->getApiId() == TheGamesDB::API_ID && (*aDownloadPlatformImageRef)->platformImage->getApiItemId() == apiPlatformImage->getId())
             {
-                platformImages->push_back(downloadPlatformImage->platformImage);
+                platformImages->push_back((*aDownloadPlatformImageRef)->platformImage);
                 isDownloading = 1;
                 break;
             }
         }
-        pthread_mutex_unlock(&downloadPlatformImagesMutex);
+        pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
 
         if(!isDownloading)
         {
@@ -409,12 +409,11 @@ void PlatformDialog::removeAllImages()
     // Checks if there are PlatformImages being downloaded, PlarformImages that are being downloaded cannot be deleted
     for(list<PlatformImage *>::iterator platformImage = platformImages->begin(); platformImage != platformImages->end(); platformImage++)
     {        
-        pthread_mutex_lock(&downloadPlatformImagesMutex);
+        pthread_mutex_lock(&downloadPlatformImageRefsMutex);
         int isDownloading = 0;
-        for(list<UiThreadHandler *>::iterator downloadPlatformImageHandler = downloadPlatformImageHandlers->begin(); downloadPlatformImageHandler != downloadPlatformImageHandlers->end(); downloadPlatformImageHandler++)
+        for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
         {
-            DownloadPlatformImage_t *downloadPlatformImage = (DownloadPlatformImage_t *)(*downloadPlatformImageHandler)->getRequesterInUiThread();
-            if(downloadPlatformImage->platformDialog == this && downloadPlatformImage->platformImage == (*platformImage))
+            if((*aDownloadPlatformImageRef)->platformDialog == this && (*aDownloadPlatformImageRef)->platformImage == (*platformImage))
             {
                 isDownloading = 1;
                 break;
@@ -424,7 +423,7 @@ void PlatformDialog::removeAllImages()
         {
             delete (*platformImage);
         }
-        pthread_mutex_unlock(&downloadPlatformImagesMutex);    
+        pthread_mutex_unlock(&downloadPlatformImageRefsMutex);    
     }
     platformImages->clear();
         
@@ -447,12 +446,11 @@ void PlatformDialog::removeImage()
     else
     {
         // Checks if the PlatformImage is being downloaded, PlarformImages that are being downloaded cannot be deleted
-        pthread_mutex_lock(&downloadPlatformImagesMutex);
+        pthread_mutex_lock(&downloadPlatformImageRefsMutex);
         int isDownloading = 0;
-        for(list<UiThreadHandler *>::iterator downloadPlatformImageHandler = downloadPlatformImageHandlers->begin(); downloadPlatformImageHandler != downloadPlatformImageHandlers->end(); downloadPlatformImageHandler++)
+        for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
         {
-            DownloadPlatformImage_t *downloadPlatformImage = (DownloadPlatformImage_t *)(*downloadPlatformImageHandler)->getRequesterInUiThread();
-            if(downloadPlatformImage->platformDialog == this && downloadPlatformImage->platformImage == selectedPlatformImage)
+            if((*aDownloadPlatformImageRef)->platformDialog == this && (*aDownloadPlatformImageRef)->platformImage == selectedPlatformImage)
             {
                 isDownloading = 1;
                 break;
@@ -462,7 +460,7 @@ void PlatformDialog::removeImage()
         {
             delete selectedPlatformImage;
         }
-        pthread_mutex_unlock(&downloadPlatformImagesMutex);
+        pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
     }    
     selectedPlatformImage = NULL;
     
@@ -609,17 +607,16 @@ void PlatformDialog::save()
         {
             // Checks if the image is still downloading, in this case, the image should be saved after it is downloaded
             int isDownloading = 0;
-            pthread_mutex_lock(&downloadPlatformImagesMutex);            
-            for(list<UiThreadHandler *>::iterator downloadPlatformImageHandler = downloadPlatformImageHandlers->begin(); downloadPlatformImageHandler != downloadPlatformImageHandlers->end(); downloadPlatformImageHandler++)
+            pthread_mutex_lock(&downloadPlatformImageRefsMutex);            
+            for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
             {
-                DownloadPlatformImage_t *downloadPlatformImage = (DownloadPlatformImage_t *)(*downloadPlatformImageHandler)->getRequesterInUiThread();
-                if(downloadPlatformImage->platformDialog == this && downloadPlatformImage->platformImage == platformImage)
+                if((*aDownloadPlatformImageRef)->platformDialog == this && (*aDownloadPlatformImageRef)->platformImage == platformImage)
                 {
                     isDownloading = 1;
                     break;
                 }
             }
-            pthread_mutex_unlock(&downloadPlatformImagesMutex);
+            pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
 
             if(!isDownloading)
             {
@@ -635,7 +632,12 @@ void PlatformDialog::save()
     }
 
     saved = 1;
-    NotificationManager::getInstance()->postNotification(NOTIFICATION_PLATFORM_UPDATED, platform);
+    
+    CallbackResult *callbackResult = new CallbackResult(NULL);
+    callbackResult->setType(NOTIFICATION_PLATFORM_UPDATED);
+    callbackResult->setData(new Platform(*platform));
+    NotificationManager::getInstance()->postNotification(callbackResult);
+    
     gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 }
 
@@ -683,16 +685,20 @@ gboolean PlatformDialog::signalImageBoxButtonPressedEvent(GtkWidget* widget, Gdk
     return TRUE;
 }
 
-void PlatformDialog::callbackElasticsearchPlatforms(gpointer pUiThreadHandlerResult)
+void PlatformDialog::callbackElasticsearch(CallbackResult *callbackResult)
 {
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
-    PlatformDialog *platformDialog = (PlatformDialog *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
+    PlatformDialog *platformDialog = (PlatformDialog *)callbackResult->getRequester();    
+    platformDialog->apiPlatforms = new list<TheGamesDB::Platform *>;
     
-    TheGamesDB::Elasticsearch::Result_t *dbResult = (TheGamesDB::Elasticsearch::Result_t *)uiThreadHandlerResult->data;
-    
-    platformDialog->apiPlatforms = (list<TheGamesDB::Platform *> *)dbResult->data;
-    if(!dbResult->error)
+    if(!callbackResult->getError())
     {
+        list<TheGamesDB::Platform *> *apiPlatforms = (list<TheGamesDB::Platform *> *)callbackResult->getData();
+        for(unsigned int index = 0; index < apiPlatforms->size(); index++)
+        {
+            TheGamesDB::Platform *apiPlatform = TheGamesDB::Platform::getItem(apiPlatforms, index);
+            platformDialog->apiPlatforms->push_back(new TheGamesDB::Platform(*apiPlatform));
+        }
+        
         GtkListStore *listStore = gtk_list_store_new(1, G_TYPE_STRING);
         gtk_combo_box_set_model(platformDialog->apiPlatformComboBox, GTK_TREE_MODEL(listStore));
 
@@ -724,20 +730,19 @@ void PlatformDialog::callbackElasticsearchPlatforms(gpointer pUiThreadHandlerRes
 
 
 
-list<UiThreadHandler *> *PlatformDialog::downloadPlatformImageHandlers = new list<UiThreadHandler *>;
+list<PlatformDialog::DownloadPlatformImageRef_t *> *PlatformDialog::downloadPlatformImageRefs = new list<PlatformDialog::DownloadPlatformImageRef_t *>;
 pthread_t PlatformDialog::downloadPlatformImagesThread;
-pthread_mutex_t PlatformDialog::downloadPlatformImagesMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t PlatformDialog::downloadPlatformImageRefsMutex = PTHREAD_MUTEX_INITIALIZER;
 int PlatformDialog::downloadingPlatformImages = 0;
 
 void PlatformDialog::downloadPlatformImage(PlatformDialog* platformDialog, PlatformImage* platformImage)
 {
-    pthread_mutex_lock(&downloadPlatformImagesMutex);
+    pthread_mutex_lock(&downloadPlatformImageRefsMutex);
     
-    DownloadPlatformImage_t *downloadPlatformImage = new DownloadPlatformImage_t;
-    downloadPlatformImage->platformDialog = platformDialog;
-    downloadPlatformImage->platformImage = platformImage;
-    UiThreadHandler *uiThreadHandler = new UiThreadHandler(downloadPlatformImage, callbackDownloadPlatformImage);
-    downloadPlatformImageHandlers->push_back(uiThreadHandler);
+    DownloadPlatformImageRef_t *downloadPlatformImageRef = new DownloadPlatformImageRef_t;
+    downloadPlatformImageRef->platformDialog = platformDialog;
+    downloadPlatformImageRef->platformImage = platformImage;
+    downloadPlatformImageRefs->push_back(downloadPlatformImageRef);
         
     if(!downloadingPlatformImages)
     {
@@ -748,65 +753,61 @@ void PlatformDialog::downloadPlatformImage(PlatformDialog* platformDialog, Platf
             exit(EXIT_FAILURE);
         }
     }
-    pthread_mutex_unlock(&downloadPlatformImagesMutex);
+    pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
 }
 
 void *PlatformDialog::downloadPlatformImagesWorker(void *)
 {    
-    UiThreadHandler *downloadPlatformImageHandler = NULL;
+    DownloadPlatformImageRef_t *downloadPlatformImageRef = NULL;
     do
     {
-        downloadPlatformImageHandler = NULL;
+        downloadPlatformImageRef = NULL;
         
-        pthread_mutex_lock(&downloadPlatformImagesMutex);
-        for(list<UiThreadHandler *>::iterator aDownloadPlatformImageHandler = downloadPlatformImageHandlers->begin(); aDownloadPlatformImageHandler != downloadPlatformImageHandlers->end(); aDownloadPlatformImageHandler++)
+        pthread_mutex_lock(&downloadPlatformImageRefsMutex);
+        for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
         {
-            DownloadPlatformImage_t *downloadPlatformImage = (DownloadPlatformImage_t *)(*aDownloadPlatformImageHandler)->getRequesterInUiThread();
-            if(!downloadPlatformImage->platformImage->getDownloaded())
+            if(!(*aDownloadPlatformImageRef)->platformImage->getDownloaded())
             {
-                downloadPlatformImageHandler = (*aDownloadPlatformImageHandler);
+                downloadPlatformImageRef = (*aDownloadPlatformImageRef);
                 break;
             }
         }
-        pthread_mutex_unlock(&downloadPlatformImagesMutex);
+        pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
         
-        if(downloadPlatformImageHandler)
-        {
-            DownloadPlatformImage_t *downloadPlatformImage = (DownloadPlatformImage_t *)downloadPlatformImageHandler->getRequesterInUiThread();
-            
-            HttpConnector *httpConnector = new HttpConnector(downloadPlatformImage->platformImage->getUrl());
+        if(downloadPlatformImageRef)
+        {            
+            HttpConnector *httpConnector = new HttpConnector(downloadPlatformImageRef->platformImage->getUrl());
             httpConnector->get();
-            cout  << "PlatformDialog::" << __FUNCTION__ << " fileName: " << downloadPlatformImage->platformImage->getFileName() << " url: " << downloadPlatformImage->platformImage->getUrl() << " httpStatus: " << httpConnector->getHttpStatus() << endl;
+            cout  << "PlatformDialog::" << __FUNCTION__ << " fileName: " << downloadPlatformImageRef->platformImage->getFileName() << " url: " << downloadPlatformImageRef->platformImage->getUrl() << " httpStatus: " << httpConnector->getHttpStatus() << endl;
             if(httpConnector->getHttpStatus() == HttpConnector::HTTP_OK)
             {
-                Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), downloadPlatformImage->platformImage->getFileName());
-                downloadPlatformImage->platformImage->setDownloaded(1);
+                Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), downloadPlatformImageRef->platformImage->getFileName());
+                downloadPlatformImageRef->platformImage->setDownloaded(1);
             }
             delete httpConnector;
             
-            UiThreadHandler::callback(downloadPlatformImageHandler, new char[1]); //Sends dummy data to avoid NULL
+            UiThreadBridge::postToUiThread(downloadPlatformImageRef,callbackDownloadPlatformImage);            
         }
         
-    }while(downloadPlatformImageHandler);
+    }while(downloadPlatformImageRef);
     
     downloadingPlatformImages = 0;    
     return NULL;
 }
 
-void PlatformDialog::callbackDownloadPlatformImage(gpointer pUiThreadHandlerResult)
-{
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;
-    DownloadPlatformImage_t *downloadPlatformImage = (DownloadPlatformImage_t *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();    
+void PlatformDialog::callbackDownloadPlatformImage(void *pDownloadPlatformImageRef)
+{    
+    DownloadPlatformImageRef_t *downloadPlatformImageRef = (DownloadPlatformImageRef_t *)pDownloadPlatformImageRef;    
     
-    pthread_mutex_lock(&downloadPlatformImagesMutex);
-    downloadPlatformImageHandlers->remove(uiThreadHandlerResult->uiThreadHandler);
-    pthread_mutex_unlock(&downloadPlatformImagesMutex);
+    pthread_mutex_lock(&downloadPlatformImageRefsMutex);
+    downloadPlatformImageRefs->remove(downloadPlatformImageRef);
+    pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
     
     // Checks if the PlatformImage is still present in the list of the PlatformDialog
     int isImage = 0;
-    for(list<PlatformImage *>::iterator platformImage = downloadPlatformImage->platformDialog->platformImages->begin(); platformImage != downloadPlatformImage->platformDialog->platformImages->end(); platformImage++)
+    for(list<PlatformImage *>::iterator platformImage = downloadPlatformImageRef->platformDialog->platformImages->begin(); platformImage != downloadPlatformImageRef->platformDialog->platformImages->end(); platformImage++)
     {
-        if(downloadPlatformImage->platformImage == (*platformImage))
+        if(downloadPlatformImageRef->platformImage == (*platformImage))
         {
             isImage = 1;
             break;
@@ -816,37 +817,36 @@ void PlatformDialog::callbackDownloadPlatformImage(gpointer pUiThreadHandlerResu
     if(isImage)
     {
         // Checks if the PlarformDialog is still been shown
-        if(!downloadPlatformImage->platformDialog->dismissed)
+        if(!downloadPlatformImageRef->platformDialog->dismissed)
         {
             // Checks if the PlatformImage has been downloaded
-            if(downloadPlatformImage->platformImage->getDownloaded())
+            if(downloadPlatformImageRef->platformImage->getDownloaded())
             {
-                downloadPlatformImage->platformDialog->updateImageGrid();
+                downloadPlatformImageRef->platformDialog->updateImageGrid();
             }            
         }
         // Checks if the PlatformDialog was dismissed with the save instruction
         else
         {
-            if(downloadPlatformImage->platformDialog->saved)
+            if(downloadPlatformImageRef->platformDialog->saved)
             {
-               downloadPlatformImage->platformDialog->saveNewImage(downloadPlatformImage->platformImage); 
+               downloadPlatformImageRef->platformDialog->saveNewImage(downloadPlatformImageRef->platformImage); 
             }
         }
     }
     else
     {
-        delete downloadPlatformImage->platformImage;
+        delete downloadPlatformImageRef->platformImage;
     }
     
     // Checks if the PlatformDialog was dismissed and if all its images has finished downloading
-    if(downloadPlatformImage->platformDialog->dismissed)
+    if(downloadPlatformImageRef->platformDialog->dismissed)
     {
-        pthread_mutex_lock(&downloadPlatformImagesMutex);
+        pthread_mutex_lock(&downloadPlatformImageRefsMutex);
         int isDialog = 0;
-        for(list<UiThreadHandler *>::iterator aDownloadPlatformImageHandler = downloadPlatformImageHandlers->begin(); aDownloadPlatformImageHandler != downloadPlatformImageHandlers->end(); aDownloadPlatformImageHandler++)
+        for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
         {
-            DownloadPlatformImage_t *aDownloadPlatformImage = (DownloadPlatformImage_t *)(*aDownloadPlatformImageHandler)->getRequesterInUiThread();
-            if(aDownloadPlatformImage->platformDialog == downloadPlatformImage->platformDialog)
+            if((*aDownloadPlatformImageRef)->platformDialog == downloadPlatformImageRef->platformDialog)
             {
                 isDialog = 1;
                 break;
@@ -854,13 +854,16 @@ void PlatformDialog::callbackDownloadPlatformImage(gpointer pUiThreadHandlerResu
         }
         if(!isDialog)
         {
-            if(downloadPlatformImage->platformDialog->saved)
+            if(downloadPlatformImageRef->platformDialog->saved)
             {
-                NotificationManager::getInstance()->postNotification(NOTIFICATION_PLATFORM_UPDATED, downloadPlatformImage->platformDialog->platform);
+                CallbackResult *callbackResult = new CallbackResult(NULL);
+                callbackResult->setType(NOTIFICATION_PLATFORM_UPDATED);
+                callbackResult->setData(new Platform(*(downloadPlatformImageRef->platformDialog->platform)));
+                NotificationManager::getInstance()->postNotification(callbackResult);    
             }
-            delete downloadPlatformImage->platformDialog;                
+            delete downloadPlatformImageRef->platformDialog;                
         }
-        pthread_mutex_unlock(&downloadPlatformImagesMutex);        
+        pthread_mutex_unlock(&downloadPlatformImageRefsMutex);        
     }
 }
 

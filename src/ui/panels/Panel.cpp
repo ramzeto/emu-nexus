@@ -32,7 +32,9 @@ Panel::Panel(string panelFileName, string panelBoxId)
 {
     builder = gtk_builder_new_from_file(string(Directory::getInstance()->getUiTemplatesDirectory() + panelFileName).c_str());
     panelBox = (GtkBox *)gtk_builder_get_object (builder, panelBoxId.c_str());
-    closed = 0;
+    destroyed = 0;
+    
+    g_signal_connect (panelBox, "destroy", G_CALLBACK(signalDestroy), this);
 }
 
 Panel::~Panel() 
@@ -44,19 +46,34 @@ GtkBox *Panel::getPanelBox()
     return panelBox;
 }
 
-string Panel::getTitle()
-{
-    return title;
-}
-
 void Panel::show()
 {    
     gtk_widget_show_all(GTK_WIDGET(panelBox));
 }
 
-void Panel::close()
-{    
-    //gtk_widget_hide_on_delete(GTK_WIDGET(panelBox));
-    closed = 1;
+void Panel::destroy()
+{
+    destroyed = 1;
+    
+    gtk_widget_destroy(GTK_WIDGET(panelBox));
 }
 
+int Panel::isDestroyed()
+{
+    return destroyed;
+}
+
+void Panel::signalDestroy(GtkWidget* widget, gpointer panel)
+{
+    //delete ((Panel *)panel);
+    
+    // @TODO .- Change this horrible solution to delete the Panel object. If deleting immediately, random crashes occur.
+    g_timeout_add(1000, callbackDeleteTimeout, panel);
+}
+
+gint Panel::callbackDeleteTimeout(gpointer panel)
+{    
+    delete ((Panel *)panel);
+    
+    return 0;
+}

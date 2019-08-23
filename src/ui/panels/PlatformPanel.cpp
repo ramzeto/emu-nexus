@@ -31,7 +31,7 @@
 #include "NotificationManager.h"
 #include "Notifications.h"
 #include "Platform.h"
-#include "UiThreadHandler.h"
+#include "UiThreadBridge.h"
 #include "GameLauncher.h"
 #include "AddDirectoryDialog.h"
 #include "Directory.h"
@@ -73,11 +73,16 @@ PlatformPanel::PlatformPanel(int platformId)  : Panel("PlatformPanel.ui", "platf
     
     g_signal_connect (gameGridScrolledWindow, "edge-reached", G_CALLBACK(signalGameGridScrolledWindowEdgeReached), this);
     
-    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_UPDATED, this, notificationReceived);
+    launcherUiThreadBridge = UiThreadBridge::registerBridge(this, callbackGameLauncher);
+    
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_UPDATED, this, callbackNotification, 1);
 }
 
 PlatformPanel::~PlatformPanel()
-{
+{    
+    UiThreadBridge::unregisterBridge(launcherUiThreadBridge);
+    NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_UPDATED, this);
+    
     gameGridItems->clear();
     delete gameGridItems;
     
@@ -96,12 +101,10 @@ void PlatformPanel::showGameDialog(int64_t gameId)
         if(!gameId)
         {
             // Notifies of the new game to any object listening for platform changes
-            Platform *platform = new Platform(platformId);
-            sqlite3 *sqlite = Database::getInstance()->acquire();
-            platform->load(sqlite);
-            Database::getInstance()->release();
-            NotificationManager::getInstance()->postNotification(NOTIFICATION_PLATFORM_UPDATED, platform);
-            delete platform;
+            CallbackResult *callbackResult = new CallbackResult(NULL);
+            callbackResult->setType(NOTIFICATION_PLATFORM_UPDATED);
+            callbackResult->setData(new Platform(platformId));
+            NotificationManager::getInstance()->postNotification(callbackResult);                
 
 
             gameGridItemIndex = 0;
@@ -159,7 +162,7 @@ void PlatformPanel::loadGridPage()
         if(gameGridItems->size() > 0)
         {
             gameGridItems->clear();
-            UiUtils::getInstance()->clearContainer(GTK_CONTAINER(gameGridListBox), 1);            
+            UiUtils::getInstance()->clearContainer(GTK_CONTAINER(gameGridListBox), 1);
         }
         
         loadGames();
@@ -376,12 +379,11 @@ void PlatformPanel::removeGame(int64_t gameId)
         loadGridPage();
         
         // Notifies of the removed game to any object listening for platform changes
-        Platform *platform = new Platform(platformId);
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        platform->load(sqlite);
-        Database::getInstance()->release();
-        NotificationManager::getInstance()->postNotification(NOTIFICATION_PLATFORM_UPDATED, platform);
-        delete platform;
+        CallbackResult *callbackResult = new CallbackResult(NULL);
+        callbackResult->setType(NOTIFICATION_PLATFORM_UPDATED);
+        callbackResult->setData(new Platform(platformId));
+        NotificationManager::getInstance()->postNotification(callbackResult); 
+
     }
     delete messageDialog;
     delete game;
@@ -393,8 +395,7 @@ void PlatformPanel::launchGame(int64_t gameId)
     
     launchDialog = new LaunchDialog(gameId);
     
-    UiThreadHandler *uiThreadHandler = new UiThreadHandler(this, callbackGameLauncher);
-    GameLauncher::getInstance()->launch(gameId, uiThreadHandler, UiThreadHandler::callback);
+    GameLauncher::getInstance()->launch(gameId, launcherUiThreadBridge, UiThreadBridge::callback);
     
     launchDialog->execute();
     delete launchDialog;
@@ -403,7 +404,12 @@ void PlatformPanel::launchGame(int64_t gameId)
 }
 
 void PlatformPanel::signalGameGridSizeAllocate(GtkWidget* widget, GtkAllocation* allocation, gpointer platformPanel)
-{        
+{    
+    if(((PlatformPanel *)platformPanel)->isDestroyed())
+    {
+        return;
+    }
+    
     if(((PlatformPanel *)platformPanel)->panelWidth != allocation->width || ((PlatformPanel *)platformPanel)->panelHeight != allocation->height)
     {        
         ((PlatformPanel *)platformPanel)->panelWidth = allocation->width;
@@ -497,18 +503,19 @@ gint PlatformPanel::callbackFirstShowHackyTimeout(gpointer platformPanel)
     return 0;
 }
 
-void PlatformPanel::notificationReceived(string notification, void* platformPanel, void* notificationData)
+void PlatformPanel::callbackNotification(CallbackResult *callbackResult)
 {
     try
     {
-        if(((PlatformPanel *)platformPanel)->closed)
+        PlatformPanel *platformPanel = (PlatformPanel *)callbackResult->getRequester();        
+        if(platformPanel->isDestroyed())
         {
             return;
         }
 
-        if(notification.compare(NOTIFICATION_GAME_UPDATED) == 0)
+        if(callbackResult->getType().compare(NOTIFICATION_GAME_UPDATED) == 0)
         {
-            Game *game = (Game *)notificationData;
+            Game *game = (Game *)callbackResult->getData();
             ((PlatformPanel *)platformPanel)->updateGame(game->getId());
         }
     }
@@ -518,33 +525,31 @@ void PlatformPanel::notificationReceived(string notification, void* platformPane
     }
 }
 
-void PlatformPanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
+void PlatformPanel::callbackGameLauncher(CallbackResult *callbackResult)
 {
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
-    PlatformPanel *platformPanel = (PlatformPanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
-    GameLauncher::Status_t *gameLauncherStatus = (GameLauncher::Status_t *)uiThreadHandlerResult->data;
+    PlatformPanel *platformPanel = (PlatformPanel *)callbackResult->getRequester();
     
     string message = "";
     int activity = 0;
-    if(gameLauncherStatus->error)
+    if(callbackResult->getError())
     {
-        if(gameLauncherStatus->error == GameLauncher::ERROR_BUSY)
+        if(callbackResult->getError() == GameLauncher::ERROR_BUSY)
         {
             message = "There is another process running";
         }
-        else if(gameLauncherStatus->error == GameLauncher::ERROR_FILE_NOT_FOUND)
+        else if(callbackResult->getError() == GameLauncher::ERROR_FILE_NOT_FOUND)
         {
             message = "File not found";
         }
-        else if(gameLauncherStatus->error == GameLauncher::ERROR_INFLATE)
+        else if(callbackResult->getError() == GameLauncher::ERROR_INFLATE)
         {
             message = "Decompressing/Unpacking failed";
         }
-        else if(gameLauncherStatus->error == GameLauncher::ERROR_INFLATE_NOT_SUPPORTED)
+        else if(callbackResult->getError() == GameLauncher::ERROR_INFLATE_NOT_SUPPORTED)
         {
             message = "Compressed/Packed file format not supported";
         }
-        else if(gameLauncherStatus->error == GameLauncher::ERROR_OTHER)
+        else if(callbackResult->getError() == GameLauncher::ERROR_OTHER)
         {
             message = "An unknown error happened";
         }
@@ -553,26 +558,26 @@ void PlatformPanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
     }
     else
     {
-        if(gameLauncherStatus->state == GameLauncher::STATE_IDLE)
+        if(callbackResult->getStatus() == GameLauncher::STATE_IDLE)
         {
             activity = 1;
             message = "Preparing...";
         }
-        else if(gameLauncherStatus->state == GameLauncher::STATE_INFLATING)
+        else if(callbackResult->getStatus() == GameLauncher::STATE_INFLATING)
         {
             activity = 1;
             message = "Decompressing/Unpacking...";
         }
-        else if(gameLauncherStatus->state == GameLauncher::STATE_RUNNING)
+        else if(callbackResult->getStatus() == GameLauncher::STATE_RUNNING)
         {
             activity = 1;
             message = "Running...";
         }
-        else if(gameLauncherStatus->state == GameLauncher::STATE_FINISHED)
+        else if(callbackResult->getStatus() == GameLauncher::STATE_FINISHED)
         {
             activity = 0;
             message = "Execution finished";
         }
     }
-    platformPanel->launchDialog->setStatus(activity, message, gameLauncherStatus->progress);
+    platformPanel->launchDialog->setStatus(activity, message, callbackResult->getProgress());
 }

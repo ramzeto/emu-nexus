@@ -44,7 +44,7 @@ const string ElasticsearchProcess::URL_MD5 = "https://www.dropbox.com/s/lm6bug13
 const string ElasticsearchProcess::TARGZ_FILE_NAME = "elasticsearch.tar.gz";
 const string ElasticsearchProcess::TAR_FILE_NAME = "elasticsearch.tar";
 
-ElasticsearchProcess::ElasticsearchProcess(void *requester, void (*statusCallback)(void *, void*)) : SerialProcess(TYPE, requester, statusCallback)
+ElasticsearchProcess::ElasticsearchProcess(void *requester, void (*statusCallback)(CallbackResult *)) : SerialProcess(TYPE, requester, statusCallback)
 {
     
 }
@@ -181,7 +181,7 @@ int ElasticsearchProcess::execute()
     delete md5HttpConnector;
     
     postStatus(string("Starting database"));
-    TheGamesDB::Elasticsearch::getInstance()->start(this, callbackElasticsearchListener);                
+    TheGamesDB::Elasticsearch::getInstance()->start(this, callbackElasticsearchStartListener);                
     
     return status;
 }
@@ -194,14 +194,12 @@ void ElasticsearchProcess::httpConnectorProgressListener(void* pElasticsearchPro
 }
 
 
-void ElasticsearchProcess::callbackElasticsearchListener(void *pElasticsearchProcess, void *pElasticseachResult)
+void ElasticsearchProcess::callbackElasticsearchStartListener(CallbackResult *callbackResult)
 {
-    ElasticsearchProcess *elasticsearchProcess = (ElasticsearchProcess *)pElasticsearchProcess;
-    TheGamesDB::Elasticsearch::Result_t *result = (TheGamesDB::Elasticsearch::Result_t *)pElasticseachResult;
+    ElasticsearchProcess *elasticsearchProcess = (ElasticsearchProcess *)callbackResult->getRequester();
     
-    if(!result->error)
+    if(!callbackResult->getError())
     {   
-        json_decref((json_t *)result->data);
         elasticsearchProcess->status = STATUS_SUCCESS;
     }
     else
@@ -209,8 +207,8 @@ void ElasticsearchProcess::callbackElasticsearchListener(void *pElasticsearchPro
         elasticsearchProcess->status = STATUS_FAIL;
         Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
     }    
-    delete result;
     
+    callbackResult->destroy();    
     SerialProcessExecutor::getInstance()->finish(elasticsearchProcess);
 }
 

@@ -27,6 +27,8 @@
 
 #include <string>
 
+#include "CallbackResult.h"
+
 using namespace std;
 
 /**
@@ -37,29 +39,20 @@ public:
     static const int STATUS_IDLE;
     static const int STATUS_RUNNING;
     static const int STATUS_SUCCESS;
-    static const int STATUS_FAIL;
-    
-    typedef struct
-    {
-        SerialProcess *serialProcess;
-        string title;
-        string message;
-        int progress;
-    }Status_t;
-    
+    static const int STATUS_FAIL;   
     
     /**
      * 
      * @param type String that identifies the type of the process.
      * @param requester Pointer to the object that requested the process.
-     * @param statusCallback Callback that receives and update of the process. Receives the pointer of the requester and a pointer to a Status_t structure (the requester is responsible of freeing the Status_t pointer).
+     * @param statusCallback Callback that receives an update of the process. Receives the pointer to a CallbackResult object.
      */
-    SerialProcess(string type, void *requester, void (*statusCallback)(void *, void*));
+    SerialProcess(string type, void *requester, void (*statusCallback)(CallbackResult *));
     
     virtual ~SerialProcess();
     
     void *getRequester();
-    void (*getStatusCallback())(void *, void*);
+    void (*getStatusCallback())(CallbackResult *);
     
     string getType();
     int getStatus();
@@ -79,16 +72,16 @@ public:
      * @param title
      * @param message
      * @param progress
-     * @return 
+     * @param data
      */
-    void postStatus(string title, string message = "", int progress = -1);
-    
+    void postStatus(string title, string message = "", int progress = -1, void *data = NULL, void (destroyCallback)(CallbackResult *) = NULL);    
+        
 protected:
     void *requester;
-    void (*statusCallback)(void *, void*);
+    void (*statusCallback)(CallbackResult *);
     
     string type;
-    int status;    
+    int status;
 };
 
 #endif /* SERIALPROCESS_H */

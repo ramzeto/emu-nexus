@@ -56,10 +56,12 @@ void SerialProcessExecutor::finish(SerialProcess* serialProcess)
     pthread_mutex_lock(&serialProcessesMutex);
     if(serialProcess == currentSerialProcess)
     {
-        serialProcesses->remove(currentSerialProcess);
+        serialProcesses->remove(currentSerialProcess);        
         currentSerialProcess = NULL;
         
         serialProcess->postStatus("");
+        
+        delete serialProcess;
     }
     pthread_mutex_unlock(&serialProcessesMutex);
     

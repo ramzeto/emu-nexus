@@ -31,7 +31,7 @@ const int SerialProcess::STATUS_RUNNING = -1;
 const int SerialProcess::STATUS_SUCCESS = 0;
 const int SerialProcess::STATUS_FAIL = 1;
 
-SerialProcess::SerialProcess(string type, void *requester, void (*statusCallback)(void *, void*))
+SerialProcess::SerialProcess(string type, void *requester, void (*statusCallback)(CallbackResult *))
 {
     this->type = type;
     this->requester = requester;
@@ -48,7 +48,7 @@ void* SerialProcess::getRequester()
     return requester;
 }
 
-void (*SerialProcess::getStatusCallback())(void*, void*)
+void (*SerialProcess::getStatusCallback())(CallbackResult *)
 {
     return statusCallback;
 }
@@ -69,17 +69,20 @@ int SerialProcess::execute()
     return status;
 }
 
-void SerialProcess::postStatus(string title, string message, int progress)
+void SerialProcess::postStatus(string title, string message, int progress, void *data, void (destroyCallback)(CallbackResult *))
 {    
     if(statusCallback)
     {
-        Status_t *status = new Status_t;
-        status->serialProcess = this;
-        status->title = title;
-        status->message = message;
-        status->progress = progress;
+        CallbackResult *callbackResult = new CallbackResult(requester);
+        callbackResult->setType(type);
+        callbackResult->setStatus(status);
+        callbackResult->setProgress(progress);
+        callbackResult->setTitle(title);
+        callbackResult->setMessage(message);
+        callbackResult->setData(data);
+        callbackResult->setDestroyCallback(destroyCallback);
     
-        statusCallback(requester, status);        
+        statusCallback(callbackResult);        
     }            
 }
 

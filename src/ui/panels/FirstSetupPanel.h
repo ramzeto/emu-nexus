@@ -26,7 +26,8 @@
 #define FIRSTSETUPPANEL_H
 
 #include "Panel.h"
-#include "UiThreadHandler.h"
+#include "UiThreadBridge.h"
+#include "CallbackResult.h"
 
 class FirstSetupPanel : public Panel
 {
@@ -45,7 +46,8 @@ private:
     GtkButton *setupButton;
     GtkButton *successButton;
     
-    UiThreadHandler *processUiThreadHandler;
+    UiThreadBridge *processUiThreadBridge;
+    UiThreadBridge *dataUiThreadBridge;
     
     void (*onSetupReadyCallback)(void *);
     void *onSetupReadyCallbackReferenceData;
@@ -65,11 +67,9 @@ private:
 
     static void signalSetupButtonClicked(GtkButton *button, gpointer firstSetupPanel);    
     static void signalSuccessButtonClicked(GtkButton *button, gpointer firstSetupPanel);
-    static void callbackElasticsearchProcessListener(gpointer pUiThreadHandlerResult);
-    static void callbackElasticsearchGenres(gpointer pUiThreadHandlerResult);
-    static void callbackElasticsearchDevelopers(gpointer pUiThreadHandlerResult);
-    static void callbackElasticsearchPublishers(gpointer pUiThreadHandlerResult);
-    static void callbackElasticsearchEsrbRatings(gpointer pUiThreadHandlerResult);
+    
+    static void callbackElasticsearchProcess(CallbackResult *callbackResult);
+    static void callbackElasticsearchData(CallbackResult *callbackResult);
 };
 
 #endif /* FIRSTSETUPPANEL_H */

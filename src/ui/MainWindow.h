@@ -28,7 +28,8 @@
 
 #include "Panel.h"
 #include "Platform.h"
-#include "UiThreadHandler.h"
+#include "UiThreadBridge.h"
+#include "CallbackResult.h"
 
 #include <gtk/gtk.h>
 #include <list>
@@ -67,8 +68,8 @@ private:
     list<Platform *> *platforms;
     Panel *currentPanel;
     int64_t selectedPlatformId;
-
-    UiThreadHandler *processUiThreadHandler;
+    
+    UiThreadBridge *processUiThreadBridge;
 
     void loadStartGui();
     
@@ -188,17 +189,15 @@ private:
     
     /**
      * 
-     * @param uiThreadHandler
+     * @param callbackResult
      */
-    static void serialProcessStatusCallBack(gpointer pUiThreadHandlerResult);
+    static void callbackSerialProcessStatus(CallbackResult *callbackResult);
     
     /**
      * 
-     * @param notification
-     * @param mainWindow
-     * @param notificationData
+     * @param callbackResult
      */
-    static void notificationReceived(string notification, void *mainWindow, void *notificationData);
+    static void callbackNotification(CallbackResult *callbackResult);
     
 };
 

@@ -26,29 +26,34 @@
 #define DOWNLOADGAMEIMAGESPROCESS_H
 
 #include "SerialProcess.h"
-#include "UiThreadHandler.h"
+#include "UiThreadBridge.h"
 #include "Game.h"
+#include "CallbackResult.h"
 
 #include <list>
 
 using namespace std;
 
+/**
+ * Class for downloading the game images as a SerialProcess.
+ */
 class DownloadGameImagesProcess : public SerialProcess
 {
 public:
     static const string TYPE;
-        
-    DownloadGameImagesProcess(void *requester, void (*statusCallback)(void *, void*));
+
+    DownloadGameImagesProcess(void *requester, void (*statusCallback)(CallbackResult *));
     virtual ~DownloadGameImagesProcess();
     
     int execute() override;
     
 private:
-    UiThreadHandler *postNotificationThreadHandler;
     
+    /**
+     * Post a NOTIFICATION_GAME_UPDATED notification.
+     * @param game
+     */
     void postGameChangedNotification(Game *game);
-    
-    static void callbackPostNotificationReady(void *pUiThreadHandlerResult);
 };
 
 #endif /* DOWNLOADGAMEIMAGESPROCESS_H */

@@ -27,15 +27,19 @@
 
 #include "SerialProcess.h"
 #include "HttpConnector.h"
+#include "CallbackResult.h"
 
 using namespace std;
 
+/**
+ * Class for checking, downloading and starting the Elasticsearch database.
+ */
 class ElasticsearchProcess : public SerialProcess
 {
 public:
     static const string TYPE;
     
-    ElasticsearchProcess(void *requester, void (*statusCallback)(void *, void*));
+    ElasticsearchProcess(void *requester, void (*statusCallback)(CallbackResult *));
     virtual ~ElasticsearchProcess();
     
     int execute() override;
@@ -46,7 +50,7 @@ private:
     static const string TAR_FILE_NAME;
 
     static void httpConnectorProgressListener(void *pElasticsearchProcess, HttpConnector *httpConnector, size_t bytesToDownload, size_t downloadedBytes);
-    static void callbackElasticsearchListener(void *pElasticsearchProcess, void *pElasticseachResult);
+    static void callbackElasticsearchStartListener(CallbackResult *callbackResult);
 };
 
 #endif /* THEGAMESDBSTARTPROCESS_H */

@@ -23,7 +23,7 @@
  */
 
 #include "GameSearchDialog.h"
-#include "UiThreadHandler.h"
+#include "UiThreadBridge.h"
 #include "UiUtils.h"
 
 GameSearchDialog::GameSearchDialog(int64_t apiPlatformId, string query) : Dialog("SingleChoiceListDialog.ui", "singleChoiceListDialog")
@@ -46,12 +46,14 @@ GameSearchDialog::GameSearchDialog(int64_t apiPlatformId, string query) : Dialog
 
     gtk_window_set_title(GTK_WINDOW(dialog), "Select a game");
     
-    UiThreadHandler *uiThreadHandler = new UiThreadHandler(this, callbackElasticsearchGames);
-    TheGamesDB::Elasticsearch::getInstance()->getGames(apiPlatformId, query, uiThreadHandler, UiThreadHandler::callback);
+    dataUiThreadBridge = UiThreadBridge::registerBridge(this, callbackElasticsearch);
+    TheGamesDB::Elasticsearch::getInstance()->getGames(apiPlatformId, query, dataUiThreadBridge, UiThreadBridge::callback);
 }
 
 GameSearchDialog::~GameSearchDialog()
 {
+    UiThreadBridge::unregisterBridge(dataUiThreadBridge);
+    
     if(apiGames)
     {
         TheGamesDB::Game::releaseItems(apiGames);
@@ -101,27 +103,16 @@ void GameSearchDialog::select(unsigned int apiGameIndex)
     gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 }
 
+TheGamesDB::Game* GameSearchDialog::getSelectedApiGame()
+{
+    return selectedApiGame;
+}
 
 void GameSearchDialog::signalCloseButtonClicked(GtkButton *button, gpointer dialog)
 {
     ((GameSearchDialog *)dialog)->close();
 }
 
-TheGamesDB::Game* GameSearchDialog::getSelectedApiGame()
-{
-    return selectedApiGame;
-}
-
-
-void GameSearchDialog::callbackElasticsearchGames(gpointer pUiThreadHandlerResult)
-{
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;
-    GameSearchDialog *gameSearchDialog = (GameSearchDialog *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
-    
-    TheGamesDB::Elasticsearch::Result_t *dbResult = (TheGamesDB::Elasticsearch::Result_t *)uiThreadHandlerResult->data;    
-    gameSearchDialog->apiGames = (list<TheGamesDB::Game *> *)dbResult->data;
-    gameSearchDialog->updateList();
-}
 
 void GameSearchDialog::signalListRowSelected (GtkListBox *listBox, GtkWidget *row, gpointer dialog)
 {
@@ -132,4 +123,24 @@ void GameSearchDialog::signalListRowSelected (GtkListBox *listBox, GtkWidget *ro
         
     int position = gtk_list_box_row_get_index (GTK_LIST_BOX_ROW(row));
     ((GameSearchDialog *)dialog)->select(position);
+}
+
+void GameSearchDialog::callbackElasticsearch(CallbackResult *callbackResult)
+{
+    GameSearchDialog *gameSearchDialog = (GameSearchDialog *)callbackResult->getRequester();
+
+    gameSearchDialog->apiGames = new list<TheGamesDB::Game *>;
+    if(!callbackResult->getError())
+    {
+        list<TheGamesDB::Game *> *apiGames = (list<TheGamesDB::Game *> *)callbackResult->getData();
+        
+        for(unsigned int index = 0; index < apiGames->size(); index++)
+        {
+            TheGamesDB::Game *apiGame = TheGamesDB::Game::getItem(apiGames, index);
+            gameSearchDialog->apiGames->push_back(new TheGamesDB::Game(*apiGame));
+        }
+    }
+    
+    
+    gameSearchDialog->updateList();
 }

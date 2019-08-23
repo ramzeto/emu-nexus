@@ -60,7 +60,7 @@ GameLauncher::~GameLauncher()
 {
 }
 
-void GameLauncher::launch(int64_t gameId, void* requester, void(*callback)(void*, void*))
+void GameLauncher::launch(int64_t gameId, void* requester, void(*callback)(CallbackResult*))
 {
     GameLauncherData_t *gameLauncherData = new GameLauncherData_t;
     gameLauncherData->gameId = gameId;
@@ -126,13 +126,12 @@ string GameLauncher::getFileNameWithExtensions(list<string> extensions, string d
 
 void GameLauncher::postStatus(GameLauncherData_t* gameLauncherData, int error, int state, int progress)
 {
-    Status_t *status = new Status_t;
-    status->gameId = gameLauncherData->gameId;
-    status->error = error;
-    status->state = state;
-    status->progress = progress;
+    CallbackResult *callbackResult = new CallbackResult(gameLauncherData->requester);
+    callbackResult->setError(error);
+    callbackResult->setStatus(state);
+    callbackResult->setProgress(progress);        
 
-    gameLauncherData->callback(gameLauncherData->requester, status);
+    gameLauncherData->callback(callbackResult);
 }
 
 

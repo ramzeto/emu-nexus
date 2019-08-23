@@ -34,14 +34,12 @@
 
 const string DownloadGameImagesProcess::TYPE = "DownloadGameImagesProcess";
 
-DownloadGameImagesProcess::DownloadGameImagesProcess(void *requester, void (*statusCallback)(void *, void*)) : SerialProcess(TYPE, requester, statusCallback)
+DownloadGameImagesProcess::DownloadGameImagesProcess(void *requester, void (*statusCallback)(CallbackResult *)) : SerialProcess(TYPE, requester, statusCallback)
 {
-    postNotificationThreadHandler = new UiThreadHandler(this, callbackPostNotificationReady);
 }
 
 DownloadGameImagesProcess::~DownloadGameImagesProcess()
 {
-    delete postNotificationThreadHandler;
 }
 
 int DownloadGameImagesProcess::execute()
@@ -81,11 +79,13 @@ int DownloadGameImagesProcess::execute()
             
             if(gameImage->getType() == GameImage::TYPE_BOX_FRONT)
             {
-                postGameChangedNotification(game);
+                postGameChangedNotification(new Game(*game));
             }
         }
-        delete httpConnector;                        
-    }            
+        delete httpConnector;
+        
+        delete game;
+    }
     GameImage::releaseItems(gameImages);
     
     status = STATUS_SUCCESS;
@@ -95,14 +95,9 @@ int DownloadGameImagesProcess::execute()
 
 void DownloadGameImagesProcess::postGameChangedNotification(Game* game)
 {
-    UiThreadHandler::callback(postNotificationThreadHandler, game);
-}
-
-void DownloadGameImagesProcess::callbackPostNotificationReady(void* pUiThreadHandlerResult)
-{
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;      
-    Game *game = (Game *)uiThreadHandlerResult->data;
-    
-    NotificationManager::getInstance()->postNotification(NOTIFICATION_GAME_UPDATED, game);
+    CallbackResult *callbackResult = new CallbackResult(NULL);
+    callbackResult->setType(NOTIFICATION_GAME_UPDATED);
+    callbackResult->setData(new Game(*game));
+    NotificationManager::getInstance()->postNotification(callbackResult);
 }
 

@@ -1,11 +1,11 @@
-OBJS=main.o Utils.o Directory.o\
+OBJS=main.o Utils.o Directory.o CallbackResult.o\
 Database.o ApplicationVersion.o Preferences.o Platform.o PlatformImage.o Genre.o Developer.o Publisher.o EsrbRating.o Game.o GameGenre.o GameDeveloper.o GamePublisher.o GameImage.o GameDocument.o ApiDatabase.o CacheGame.o RecentGame.o ParseDirectory.o ParseDirectoryGame.o\
 thegamesdb.o\
 GameLauncher.o\
 HttpConnector.o\
 NotificationManager.o\
 SerialProcessExecutor.o SerialProcess.o ElasticsearchProcess.o ParseDirectoryProcess.o DownloadGameImagesProcess.o\
-Asset.o MainWindow.o UiThreadHandler.o UiUtils.o\
+Asset.o MainWindow.o UiThreadBridge.o UiUtils.o\
 Dialog.o MessageDialog.o PlatformDialog.o GameDialog.o DevelopersSelectDialog.o PublishersSelectDialog.o GenresSelectDialog.o GameSearchDialog.o LaunchDialog.o AddDirectoryDialog.o\
 Panel.o HomePanel.o PlatformPanel.o FirstSetupPanel.o\
 Widget.o GameDetailWidget.o\
@@ -24,7 +24,7 @@ ASSETSDIR=assets
 INSTALLBINDIR=/usr/bin
 INSTALLASSETSDIR=/usr/share/$(BIN)
 BUILDH=Build.h
-VERSION=0.1
+VERSION=0.2
 
 $(BIN) : $(OBJS)	
 	$(CC) $(OBJS) $(LFLAGS) $(GTKFLAGS) -o $(BIN)

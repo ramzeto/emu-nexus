@@ -46,6 +46,14 @@ const int TheGamesDB::Elasticsearch::STATUS_STARTING = 1;
 const int TheGamesDB::Elasticsearch::STATUS_UPDATING = 2;
 const int TheGamesDB::Elasticsearch::STATUS_STOPPED = 3;
 
+const string TheGamesDB::Elasticsearch::RESULT_TYPE_START = "start";
+const string TheGamesDB::Elasticsearch::RESULT_TYPE_GENRES = "genres";
+const string TheGamesDB::Elasticsearch::RESULT_TYPE_DEVELOPERS = "developers";
+const string TheGamesDB::Elasticsearch::RESULT_TYPE_PUBLISHERS = "publishers";
+const string TheGamesDB::Elasticsearch::RESULT_TYPE_ESRB_RATINGS = "esrb_ratings";
+const string TheGamesDB::Elasticsearch::RESULT_TYPE_PLATFORMS = "platforms";
+const string TheGamesDB::Elasticsearch::RESULT_TYPE_GAMES = "games";
+
 TheGamesDB::Elasticsearch::Elasticsearch()
 {
     status = STATUS_STOPPED;
@@ -56,7 +64,7 @@ TheGamesDB::Elasticsearch::~Elasticsearch()
 
 }
 
-void TheGamesDB::Elasticsearch::start(void *requester, void (*callback)(void *, void*))
+void TheGamesDB::Elasticsearch::start(void *requester, void (*callback)(CallbackResult *))
 {
     status = STATUS_STARTING;
     
@@ -78,7 +86,7 @@ void TheGamesDB::Elasticsearch::start(void *requester, void (*callback)(void *, 
     }
 }
 
-void TheGamesDB::Elasticsearch::getGenres(void* requester, void(*callback)(void*, void*))
+void TheGamesDB::Elasticsearch::getGenres(void* requester, void (*callback)(CallbackResult *))
 {
     RequesterRef_t *requesterRef = new RequesterRef_t;
     requesterRef->requester = requester;
@@ -92,7 +100,7 @@ void TheGamesDB::Elasticsearch::getGenres(void* requester, void(*callback)(void*
     }
 }
 
-void TheGamesDB::Elasticsearch::getDevelopers(void* requester, void(*callback)(void*, void*))
+void TheGamesDB::Elasticsearch::getDevelopers(void* requester, void (*callback)(CallbackResult *))
 {
     RequesterRef_t *requesterRef = new RequesterRef_t;
     requesterRef->requester = requester;
@@ -106,7 +114,7 @@ void TheGamesDB::Elasticsearch::getDevelopers(void* requester, void(*callback)(v
     }
 }
 
-void TheGamesDB::Elasticsearch::getPublishers(void* requester, void(*callback)(void*, void*))
+void TheGamesDB::Elasticsearch::getPublishers(void* requester, void (*callback)(CallbackResult *))
 {
     RequesterRef_t *requesterRef = new RequesterRef_t;
     requesterRef->requester = requester;
@@ -120,7 +128,7 @@ void TheGamesDB::Elasticsearch::getPublishers(void* requester, void(*callback)(v
     }
 }
 
-void TheGamesDB::Elasticsearch::getEsrbRatings(void* requester, void(*callback)(void*, void*))
+void TheGamesDB::Elasticsearch::getEsrbRatings(void* requester, void (*callback)(CallbackResult *))
 {
     RequesterRef_t *requesterRef = new RequesterRef_t;
     requesterRef->requester = requester;
@@ -134,7 +142,7 @@ void TheGamesDB::Elasticsearch::getEsrbRatings(void* requester, void(*callback)(
     }
 }
 
-void TheGamesDB::Elasticsearch::getPlatforms(void* requester, void(*callback)(void*, void*))
+void TheGamesDB::Elasticsearch::getPlatforms(void* requester, void (*callback)(CallbackResult *))
 {
     RequesterRef_t *requesterRef = new RequesterRef_t;
     requesterRef->requester = requester;
@@ -148,7 +156,7 @@ void TheGamesDB::Elasticsearch::getPlatforms(void* requester, void(*callback)(vo
     }
 }
 
-void TheGamesDB::Elasticsearch::getGames(int64_t apiPlatformId, string query, void* requester, void(*callback)(void*, void*))
+void TheGamesDB::Elasticsearch::getGames(int64_t apiPlatformId, string query, void* requester, void (*callback)(CallbackResult *))
 {
     RequesterRef_t *requesterRef = new RequesterRef_t;
     requesterRef->requester = requester;
@@ -245,10 +253,12 @@ void *TheGamesDB::Elasticsearch::processStartListenerWorker(void *requesterRef)
         Elasticsearch::instance->status = STATUS_STOPPED;
     }
     
-    Result_t *result = new Result_t;
-    result->error = error;
-    result->data = jsonResponse;    
-    ((RequesterRef_t *)requesterRef)->callback(((RequesterRef_t *)requesterRef)->requester, result);
+    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
+    callbackResult->setType(RESULT_TYPE_START);
+    callbackResult->setError(error);
+    callbackResult->setData(jsonResponse);
+    callbackResult->setDestroyCallback(callbackResultDestroy);
+    ((RequesterRef_t *)requesterRef)->callback(callbackResult);
     
     delete ((RequesterRef_t *)requesterRef);
 
@@ -317,11 +327,13 @@ void *TheGamesDB::Elasticsearch::getGenresWorker(void *requesterRef)
         delete httpConnector;                
     }while(hits > 0);
 
-    Result_t *result = new Result_t;
-    result->error = error;
-    result->data = genres;
-    ((RequesterRef_t *)requesterRef)->callback(((RequesterRef_t *)requesterRef)->requester, result);
-    
+    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
+    callbackResult->setType(RESULT_TYPE_GENRES);
+    callbackResult->setError(error);
+    callbackResult->setData(genres);
+    callbackResult->setDestroyCallback(callbackResultDestroy);
+    ((RequesterRef_t *)requesterRef)->callback(callbackResult);
+        
     delete ((RequesterRef_t *)requesterRef);
     return NULL;
 }
@@ -388,10 +400,12 @@ void *TheGamesDB::Elasticsearch::getDevelopersWorker(void *requesterRef)
         delete httpConnector;                
     }while(hits > 0);
 
-    Result_t *result = new Result_t;
-    result->error = error;
-    result->data = developers;
-    ((RequesterRef_t *)requesterRef)->callback(((RequesterRef_t *)requesterRef)->requester, result);
+    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
+    callbackResult->setType(RESULT_TYPE_DEVELOPERS);
+    callbackResult->setError(error);
+    callbackResult->setData(developers);
+    callbackResult->setDestroyCallback(callbackResultDestroy);
+    ((RequesterRef_t *)requesterRef)->callback(callbackResult);    
     
     delete ((RequesterRef_t *)requesterRef);
     return NULL;    
@@ -459,11 +473,13 @@ void *TheGamesDB::Elasticsearch::getPublishersWorker(void *requesterRef)
         delete httpConnector;                
     }while(hits > 0);
 
-    Result_t *result = new Result_t;
-    result->error = error;
-    result->data = publishers;
-    ((RequesterRef_t *)requesterRef)->callback(((RequesterRef_t *)requesterRef)->requester, result);
-    
+    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
+    callbackResult->setType(RESULT_TYPE_PUBLISHERS);
+    callbackResult->setError(error);
+    callbackResult->setData(publishers);
+    callbackResult->setDestroyCallback(callbackResultDestroy);
+    ((RequesterRef_t *)requesterRef)->callback(callbackResult);   
+        
     delete ((RequesterRef_t *)requesterRef);
     return NULL;
 }
@@ -530,10 +546,12 @@ void *TheGamesDB::Elasticsearch::getEsrbRatingsWorker(void *requesterRef)
         delete httpConnector;                
     }while(hits > 0);
 
-    Result_t *result = new Result_t;
-    result->error = error;
-    result->data = esrbRatings;    
-    ((RequesterRef_t *)requesterRef)->callback(((RequesterRef_t *)requesterRef)->requester, result);
+    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
+    callbackResult->setType(RESULT_TYPE_ESRB_RATINGS);
+    callbackResult->setError(error);
+    callbackResult->setData(esrbRatings);
+    callbackResult->setDestroyCallback(callbackResultDestroy);
+    ((RequesterRef_t *)requesterRef)->callback(callbackResult);   
     
     delete ((RequesterRef_t *)requesterRef);
     return NULL;    
@@ -605,10 +623,12 @@ void *TheGamesDB::Elasticsearch::getPlatformsWorker(void *requesterRef)
     }while(hits > 0);
 
     platforms->sort(platformsSort);
-    Result_t *result = new Result_t;
-    result->error = error;
-    result->data = platforms;    
-    ((RequesterRef_t *)requesterRef)->callback(((RequesterRef_t *)requesterRef)->requester, result);
+    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
+    callbackResult->setType(RESULT_TYPE_PLATFORMS);
+    callbackResult->setError(error);
+    callbackResult->setData(platforms);
+    callbackResult->setDestroyCallback(callbackResultDestroy);
+    ((RequesterRef_t *)requesterRef)->callback(callbackResult);   
     
     delete ((RequesterRef_t *)requesterRef);
     return NULL;    
@@ -664,17 +684,48 @@ void *TheGamesDB::Elasticsearch::getGamesWorker(void *requesterRef)
 
     delete httpConnector;
 
-    //platforms->sort(platformsSort);
-    Result_t *result = new Result_t;
-    result->error = error;
-    result->data = games;    
-    ((RequesterRef_t *)requesterRef)->callback(((RequesterRef_t *)requesterRef)->requester, result);
+    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
+    callbackResult->setType(RESULT_TYPE_GAMES);
+    callbackResult->setError(error);
+    callbackResult->setData(games);
+    callbackResult->setDestroyCallback(callbackResultDestroy);
+    ((RequesterRef_t *)requesterRef)->callback(callbackResult);   
     
     delete ((RequesterRef_t *)requesterRef);
     return NULL; 
 }
 
-
+void TheGamesDB::Elasticsearch::callbackResultDestroy(CallbackResult *callbackResult)
+{
+    if(callbackResult->getType().compare(RESULT_TYPE_START) == 0)
+    {
+        json_decref((json_t *)callbackResult->getData());
+    }
+    else if(callbackResult->getType().compare(RESULT_TYPE_GENRES) == 0)
+    {
+        TheGamesDB::Genre::releaseItems((list<TheGamesDB::Genre *> *)callbackResult->getData());
+    }
+    else if(callbackResult->getType().compare(RESULT_TYPE_DEVELOPERS) == 0)
+    {
+        TheGamesDB::Developer::releaseItems((list<TheGamesDB::Developer *> *)callbackResult->getData());
+    }
+    else if(callbackResult->getType().compare(RESULT_TYPE_PUBLISHERS) == 0)
+    {
+        TheGamesDB::Publisher::releaseItems((list<TheGamesDB::Publisher *> *)callbackResult->getData());
+    }
+    else if(callbackResult->getType().compare(RESULT_TYPE_ESRB_RATINGS) == 0)
+    {
+        TheGamesDB::EsrbRating::releaseItems((list<TheGamesDB::EsrbRating *> *)callbackResult->getData());
+    }
+    else if(callbackResult->getType().compare(RESULT_TYPE_PLATFORMS) == 0)
+    {
+        TheGamesDB::Platform::releaseItems((list<TheGamesDB::Platform *> *)callbackResult->getData());
+    }
+    else if(callbackResult->getType().compare(RESULT_TYPE_GAMES) == 0)
+    {
+        TheGamesDB::Game::releaseItems((list<TheGamesDB::Game *> *)callbackResult->getData());
+    }
+}
 
 
 

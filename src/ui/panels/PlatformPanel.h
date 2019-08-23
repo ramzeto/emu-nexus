@@ -29,6 +29,8 @@
 #include "Game.h"
 #include "GameDetailWidget.h"
 #include "LaunchDialog.h"
+#include "UiThreadBridge.h"
+#include "CallbackResult.h"
 
 #include <map>
 #include <list>
@@ -46,9 +48,7 @@ public:
      * 
      * @param platformId Id of the platform.
      */
-    PlatformPanel(int platformId);
-    
-    virtual ~PlatformPanel();
+    PlatformPanel(int platformId);        
     
     /**
      * Shows the game dialog for adding or editing.
@@ -92,6 +92,9 @@ private:
     GameDetailWidget *gameDetailWidget;
     string searchQuery;
     LaunchDialog *launchDialog;
+    UiThreadBridge *launcherUiThreadBridge;
+    
+    virtual ~PlatformPanel();
     
     /**
      * Loads the game list
@@ -172,7 +175,7 @@ private:
      * @param platformPanel
      */
     static void signalShow(GtkWidget *widget, gpointer platformPanel);
-
+    
     
     /**
      * Callback that gets fired when the horrible hacky timer triggers to force the first draw of the grid.
@@ -183,17 +186,15 @@ private:
         
     /**
      * 
-     * @param notification
-     * @param mainWindow
-     * @param notificationData
+     * @param callbackResult
      */
-    static void notificationReceived(string notification, void *platformPanel, void *notificationData);
+    static void callbackNotification(CallbackResult *callbackResult);
     
     /**
      * 
-     * @param pUiThreadHandlerResult
+     * @param callbackResult
      */
-    static void callbackGameLauncher(gpointer pUiThreadHandlerResult);
+    static void callbackGameLauncher(CallbackResult *callbackResult);
 };
 
 #endif /* PLATFORMPANEL_H */

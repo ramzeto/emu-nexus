@@ -46,6 +46,7 @@
 #include "ParseDirectoryProcess.h"
 #include "DownloadGameImagesProcess.h"
 #include "Utils.h"
+#include "UiThreadBridge.h"
 
 
 #include <string>
@@ -137,9 +138,10 @@ MainWindow::MainWindow()
     gtk_widget_hide(GTK_WIDGET(processProgressBar));
     
     
-    processUiThreadHandler = new UiThreadHandler(this, serialProcessStatusCallBack);
-    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_PLATFORM_UPDATED, this, notificationReceived);
-    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_ADD_DIRECTORY, this, notificationReceived);
+    processUiThreadBridge = UiThreadBridge::registerBridge(this, callbackSerialProcessStatus);
+    
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_PLATFORM_UPDATED, this, callbackNotification, 1);
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_ADD_DIRECTORY, this, callbackNotification, 1);
     
     loadStartGui();
 }
@@ -160,7 +162,7 @@ MainWindow::~MainWindow()
         builder = NULL;
     }
     
-    delete processUiThreadHandler;
+    UiThreadBridge::unregisterBridge(processUiThreadBridge);
 }
 
 void MainWindow::loadStartGui()
@@ -174,7 +176,7 @@ void MainWindow::loadStartGui()
     {
         if(TheGamesDB::Elasticsearch::getInstance()->getStatus() != TheGamesDB::Elasticsearch::STATUS_OK)
         {
-            ElasticsearchProcess *elasticsearchProcess = new ElasticsearchProcess(processUiThreadHandler, UiThreadHandler::callback);
+            ElasticsearchProcess *elasticsearchProcess = new ElasticsearchProcess(processUiThreadBridge, UiThreadBridge::callback);
             SerialProcessExecutor::getInstance()->schedule(elasticsearchProcess);
             
             gtk_widget_hide(GTK_WIDGET(addPlatformButton));
@@ -206,9 +208,9 @@ void MainWindow::showPanel(Panel* panel)
     if(currentPanel)
     {
         UiUtils::getInstance()->clearContainer(GTK_CONTAINER(contentBox), 0);
-        currentPanel->close();
+        currentPanel->destroy();
         
-        // @TODO Fix this memory leak. For some reason the application crashed randomly when the panel is freed.
+        // @TODO Fix this memory leak. For some reason the application crashes randomly when the panel is freed.
         //delete currentPanel;
     }
     
@@ -220,6 +222,7 @@ void MainWindow::showPanel(Panel* panel)
 
 void MainWindow::showHome()
 {
+    selectedPlatformId = 0;
     gtk_widget_hide(GTK_WIDGET(addGameButton));
     gtk_widget_hide(GTK_WIDGET(addDirectoryButton));
     gtk_widget_hide(GTK_WIDGET(gameSearchEntry));
@@ -421,13 +424,13 @@ void MainWindow::removePlatform(int64_t platformId)
     MessageDialog *messageDialog = new MessageDialog("Sure you want to remove \"" + platform->getName() + "\"?", "Remove", "Cancel");   
     if(messageDialog->execute() == GTK_RESPONSE_YES)
     {
+        showHome();
+        
         sqlite3 *sqlite = Database::getInstance()->acquire();
         platform->remove(sqlite);
         Database::getInstance()->release();
         
-        loadPlatformList();
-        
-        showHome();
+        loadPlatformList();                
     }
     delete messageDialog;
     delete platform;
@@ -539,27 +542,24 @@ void MainWindow::signalGameSearchEntrySearchChanged(GtkSearchEntry* searchEntry,
     ((PlatformPanel *) ((MainWindow *)mainWindow)->currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(searchEntry))));
 }
 
-void MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
-{
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;  
+void MainWindow::callbackSerialProcessStatus(CallbackResult *callbackResult)
+{    
+    MainWindow *mainWindow = (MainWindow *)callbackResult->getRequester();
     
-    MainWindow *mainWindow = (MainWindow *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();    
-    SerialProcess::Status_t *status = (SerialProcess::Status_t *)uiThreadHandlerResult->data;
-    
-    if(status->serialProcess->getStatus() == SerialProcess::STATUS_RUNNING)
+    if(callbackResult->getStatus() == SerialProcess::STATUS_RUNNING)
     {
         gtk_spinner_start(mainWindow->processSpinner);
-        gtk_label_set_text(mainWindow->processTitleLabel, status->title.c_str());
-        gtk_label_set_text(mainWindow->processMessageLabel, status->message.c_str());
+        gtk_label_set_text(mainWindow->processTitleLabel, callbackResult->getTitle().c_str());
+        gtk_label_set_text(mainWindow->processMessageLabel, callbackResult->getMessage().c_str());
         
-        if(status->progress < 0)
+        if(callbackResult->getProgress() < 0)
         {
             gtk_widget_hide(GTK_WIDGET(mainWindow->processProgressBar));
         }
         else
         {
             gtk_widget_show(GTK_WIDGET(mainWindow->processProgressBar));
-            gtk_progress_bar_set_fraction(mainWindow->processProgressBar, ((double)status->progress) / 100.0);
+            gtk_progress_bar_set_fraction(mainWindow->processProgressBar, ((double)callbackResult->getProgress()) / 100.0);
         }
     }
     else
@@ -569,14 +569,14 @@ void MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
         gtk_label_set_text(mainWindow->processMessageLabel, "");
         gtk_widget_hide(GTK_WIDGET(mainWindow->processProgressBar));
         
-        if(status->serialProcess->getType().compare(ElasticsearchProcess::TYPE) == 0)
+        if(callbackResult->getType().compare(ElasticsearchProcess::TYPE) == 0)
         {
             gtk_widget_show_all(GTK_WIDGET(mainWindow->addPlatformButton));
             
-            if(status->serialProcess->getStatus() == SerialProcess::STATUS_SUCCESS)
+            if(callbackResult->getStatus() == SerialProcess::STATUS_SUCCESS)
             {
                 // Runs a parseDirectoryProcess in case there are pending
-                ParseDirectoryProcess *parseDirectoryProcess = new ParseDirectoryProcess(((MainWindow *)mainWindow)->processUiThreadHandler, UiThreadHandler::callback);
+                ParseDirectoryProcess *parseDirectoryProcess = new ParseDirectoryProcess(((MainWindow *)mainWindow)->processUiThreadBridge, UiThreadBridge::callback);
                 SerialProcessExecutor::getInstance()->schedule(parseDirectoryProcess);
             }
             else
@@ -586,42 +586,31 @@ void MainWindow::serialProcessStatusCallBack(gpointer pUiThreadHandlerResult)
                 delete messageDialog;
             }
         }        
-        else if(status->serialProcess->getType().compare(ParseDirectoryProcess::TYPE) == 0)
+        else if(callbackResult->getType().compare(ParseDirectoryProcess::TYPE) == 0)
         {
-            if(status->serialProcess->getStatus() == SerialProcess::STATUS_SUCCESS)
-            {
-                ParseDirectory *parseDirectory = ((ParseDirectoryProcess *)status->serialProcess)->getParseDirectory();
-                if(parseDirectory)
-                {
-                    mainWindow->updatePlatform(parseDirectory->getPlatformId());
-                    
-                    if(parseDirectory->getPlatformId() == mainWindow->selectedPlatformId)
-                    {
-                        ((PlatformPanel *)mainWindow->currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(mainWindow->gameSearchEntry))));
-                    }
-                }
-            }
-            
             // Schedules a process for downloading images
-            DownloadGameImagesProcess *downloadGameImagesProcess = new DownloadGameImagesProcess(((MainWindow *)mainWindow)->processUiThreadHandler, UiThreadHandler::callback);
+            DownloadGameImagesProcess *downloadGameImagesProcess = new DownloadGameImagesProcess(((MainWindow *)mainWindow)->processUiThreadBridge, UiThreadBridge::callback);
             SerialProcessExecutor::getInstance()->schedule(downloadGameImagesProcess);
         }
-        
-        // @TODO Find a way to safely delete the SerialProcess. The communication between threads makes it confusing.
-        //delete status->serialProcess;                
     }
 }
 
-void MainWindow::notificationReceived(string notification, void* mainWindow, void* notificationData)
-{    
-    if(notification.compare(NOTIFICATION_PLATFORM_UPDATED) == 0)
+void MainWindow::callbackNotification(CallbackResult *callbackResult)
+{
+    MainWindow *mainWindow = (MainWindow *)callbackResult->getRequester();
+    if(callbackResult->getType().compare(NOTIFICATION_PLATFORM_UPDATED) == 0)
     {
-        Platform *platform = (Platform *)notificationData;        
-        ((MainWindow *)mainWindow)->updatePlatform(platform->getId());
+        Platform *platform = (Platform *)callbackResult->getData();        
+        mainWindow->updatePlatform(platform->getId());
+        
+        if(platform->getId() == mainWindow->selectedPlatformId)
+        {
+            ((PlatformPanel *)mainWindow->currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(mainWindow->gameSearchEntry))));
+        }
     }
-    if(notification.compare(NOTIFICATION_ADD_DIRECTORY) == 0)
+    else if(callbackResult->getType().compare(NOTIFICATION_ADD_DIRECTORY) == 0)
     {
-        ParseDirectoryProcess *parseDirectoryProcess = new ParseDirectoryProcess(((MainWindow *)mainWindow)->processUiThreadHandler, UiThreadHandler::callback);
+        ParseDirectoryProcess *parseDirectoryProcess = new ParseDirectoryProcess(mainWindow->processUiThreadBridge, UiThreadBridge::callback);
         SerialProcessExecutor::getInstance()->schedule(parseDirectoryProcess);
     }
 }

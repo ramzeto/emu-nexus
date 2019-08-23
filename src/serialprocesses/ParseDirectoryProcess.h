@@ -29,15 +29,19 @@
 #include "ParseDirectory.h"
 #include "ParseDirectoryGame.h"
 #include "Game.h"
+#include "CallbackResult.h"
 
 #include <list>
 
+/**
+ * Class for getting the contents of a directory, selecting the ROMs, cleaning the names and fetching the game data and images from Elasticsearh.
+ */
 class ParseDirectoryProcess : public SerialProcess
 {
 public:
     static const string TYPE;
     
-    ParseDirectoryProcess(void *requester, void (*statusCallback)(void *, void*));
+    ParseDirectoryProcess(void *requester, void (*statusCallback)(CallbackResult *));
     virtual ~ParseDirectoryProcess();
     
     int execute() override;
@@ -56,7 +60,7 @@ private:
     void getGameImagesFromDirectory(Game *game, string name, string directory, int64_t gameImageType);
     void fetchGameInformation();    
     
-    static void callbackElasticsearchGames(void *pParseDirectoryProcess, void *pResult);
+    static void callbackElasticsearchGames(CallbackResult *callbackResult);
 };
 
 #endif /* PARSEDIRECTORYPROCESS_H */

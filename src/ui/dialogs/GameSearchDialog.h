@@ -27,6 +27,8 @@
 
 #include "Dialog.h"
 #include "thegamesdb.h"
+#include "UiThreadBridge.h"
+#include "CallbackResult.h"
 
 #include <list>
 #include <string>
@@ -62,13 +64,15 @@ private:
     list<TheGamesDB::Game *> *apiGames;
     TheGamesDB::Game *selectedApiGame;
     
+    UiThreadBridge *dataUiThreadBridge;
+    
     void updateList();
     void close();
     void select(unsigned int apiGameIndex);
     
-    static void signalCloseButtonClicked(GtkButton *button, gpointer dialog);
-    static void callbackElasticsearchGames(gpointer pUiThreadHandlerResult);
+    static void signalCloseButtonClicked(GtkButton *button, gpointer dialog);    
     static void signalListRowSelected (GtkListBox *listBox, GtkWidget *row, gpointer dialog);
+    static void callbackElasticsearch(CallbackResult *callbackResult);
 };
 
 #endif /* GAMESEARCHDIALOG_H */

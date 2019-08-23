@@ -38,6 +38,8 @@
 #include "Publisher.h"
 #include "GamePublisher.h"
 #include "GameImage.h"
+#include "Notifications.h"
+#include "NotificationManager.h"
 
 //ln -s /usr/include/libxml2/libxml/ /usr/include/libxml
 #include <libxml/parser.h>
@@ -48,7 +50,7 @@
 const string ParseDirectoryProcess::TYPE = "ParseDirectoryProcess";
 
 
-ParseDirectoryProcess::ParseDirectoryProcess(void *requester, void (*statusCallback)(void *, void*)) : SerialProcess(TYPE, requester, statusCallback)
+ParseDirectoryProcess::ParseDirectoryProcess(void *requester, void (*statusCallback)(CallbackResult *)) : SerialProcess(TYPE, requester, statusCallback)
 {
     parseDirectory = NULL;
     parseDirectoryGames = NULL;
@@ -387,16 +389,20 @@ void ParseDirectoryProcess::fetchGameInformation()
         parseDirectory->save(sqlite);
         Database::getInstance()->release();
         
+        CallbackResult *callbackResult = new CallbackResult(NULL);
+        callbackResult->setType(NOTIFICATION_PLATFORM_UPDATED);
+        callbackResult->setData(new Platform(parseDirectory->getPlatformId()));
+        NotificationManager::getInstance()->postNotification(callbackResult);
+        
         status = STATUS_SUCCESS;
         SerialProcessExecutor::getInstance()->finish(this);
     }
 }
 
 
-void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProcess, void *pResult)
+void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackResult)
 {
-    ParseDirectoryProcess *parseDirectoryProcess = (ParseDirectoryProcess *)pParseDirectoryProcess;
-    TheGamesDB::Elasticsearch::Result_t *result = (TheGamesDB::Elasticsearch::Result_t *)pResult;
+    ParseDirectoryProcess *parseDirectoryProcess = (ParseDirectoryProcess *)callbackResult->getRequester();
     ParseDirectoryGame *parseDirectoryGame = ParseDirectoryGame::getItem(parseDirectoryProcess->parseDirectoryGames, parseDirectoryProcess->parseDirectoryGamesIndex);
     string gameName = parseDirectoryProcess->parseDirectory->getUseMame() ? parseDirectoryGame->getMameName() : parseDirectoryGame->getName();
     list<string> gameNameTokens = parseDirectoryProcess->tokenizeName(gameName);
@@ -411,7 +417,7 @@ void ParseDirectoryProcess::callbackElasticsearchGames(void *pParseDirectoryProc
         unsigned int notCoincidences;
     }GameItem_t;
     
-    list<TheGamesDB::Game *> *apiGames = (list<TheGamesDB::Game *> *)result->data;
+    list<TheGamesDB::Game *> *apiGames = (list<TheGamesDB::Game *> *)callbackResult->getData();
     GameItem_t gameItems[apiGames->size()];
     unsigned int maxCoincidences = 0;
     for(unsigned int index = 0; index < apiGames->size(); index++)

@@ -31,6 +31,8 @@
 #include <map>
 #include <list>
 
+#include "CallbackResult.h"
+
 using namespace std;
 
 /**
@@ -43,23 +45,24 @@ public:
      * Registers a listener to a notification
      * @param notification Notification to register.
      * @param listener Pointer to the object that listens to the notification.
-     * @param listenerFunction Pointer to the function that will be called when the notification gets posted. Receives 3 parameters (string notification, void *listener, void* notificationData)
+     * @param callback Pointer to the function that will be called when the notification gets posted. Receives a pointer to a CallbackResult object (CallbackResult->getType() is the notification's name).
+     * @param mainThread States that the notification should be delivered in the main thread.
      */
-    void registerToNotification(string notification, void *listener, void (*listenerFunction)(string, void *, void*));
+    void registerToNotification(string notification, void *listener, void (*callback)(CallbackResult *), int mainThread);
     
     /**
      * Unregisters a listener from a notification.
      * @param notification Notification to unregister.
      * @param listener Pointer to the object that currently listens to the notification.
      */
-    void unRegisterToNotification(string notification, void *listener);
+    void unregisterToNotification(string notification, void *listener);
     
     /**
-     * Posts a notification to the registered listeners. The notification is posted in the same thread from which this method is called.
-     * @param notification Notification to post.
-     * @param data Data sent by the poster. This data will be received bye every listener through the notificationData parameter in the listenerFunction. The poster is responsible to free this data.
+     * Posts a notification to the registered listeners. If notification listener mainThread = 0, the notification will be posted in the same thread from which this method is called.
+     * @param callbackResult containing data sent by the poster. The CallbackResult->type attribute should be the notification's name. CallbackResult->requester will be overridden and assigned the pointer to the notification listener object. Every listener will receive this object and it will be freed automatically after that.
      */
-    void postNotification(string notification, void *data);
+    void postNotification(CallbackResult *callbackResult);
+            
     
     /**
      * 
@@ -74,13 +77,21 @@ private:
     
     typedef struct{
         void *listener;
-        void (*listenerFunction)(string, void *, void*); //notification, listener, notification data
-    }NotificationListener_t;
+        void (*callback)(CallbackResult *);
+        int unregistered;
+        int mainThread;
+    }NotificationRef_t;
+    
+    typedef struct{
+        list<NotificationRef_t *> *notificationRefs;
+        CallbackResult *callbackResult;
+    }NotificationData_t;
 
-    pthread_mutex_t notificationsListenersMutex;
-    map<string, list<NotificationListener_t *> *> *notificationsListeners;
+    pthread_mutex_t notificationRefsMutex;
+    map<string, list<NotificationRef_t *> *> *notificationRefsMap;
     
     static NotificationManager *instance;
+    static void postToUiThread(void *pNotificationData);
 };
 
 #endif /* NOTIFICATIONMANAGER_H */

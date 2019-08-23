@@ -29,7 +29,6 @@
 #include "Database.h"
 #include "GameImage.h"
 #include "GameLauncher.h"
-#include "UiThreadHandler.h"
 #include "Directory.h"
 #include "Asset.h"
 
@@ -63,10 +62,14 @@ HomePanel::HomePanel() : Panel("HomePanel.ui", "homeBox")
     g_signal_connect (getPanelBox(), "size-allocate", G_CALLBACK(signalRecentsGridSizeAllocate), this);
     
     UiUtils::getInstance()->loadImage(logoImage, Asset::getInstance()->getImageLogoBig(), 300, 300);
+    
+    launcherUiThreadBridge = UiThreadBridge::registerBridge(this, callbackGameLauncher);
 }
 
 HomePanel::~HomePanel()
-{
+{    
+    UiThreadBridge::unregisterBridge(launcherUiThreadBridge);
+    
     if(recentGames)
     {
         RecentGame::releaseItems(recentGames);
@@ -82,9 +85,7 @@ void HomePanel::loadRecentsGrid()
     {
         return;
     }
-    
-    cout << "HomePanel::" << __FUNCTION__ << endl;
-    
+        
     gameGridItems->clear();
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(recentsGridBox), 1);
     
@@ -186,8 +187,7 @@ void HomePanel::launchGame(int64_t gameId)
     
     launchDialog = new LaunchDialog(gameId);
     
-    UiThreadHandler *uiThreadHandler = new UiThreadHandler(this, callbackGameLauncher);
-    GameLauncher::getInstance()->launch(gameId, uiThreadHandler, UiThreadHandler::callback);
+    GameLauncher::getInstance()->launch(gameId, launcherUiThreadBridge, UiThreadBridge::callback);
     
     launchDialog->execute();
     delete launchDialog;
@@ -224,15 +224,11 @@ void HomePanel::updateGame(int64_t gameId)
 }
 
 void HomePanel::selectGame(int64_t gameId)
-{
-    cout << "HomePanel::" << __FUNCTION__ << " A gameId: " << gameId << " selectedGameId: " << selectedGameId << endl;
-    
+{    
     if(selectedGameId)
     {
         if(gameGridItems->find(selectedGameId) != gameGridItems->end())
         {
-            cout << "HomePanel::" << __FUNCTION__ << " AA gameId: " << gameId << " selectedGameId: " << selectedGameId << endl;
-
             GtkWidget *gameGridItemBox = gameGridItems->at(selectedGameId);
             gtk_widget_set_state_flags(gameGridItemBox, GTK_STATE_FLAG_NORMAL, 1);
         }
@@ -241,12 +237,8 @@ void HomePanel::selectGame(int64_t gameId)
     selectedGameId = gameId;
     if(selectedGameId)
     {
-        cout << "HomePanel::" << __FUNCTION__ << " B gameId: " << gameId << " selectedGameId: " << selectedGameId << endl;
-
         if(gameGridItems->find(selectedGameId) != gameGridItems->end())
         {
-            cout << "HomePanel::" << __FUNCTION__ << " BB gameId: " << gameId << " selectedGameId: " << selectedGameId << endl;
-
             GtkWidget *gameGridItemBox = gameGridItems->at(selectedGameId);
             gtk_widget_set_state_flags(gameGridItemBox, GTK_STATE_FLAG_SELECTED, 1);        
         }        
@@ -254,9 +246,7 @@ void HomePanel::selectGame(int64_t gameId)
 }
 
 void HomePanel::signalRecentsGridSizeAllocate(GtkWidget* widget, GtkAllocation* allocation, gpointer pHomePanel)
-{
-    cout << "HomePanel::" << __FUNCTION__ << " allocation->width: " << allocation->width << endl;
-    
+{    
     HomePanel *homePanel = (HomePanel *)pHomePanel;
     if(homePanel->panelWidth != allocation->width || homePanel->panelHeight != allocation->height)
     {        
@@ -268,9 +258,7 @@ void HomePanel::signalRecentsGridSizeAllocate(GtkWidget* widget, GtkAllocation* 
 }
 
 void HomePanel::signalShow(GtkWidget* widget, gpointer pHomePanel)
-{
-    cout << "HomePanel::" << __FUNCTION__ << endl;
-    
+{    
     HomePanel *homePanel = (HomePanel *)pHomePanel;
     if(!homePanel->isShown)
     {
@@ -280,9 +268,7 @@ void HomePanel::signalShow(GtkWidget* widget, gpointer pHomePanel)
 }
 
 gint HomePanel::callbackFirstShowHackyTimeout(gpointer pHomePanel)
-{
-    cout << "HomePanel::" << __FUNCTION__ << endl;
-    
+{    
     HomePanel *homePanel = (HomePanel *)pHomePanel;
     homePanel->isShown = 1;
     homePanel->loadRecentsGrid();
@@ -323,33 +309,31 @@ gboolean HomePanel::signalGameItemBoxButtonPressedEvent(GtkWidget* widget, GdkEv
     return TRUE;
 }
 
-void HomePanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
+void HomePanel::callbackGameLauncher(CallbackResult *callbackResult)
 {
-    UiThreadHandler::Result_t *uiThreadHandlerResult = (UiThreadHandler::Result_t *)pUiThreadHandlerResult;    
-    HomePanel *homePanel = (HomePanel *)uiThreadHandlerResult->uiThreadHandler->getRequesterInUiThread();
-    GameLauncher::Status_t *gameLauncherStatus = (GameLauncher::Status_t *)uiThreadHandlerResult->data;
+    HomePanel *homePanel = (HomePanel *)callbackResult->getRequester();
     
     string message = "";
     int activity = 0;
-    if(gameLauncherStatus->error)
+    if(callbackResult->getError())
     {
-        if(gameLauncherStatus->error == GameLauncher::ERROR_BUSY)
+        if(callbackResult->getError() == GameLauncher::ERROR_BUSY)
         {
             message = "There is another process running";
         }
-        else if(gameLauncherStatus->error == GameLauncher::ERROR_FILE_NOT_FOUND)
+        else if(callbackResult->getError() == GameLauncher::ERROR_FILE_NOT_FOUND)
         {
             message = "File not found";
         }
-        else if(gameLauncherStatus->error == GameLauncher::ERROR_INFLATE)
+        else if(callbackResult->getError() == GameLauncher::ERROR_INFLATE)
         {
             message = "Decompressing/Unpacking failed";
         }
-        else if(gameLauncherStatus->error == GameLauncher::ERROR_INFLATE_NOT_SUPPORTED)
+        else if(callbackResult->getError() == GameLauncher::ERROR_INFLATE_NOT_SUPPORTED)
         {
             message = "Compressed/Packed file format not supported";
         }
-        else if(gameLauncherStatus->error == GameLauncher::ERROR_OTHER)
+        else if(callbackResult->getError() == GameLauncher::ERROR_OTHER)
         {
             message = "An unknown error happened";
         }
@@ -358,28 +342,28 @@ void HomePanel::callbackGameLauncher(gpointer pUiThreadHandlerResult)
     }
     else
     {
-        if(gameLauncherStatus->state == GameLauncher::STATE_IDLE)
+        if(callbackResult->getStatus() == GameLauncher::STATE_IDLE)
         {
             activity = 1;
             message = "Preparing...";
         }
-        else if(gameLauncherStatus->state == GameLauncher::STATE_INFLATING)
+        else if(callbackResult->getStatus() == GameLauncher::STATE_INFLATING)
         {
             activity = 1;
             message = "Decompressing/Unpacking...";
         }
-        else if(gameLauncherStatus->state == GameLauncher::STATE_RUNNING)
+        else if(callbackResult->getStatus() == GameLauncher::STATE_RUNNING)
         {
             activity = 1;
             message = "Running...";
         }
-        else if(gameLauncherStatus->state == GameLauncher::STATE_FINISHED)
+        else if(callbackResult->getStatus() == GameLauncher::STATE_FINISHED)
         {
             activity = 0;
             message = "Execution finished";
             homePanel->loadRecentsGrid();
         }
     }
-    homePanel->launchDialog->setStatus(activity, message, gameLauncherStatus->progress);
+    homePanel->launchDialog->setStatus(activity, message, callbackResult->getProgress());
 }
 

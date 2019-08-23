@@ -121,7 +121,8 @@ void UiUtils::loadImage(GtkImage* image, string fileName, int width, int height)
 {
     GdkPixbuf *pixBuf = NULL;    
     string key = fileName + "_" + to_string(width) + "_" + to_string(height);
-    
+        
+    //@TODO Clear cache at some point
     if(imageCache->find(key) != imageCache->end())
     {
         pixBuf = imageCache->at(key);

@@ -31,6 +31,7 @@
 #include "MessageDialog.h"
 #include "NotificationManager.h"
 #include "Notifications.h"
+#include "CallbackResult.h"
 
 
 AddDirectoryDialog::AddDirectoryDialog(int64_t platformId) : Dialog("AddDirectoryDialog.ui", "addDirectoryDialog")
@@ -300,7 +301,9 @@ void AddDirectoryDialog::accept()
     }    
     Database::getInstance()->release();
 
-    NotificationManager::getInstance()->postNotification(NOTIFICATION_ADD_DIRECTORY, NULL);
+    CallbackResult *callbackResult = new CallbackResult(NULL);
+    callbackResult->setType(NOTIFICATION_ADD_DIRECTORY);
+    NotificationManager::getInstance()->postNotification(callbackResult);
     
     gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 }

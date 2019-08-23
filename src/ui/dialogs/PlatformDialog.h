@@ -29,7 +29,8 @@
 #include "Platform.h"
 #include "PlatformImage.h"
 #include "thegamesdb.h"
-#include "UiThreadHandler.h"
+#include "CallbackResult.h"
+#include "UiThreadBridge.h"
 
 #include <pthread.h>
 
@@ -85,6 +86,8 @@ private:
     GtkButton *cancelButton;
     GtkButton *saveButton;
     
+    UiThreadBridge *dataUiThreadBridge;
+    
     virtual ~PlatformDialog();
     
     void loadApiPlatforms();
@@ -108,7 +111,7 @@ private:
     static void signalCancelButtonClicked(GtkButton *button, gpointer platformDialog);
     static void signalSaveButtonClicked(GtkButton *button, gpointer platformDialog);
     static gboolean signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer platformDialog);
-    static void callbackElasticsearchPlatforms(gpointer pUiThreadHandlerResult);
+    static void callbackElasticsearch(CallbackResult *callbackResult);
     
     
 
@@ -116,15 +119,15 @@ private:
     {
         PlatformDialog *platformDialog;
         PlatformImage *platformImage;
-    }DownloadPlatformImage_t;
+    }DownloadPlatformImageRef_t;
     
-    static list<UiThreadHandler *> *downloadPlatformImageHandlers;
+    static list<DownloadPlatformImageRef_t *> *downloadPlatformImageRefs;
     static pthread_t downloadPlatformImagesThread;
-    static pthread_mutex_t downloadPlatformImagesMutex;    
+    static pthread_mutex_t downloadPlatformImageRefsMutex;    
     static int downloadingPlatformImages;
     static void downloadPlatformImage(PlatformDialog *platformDialog, PlatformImage *platformImage);
     static void *downloadPlatformImagesWorker(void *);
-    static void callbackDownloadPlatformImage(gpointer pUiThreadHandlerResult);
+    static void callbackDownloadPlatformImage(void *pDownloadPlatformImageRef);
     
     
 };

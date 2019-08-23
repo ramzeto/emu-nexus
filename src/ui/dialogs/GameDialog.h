@@ -36,7 +36,6 @@
 #include "GamePublisher.h"
 #include "GameGenre.h"
 #include "GameDocument.h"
-#include "UiThreadHandler.h"
 
 #include <pthread.h>
 #include <list>
@@ -46,7 +45,6 @@ using namespace std;
 
 /**
  * A dialog to configure a game. The dialog will call gtk_dialog_response(..., GTK_RESPONSE_ACCEPT) if accepted.
- * @TODO Create GameDocument preview image (https://poppler.freedesktop.org/)
  */
 class GameDialog : public Dialog
 {
@@ -198,15 +196,15 @@ private:
     {
         GameDialog *gameDialog;
         GameImage *gameImage;
-    }DownloadGameImage_t;
+    }DownloadGameImageRef_t;
     
-    static list<UiThreadHandler *> *downloadGameImageHandlers;
+    static list<DownloadGameImageRef_t *> *downloadGameImageRefs;
     static pthread_t downloadGameImagesThread;
-    static pthread_mutex_t downloadGameImagesMutex;    
+    static pthread_mutex_t downloadGameImageRefsMutex;    
     static int downloadingGameImages;
     static void downloadGameImage(GameDialog *gameDialog, GameImage *gameImage);
     static void *downloadGameImagesWorker(void *);
-    static void callbackDownloadGameImage(gpointer pUiThreadHandlerResult);
+    static void callbackDownloadGameImage(void *pDownloadGameImageRef);
 };
 
 #endif /* GAMEDIALOG_H */
