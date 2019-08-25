@@ -1,4 +1,4 @@
-# emu-nexus
+# EMU-nexus
 
 EMU-nexus is a front-end designed to launch emulators and to organize ROM collections, but it can be used to launch any program. It is developed in C++ and it uses GTK3 as graphical user interface. It does not try to compete with any other front-end. It is not designed for an HTPC, it is intended to be used in an everyday not specific purpose PC.
 
@@ -33,4 +33,12 @@ EMU-nexus source code is available in its Github repository. These are the libra
      * Poppler    PDF rendering library based on the xpdf-3.0 code base. Used for creating the thumbnails of game documents.
      * libarchive    Multi-format archive and compression library. Used to uncompress ROM archives on the go.
      * gtk+ 3    Multi-platform toolkit for creating graphical user interfaces.
+
+
+To insttall it:
+
+    1.- Download the source code or clone the repository.
+    2.- cd <EMU-nexus source code directory>
+    3.- make
+    4.- sudo make install
 
