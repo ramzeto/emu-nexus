@@ -111,7 +111,7 @@ MainWindow::MainWindow()
             
 
     // Loads the CSS
-    GError *error = NULL;
+    /*GError *error = NULL;
     cssProvider = gtk_css_provider_new();
     gtk_css_provider_load_from_path(cssProvider, (Asset::getInstance()->getCss()).c_str(), &error);
     if(error)
@@ -120,9 +120,9 @@ MainWindow::MainWindow()
     }
     else
     {
-        //GdkScreen *screen = gtk_window_get_screen(GTK_WINDOW(mainWindow));
-        //gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER(cssProvider), GTK_STYLE_PROVIDER_PRIORITY_USER);
-    }
+        GdkScreen *screen = gtk_window_get_screen(GTK_WINDOW(mainWindow));
+        gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER(cssProvider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+    }*/
     
     
     
