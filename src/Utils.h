@@ -30,15 +30,18 @@
 
 using namespace std;
 
+/**
+ * Provides useful methods.
+ */
 class Utils 
 {
 public:
             
     /**
-     * Saves a file into the media directory
+     * Saves a file into the media directory.
      * @param sourceFileName
      * @param destinyFileName
-     * @return 0 on success
+     * @return 0 on success.
      */
     int copyFile(string sourceFileName, string destinyFileName);    
     
@@ -50,21 +53,21 @@ public:
     string getFileDirectory(string fileName);
     
     /**
-     * Gets the basename of a file
+     * Gets the base name of a file.
      * @param fileName
-     * @return canonical file name
+     * @return base file name.
      */
     string getFileBasename(string fileName);
     
     /**
-     * Checks if a file exists
+     * Checks if a file exists.
      * @param fileName
-     * @return 1 if exists, 0 otherwise
+     * @return 1 if exists, 0 otherwise.
      */
     int fileExists(string fileName);    
     
     /**
-     * Writes an array of bytes to a file
+     * Writes an array of bytes to a file.
      * @param data
      * @param dataSize
      * @param fileName
@@ -73,16 +76,16 @@ public:
     int writeToFile(unsigned char *data, size_t dataSize, string fileName);
     
     /**
-     * 
+     * Gets the contents of a text file.
      * @param fileName
      * @return Contents of the file.
      */
     string getFileContents(string fileName);
     
     /**
-     * Checks if a directory exists
+     * Checks if a directory exists.
      * @param directoryName
-     * @return 1 if exists, 0 otherwise
+     * @return 1 if exists, 0 otherwise.
      */
     int directoryExists(string directoryName);
     
@@ -113,52 +116,46 @@ public:
     size_t getFileSize(string fileName);
     
     /**
-     * Trims a string
-     * @param str string to trim
-     * @return Trimmed string
+     * Trims a string.
+     * @param str string to trim.
+     * @return Trimmed string.
      */
     string trim(string str);
     
     /**
-     * Opens a file using the default application
+     * Opens a file using the default application.
      * @param fileName
      */
     void openFileWithDefaultApplication(string fileName);
     
     /**
-     * Executes an application
-     * @param application Application path and parameters
-     * @param output Input/Output parameter. The output of the application
+     * Executes an application.
+     * @param application Application path and parameters.
+     * @param output Input/Output parameter. The output of the application.
      * @return Application return code @TODO
      */
     int executeApplication(string application, string *output);
-    
+            
     /**
-     * Executes an application as an independent process
-     * @param application Application path and parameters
-     */
-    void executeApplicationIndependent(string application);    
-        
-    /**
-     * Replaces all the occurrences of 'from' to 'to' in 'str'
+     * Replaces all the occurrences of 'from' to 'to' in 'str'.
      * @param str
      * @param from
      * @param to
-     * @return String with all 'from's replaced with 'to's
+     * @return String with all 'from's replaced with 'to's.
      */
     string strReplace(string str, string from, string to);
     
     /**
-     * Gets the lowercase string of input
+     * Gets the lowercase string of input.
      * @param input
-     * @return Lowercase string of input
+     * @return Lowercase string of input.
      */
     string strToLowerCase(string input);
     
     /**
-     * Splits a string by whitespaces
+     * Splits a string by whitespaces.
      * @param input
-     * @return List of tokens that form input
+     * @return List of tokens that form input.
      */
     list<string> strSplitByWhiteSpace(string input);
     
@@ -170,9 +167,9 @@ public:
     string htmlEntities(string text);
     
     /**
-     * Creates a directory
+     * Creates a directory.
      * @param directory
-     * @return 0 on success
+     * @return 0 on success.
      */
     int makeDirectory(string directory);
     
@@ -216,7 +213,7 @@ public:
     
     /**
      * 
-     * @return Utils instance
+     * @return Utils instance.
      */
     static Utils *getInstance();
     

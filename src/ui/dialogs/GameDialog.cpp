@@ -1503,7 +1503,6 @@ gboolean GameDialog::signalDocumentNameEntryKeyReleaseEvent(GtkEntry* entry, Gdk
 {    
     if(((GameDialog *)gameDialog)->selectedGameDocument)
     {
-        //cout << __FUNCTION__ << " signalDocumentNameEntryKeyPressedEvent: " << gtk_entry_get_text(entry) << endl;
         ((GameDialog *)gameDialog)->selectedGameDocument->setName(string(gtk_entry_get_text(entry)));
     }
     return 0;
@@ -1569,7 +1568,7 @@ void *GameDialog::downloadGameImagesWorker(void *)
         {            
             HttpConnector *httpConnector = new HttpConnector(downloadGameImageRef->gameImage->getUrl());
             httpConnector->get();
-            cout  << "GameDialog::" << __FUNCTION__ << " fileName: " << downloadGameImageRef->gameImage->getFileName() << " url: " << downloadGameImageRef->gameImage->getUrl() << " httpStatus: " << httpConnector->getHttpStatus() << endl;
+ 
             if(httpConnector->getHttpStatus() == HttpConnector::HTTP_OK)
             {
                 Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), downloadGameImageRef->gameImage->getFileName());

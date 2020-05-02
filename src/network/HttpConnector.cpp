@@ -241,9 +241,7 @@ size_t HttpConnector::curlResponseCallback(unsigned char* data, size_t size, siz
     
     memcpy(&httpConnector->responseData[httpConnector->responseDataSize], data, realSize);
     httpConnector->responseDataSize += realSize;
-   
-    //cout << __FUNCTION__ << " contentLength: " << httpConnector->contentLength << " responseDataSize: " << httpConnector->responseDataSize << endl;
-    
+       
     if(httpConnector->downloadProgressListener && httpConnector->downloadProgressListenerCallback)
     {
         httpConnector->downloadProgressListenerCallback(httpConnector->downloadProgressListener, httpConnector, httpConnector->contentLength, httpConnector->responseDataSize);

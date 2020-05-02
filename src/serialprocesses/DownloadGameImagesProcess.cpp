@@ -65,7 +65,6 @@ int DownloadGameImagesProcess::execute()
         
         HttpConnector *httpConnector = new HttpConnector(gameImage->getUrl());
         httpConnector->get();
-        cout  << "DownloadGameImagesProcess::" << __FUNCTION__ << " fileName: " <<gameImage->getFileName() << " url: " << gameImage->getUrl() << " httpStatus: " << httpConnector->getHttpStatus() << endl;
         if(httpConnector->getHttpStatus() == HttpConnector::HTTP_OK)
         {
             Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), gameImage->getFileName());

@@ -6,7 +6,7 @@ HttpConnector.o\
 NotificationManager.o\
 SerialProcessExecutor.o SerialProcess.o ElasticsearchProcess.o ParseDirectoryProcess.o DownloadGameImagesProcess.o\
 Asset.o MainWindow.o UiThreadBridge.o UiUtils.o\
-Dialog.o MessageDialog.o PlatformDialog.o GameDialog.o DevelopersSelectDialog.o PublishersSelectDialog.o GenresSelectDialog.o GameSearchDialog.o AddDirectoryDialog.o GameDetailDialog.o\
+Dialog.o MessageDialog.o PlatformDialog.o GameDialog.o DevelopersSelectDialog.o PublishersSelectDialog.o GenresSelectDialog.o GameSearchDialog.o AddDirectoryDialog.o GameDetailDialog.o SelectFromListDialog.o\
 Panel.o HomePanel.o PlatformPanel.o FirstSetupPanel.o\
 FileExtractor.o\
 
@@ -23,7 +23,7 @@ ASSETSDIR=assets
 INSTALLBINDIR=/usr/bin
 INSTALLASSETSDIR=/usr/share/$(BIN)
 BUILDH=Build.h
-VERSION=0.3
+VERSION=0.4
 
 $(BIN) : $(OBJS)	
 	$(CC) $(OBJS) $(LFLAGS) $(GTKFLAGS) -o $(BIN)

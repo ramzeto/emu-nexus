@@ -38,10 +38,16 @@ using namespace std;
 extern "C" {
 #endif
 
+/**
+ * This namespace is for handling the operations and the data from the Elasticsearch engine.
+ */
 namespace TheGamesDB
 {
     static const int API_ID = 1;
 
+    /**
+     * This class handles the requests to the Elasticsearch engine.
+     */
     class Elasticsearch
     {
     public:            

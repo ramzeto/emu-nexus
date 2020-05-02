@@ -45,8 +45,11 @@ const int GameLauncher::ERROR_OTHER = 5;
 
 const int GameLauncher::STATE_IDLE = 1;
 const int GameLauncher::STATE_INFLATING = 2;
-const int GameLauncher::STATE_RUNNING = 3;
-const int GameLauncher::STATE_FINISHED = 4;
+const int GameLauncher::STATE_SELECTING_FILE = 3;
+const int GameLauncher::STATE_FOUND_MULTIPLE_FILES = 4;
+const int GameLauncher::STATE_RUNNING = 5;
+const int GameLauncher::STATE_FINISHED = 6;
+const int GameLauncher::STATE_CANCELED = 7;
 
 GameLauncher *GameLauncher::instance = NULL;
 
@@ -75,11 +78,36 @@ void GameLauncher::launch(int64_t gameId, void* requester, void(*callback)(Callb
     }
 }
 
-string GameLauncher::getFileNameWithExtensions(list<string> extensions, string directory)
+int GameLauncher::getError()
+{
+    return error;
+}
+
+int GameLauncher::getState()
+{
+    return state;
+}
+
+list<string> GameLauncher::getFileNames()
+{
+    return fileNames;
+}
+
+void GameLauncher::selectFileName(string fileName)
+{
+    this->fileName = fileName;
+}
+
+void GameLauncher::cancel()
+{
+    state = STATE_CANCELED;
+}
+
+
+void GameLauncher::getFileNamesWithExtensions(list<string> extensions, string directory)
 {
     DIR *dir;
     struct dirent *entry;
-    string fileNameWithExtension = "";
     
     if(directory.rfind("/") == string::npos || directory.rfind("/") != directory.length() - 1)
     {
@@ -103,29 +131,24 @@ string GameLauncher::getFileNameWithExtensions(list<string> extensions, string d
                 {
                     if(Utils::getInstance()->strToLowerCase(fileName).find(*extension) != string::npos)
                     {
-                        fileNameWithExtension = directory + fileName;
-                        break;
+                        fileNames.push_back(directory + fileName);
                     }
                 }                                
             }
             else if(entry->d_type == DT_DIR)
-            {                
-                fileNameWithExtension = getFileNameWithExtensions(extensions, directory + string(entry->d_name));
-            }
-            
-            if(fileNameWithExtension.length() > 0)
             {
-                break;
+                getFileNamesWithExtensions(extensions, directory + string(entry->d_name));
             }
         }        
         closedir(dir);
     }
-        
-    return fileNameWithExtension;
 }
 
 void GameLauncher::postStatus(GameLauncherData_t* gameLauncherData, int error, int state, int progress)
 {
+    this->error = error;
+    this->state = state;
+    
     CallbackResult *callbackResult = new CallbackResult(gameLauncherData->requester);
     callbackResult->setError(error);
     callbackResult->setStatus(state);
@@ -154,10 +177,9 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
     {
         instance->postStatus(gameLauncherData, ERROR_BUSY, STATE_IDLE, -1);
         return NULL;
-    }
+    }        
         
-    int error = 0;
-    instance->postStatus(gameLauncherData, error, STATE_IDLE, -1);
+    instance->postStatus(gameLauncherData, 0, STATE_IDLE, -1);
     
     sqlite3 *sqlite = Database::getInstance()->acquire();
     Game *game = new Game(gameLauncherData->gameId);
@@ -170,7 +192,6 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
     string command = platform->getCommand();   
     int deflate = platform->getDeflate();
     string deflateFileExtensions = platform->getDeflateFileExtensions();
-    string gameFileName = "";
     
     if(game->getCommand().length() > 0)
     {
@@ -196,13 +217,13 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
         if(!Utils::getInstance()->directoryExists(cacheGame->getDirectory()))
         {
             Utils::getInstance()->makeDirectory(cacheGame->getDirectory());
-            instance->postStatus(gameLauncherData, error, STATE_INFLATING, -1);
+            instance->postStatus(gameLauncherData, 0, STATE_INFLATING, -1);
             
             FileExtractor *fileExtractor = new FileExtractor(game->getFileName());
             fileExtractor->setProgressListener(gameLauncherData, fileExtractorProgressListenerCallback);
             if(fileExtractor->extract(cacheGame->getDirectory()))
             {
-               error = ERROR_INFLATE_NOT_SUPPORTED; 
+                instance->postStatus(gameLauncherData, ERROR_INFLATE_NOT_SUPPORTED, STATE_INFLATING, -1);
             }
             delete fileExtractor;                        
         }
@@ -247,18 +268,36 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
         
                 
         // Tries to find a file with the proper extension
-        if(!error)
+        if(!instance->error)
         {
-            gameFileName = instance->getFileNameWithExtensions(Utils::getInstance()->strSplitByWhiteSpace(deflateFileExtensions), cacheGame->getDirectory());
-            if(gameFileName.length() == 0)
+            instance->postStatus(gameLauncherData, 0, STATE_SELECTING_FILE, -1);
+            
+            instance->fileName = "";
+            instance->fileNames.clear();
+            instance->getFileNamesWithExtensions(Utils::getInstance()->strSplitByWhiteSpace(deflateFileExtensions), cacheGame->getDirectory());
+            if(instance->fileNames.size() == 0)
             {
-                error = ERROR_FILE_NOT_FOUND;
+                instance->postStatus(gameLauncherData, ERROR_FILE_NOT_FOUND, STATE_SELECTING_FILE, -1);
+            }
+            else if(instance->fileNames.size() > 1)
+            {
+                instance->postStatus(gameLauncherData, 0, STATE_FOUND_MULTIPLE_FILES, -1);
+                
+                //Wait for file selection or cancellation
+                while(instance->fileName.length() == 0 && instance->state != STATE_CANCELED)
+                {
+                    sleep(1);
+                }
+            }
+            else
+            {
+                instance->fileName = *(instance->fileNames.begin());
             }
         }
         
         
         // If an error happens, the cache game is removed
-        if(error)
+        if(instance->error)
         {
             sqlite = Database::getInstance()->acquire();
             cacheGame->remove(sqlite);
@@ -267,41 +306,46 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
     }
     else
     {
-        gameFileName = game->getFileName();
+        instance->fileName = game->getFileName();
     }
     
     // Executes
-    if(!error)
+    if(instance->state != STATE_CANCELED && !instance->error)
     {
-        if(gameFileName.length() > 0)
+        if(instance->fileName.length() > 0)
         {
-            instance->postStatus(gameLauncherData, error, STATE_RUNNING, -1);
+            instance->postStatus(gameLauncherData, 0, STATE_RUNNING, -1);
          
             // Escapes problematic characters in the game file name.
-            gameFileName = Utils::getInstance()->strReplace(gameFileName, " ", "\\ ");
-            gameFileName = Utils::getInstance()->strReplace(gameFileName, "\"", "\\\"");
-            gameFileName = Utils::getInstance()->strReplace(gameFileName, "'", "\\'");
-            gameFileName = Utils::getInstance()->strReplace(gameFileName, "(", "\\(");
-            gameFileName = Utils::getInstance()->strReplace(gameFileName, ")", "\\)");
-            gameFileName = Utils::getInstance()->strReplace(gameFileName, "[", "\\[");
-            gameFileName = Utils::getInstance()->strReplace(gameFileName, "]", "\\]");
-            gameFileName = Utils::getInstance()->strReplace(gameFileName, "{", "\\{");
-            gameFileName = Utils::getInstance()->strReplace(gameFileName, "}", "\\}");
+            string fileName = instance->fileName;
+            fileName = Utils::getInstance()->strReplace(fileName, " ", "\\ ");
+            fileName = Utils::getInstance()->strReplace(fileName, "\"", "\\\"");
+            fileName = Utils::getInstance()->strReplace(fileName, "'", "\\'");
+            fileName = Utils::getInstance()->strReplace(fileName, "(", "\\(");
+            fileName = Utils::getInstance()->strReplace(fileName, ")", "\\)");
+            fileName = Utils::getInstance()->strReplace(fileName, "[", "\\[");
+            fileName = Utils::getInstance()->strReplace(fileName, "]", "\\]");
+            fileName = Utils::getInstance()->strReplace(fileName, "{", "\\{");
+            fileName = Utils::getInstance()->strReplace(fileName, "}", "\\}");
             
             // Replaces %FILE% for the actual game file name
-            command = Utils::getInstance()->strReplace(command, "%FILE%", gameFileName);
+            command = Utils::getInstance()->strReplace(command, "%FILE%", fileName);
             
             cout << "GameLauncher::" << __FUNCTION__ << " command: " << command << endl;
             system(command.c_str());
+            
+            instance->state = STATE_FINISHED;
+            instance->error = 0;
         }
         else
         {
-            error = ERROR_FILE_NOT_FOUND;
+            instance->state = STATE_FINISHED;
+            instance->error = ERROR_FILE_NOT_FOUND;
         }
     }
     
     // If the execution was successful, saves to recents
-    if(!error)
+    if(instance->state != STATE_CANCELED && !instance->error)
     {
         RecentGame *recentGame = new RecentGame(game->getId());
         recentGame->setTimestamp(Utils::getInstance()->nowIsoDateTime());
@@ -328,7 +372,7 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
     delete platform;
     pthread_mutex_unlock(&instance->mutex);
 
-    instance->postStatus(gameLauncherData, error, STATE_FINISHED, -1);
+    instance->postStatus(gameLauncherData, instance->error, instance->state, -1);
     
     delete gameLauncherData;
     
@@ -337,6 +381,5 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
 
 void GameLauncher::fileExtractorProgressListenerCallback(void* pGameLauncherData, FileExtractor* fileExtractor, size_t fileSize, size_t progressBytes)
 {
-    //cout << "GameLauncher::" << __FUNCTION__ << " progressBytes: " << progressBytes << " fileSize: " << fileSize << endl;
     instance->postStatus((GameLauncherData_t *)pGameLauncherData, 0, STATE_INFLATING, ((double) progressBytes / (double)fileSize) * 100.0);
 }

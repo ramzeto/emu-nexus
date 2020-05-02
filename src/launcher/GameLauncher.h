@@ -35,6 +35,9 @@
 
 using namespace std;
 
+/**
+ * Handles the execution of games/programs.
+ */
 class GameLauncher 
 {
 public:
@@ -46,20 +49,61 @@ public:
     
     static const int STATE_IDLE;
     static const int STATE_INFLATING;
+    static const int STATE_SELECTING_FILE;
+    static const int STATE_FOUND_MULTIPLE_FILES;
     static const int STATE_RUNNING;
     static const int STATE_FINISHED;
+    static const int STATE_CANCELED;
     
     /**
-     * Launches a game
-     * @param gameId Game id to launch
+     * Launches a game.
+     * @param gameId Game id to launch.
      * @param requester Pointer to the object that requested the launch.
      * @param callback Callback that receives status updates. The parameter of this callback is a pointer to a CallbackResult object (the requester is responsible for freeing this pointer).
      */
     void launch(int64_t gameId, void *requester, void (*callback)(CallbackResult *));
-        
+    
+    /**
+     * 
+     * @return Current error code of the launch.
+     */
+    int getError();
+    
+    /**
+     * 
+     * @return Current state of the launch.
+     */
+    int getState();
+    
+    /**
+     * This method should be called when state = STATE_FOUND_MULTIPLE_FILES. This state is set when multiple filenames with the matching criteria are found after uncompressing/unpacking a ROM file.
+     * @return List of filenames.
+     */
+    list<string> getFileNames();
+    
+    /**
+     * This method should be called to select a filename from the list returned by the getFileNames() method.
+     * @param fileName to use.
+     */
+    void selectFileName(string fileName);
+    
+    /**
+     * Cancels the execution.
+     */
+    void cancel();
+
+    /**
+     * 
+     * @return Current instance.
+     */
     static GameLauncher *getInstance();
     
 private:
+    int error;
+    int state;
+    list<string> fileNames;
+    string fileName;
+    
     GameLauncher();
     virtual ~GameLauncher();
 
@@ -68,16 +112,28 @@ private:
         int64_t gameId;
         void *requester;
         void (*callback)(CallbackResult *);
-    }GameLauncherData_t;
-    
+    }GameLauncherData_t;    
     pthread_mutex_t mutex;
     
-    string getFileNameWithExtensions(list<string> extensions, string directory);
+    /**
+     * Recursively searches for files that match the criteria. Stores the filenames in the 'fileNames' variable.
+     * @param extensions List of supported extensions.
+     * @param directory Directory to search.
+     */
+    void getFileNamesWithExtensions(list<string> extensions, string directory);
+    
+    /**
+     * Posts status updates to the requester object.
+     * @param gameLauncherData
+     * @param error
+     * @param state
+     * @param progress
+     */
     void postStatus(GameLauncherData_t *gameLauncherData, int error, int state, int progress);
     
-    static GameLauncher *instance;    
-    static void *launchWorker(void *pGameLauncherData);
+    static GameLauncher *instance;
     
+    static void *launchWorker(void *pGameLauncherData);    
     static void fileExtractorProgressListenerCallback(void *pGameLauncherData, FileExtractor *fileExtractor, size_t fileSize, size_t progressBytes);
 };
 

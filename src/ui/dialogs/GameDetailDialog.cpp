@@ -37,6 +37,7 @@
 #include "Asset.h"
 #include "Directory.h"
 #include "EsrbRating.h"
+#include "SelectFromListDialog.h"
 
 #include <unistd.h>
 #include <cstdlib>
@@ -47,6 +48,7 @@ const int GameDetailDialog::THUMBNAIL_IMAGE_WIDTH = 90;
 const int GameDetailDialog::THUMBNAIL_IMAGE_HEIGHT = 90;
 const int GameDetailDialog::IMAGE_WIDTH = 400;
 const int GameDetailDialog::IMAGE_HEIGHT = 400;
+const int GameDetailDialog::INFORMATION_WIDTH = 600;
 
 GameDetailDialog::GameDetailDialog(GtkWindow *parent, int64_t gameId) : Dialog(parent, "GameDetailDialog.ui", "gameDetailDialog")
 {
@@ -150,6 +152,28 @@ void GameDetailDialog::setStatus(int running, string message, int progress)
     gtk_window_set_title(GTK_WINDOW(dialog), message.c_str());
     gtk_label_set_text(messageLabel, message.c_str());    
 }
+
+string GameDetailDialog::selectFileName(list<string> fileNames)
+{
+    string fileName = "";
+    list<string> baseFileNames;
+    for(list<string>::iterator item = fileNames.begin(); item != fileNames.end(); item++)
+    {
+        baseFileNames.push_back(Utils::getInstance()->getFileBasename(*item));
+    }
+    
+    SelectFromListDialog *selectFromListDialog = new SelectFromListDialog(GTK_WINDOW(dialog), "Multiple files where found", baseFileNames);
+    if(selectFromListDialog->execute() == GTK_RESPONSE_ACCEPT)
+    {
+        list<string>::iterator item = fileNames.begin();
+        advance(item, selectFromListDialog->getSelectedIndex());
+        fileName = *item;
+    }
+    delete selectFromListDialog;
+    
+    return fileName;
+}
+
 
 void GameDetailDialog::updateInformation()
 {
@@ -494,7 +518,7 @@ void GameDetailDialog::updateGameDocumentsGrid()
     gameDocumentBoxes->clear();
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(documentsBox), 1);
     
-    int width = IMAGE_WIDTH;//gtk_widget_get_allocated_width(rootWidget);
+    int width = INFORMATION_WIDTH;//gtk_widget_get_allocated_width(rootWidget);
     int columns = width / THUMBNAIL_IMAGE_WIDTH;
     
     int rows = gameDocuments->size() / columns;
@@ -744,12 +768,10 @@ void GameDetailDialog::signalDocumentMenuSaveActivate(GtkMenuItem *menuitem, gpo
 
 gboolean GameDetailDialog::signalDeleteEvent(GtkWidget* window, GdkEvent* event, gpointer gameDetailDialog)
 {
-    cout << "GameDetailDialog::" << __FUNCTION__ << endl;
     return ((GameDetailDialog *)gameDetailDialog)->running;
 }
 
 gboolean GameDetailDialog::signalKeyPressedEvent(GtkEntry* entry, GdkEvent* event, gpointer gameDetailDialog)
 {
-    cout << "GameDetailDialog::" << __FUNCTION__ << endl;
     return ((GameDetailDialog *)gameDetailDialog)->running;
 }

@@ -31,6 +31,9 @@
 
 using namespace std;
 
+/**
+ * Handles the access to the sqlite database.
+ */
 class Database
 {
 public:    

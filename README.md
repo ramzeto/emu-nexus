@@ -17,14 +17,14 @@ EMU-nexus stores all its data in $HOME/.config/emu-nexus/. Inside this directory
      * emu-nexus.sqlite    SQLite database containing the data of your collection.
 
 
-ROM files could be uncompressed on the go. The uncompressed files are stored in cache so they can be used directly next time. Zip and 7zip formats are supported.
+ROM files could be uncompressed on the go. The uncompressed files are stored in cache so they can be used directly next time. Tar, Tar.gz, Zip and 7zip formats are supported.
 
 
 EMU-nexus source code is available in its Github repository. These are the libraries on which EMU-nexus was built:
 
      * Jansson    Library for encoding, decoding and manipulating JSON data. It used to process the Elasticseach responses.
      * SQLite    SQL database engine. Used for managing your collection data.
-     * cURL    Free and easy-to-use client-side URL transfer library. Used for making HTTP requests to Elasticsearch, download images and the concise version of TheGamesDB database (A libcurl version with SSL support is required).
+     * cURL    Free and easy-to-use client-side URL transfer library. Used for making HTTP requests. A libcurl version with SSL support is required (libcurl4-openssl-dev or libcurl-nss-dev or libcurl4-gnutls-dev).
      * pthread (POSIX thread)    Set of interfaces (functions, header files) for threaded programming. EMU-nexus uses multiple threads to smooth its performance.
      * libxml2    XML C parser and toolkit developed for the Gnome project. Used to process MAME response data when processing ROMs that use MAME file names.
      * Dlib    Modern C++ toolkit containing machine learning algorithms and tools for creating complex software in C++ to solve real world problems. EMU-nexus only uses a small set of Dlib to create thumbnails of the platforms and games artwork.

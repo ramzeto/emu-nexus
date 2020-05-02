@@ -338,8 +338,9 @@ void PlatformPanel::selectGame(int64_t gameId)
     {
         if(gameGridItems->find(selectedGameId) != gameGridItems->end())
         {
+            cout << __FUNCTION__ << "gameId: " << gameId << endl;
             GtkWidget *gameGridItemBox = gameGridItems->at(selectedGameId);
-            gtk_widget_set_state_flags(gameGridItemBox, GTK_STATE_FLAG_SELECTED, 1);        
+            gtk_widget_set_state_flags(gameGridItemBox, GTK_STATE_FLAG_SELECTED, 1);
         }        
     }
 }
@@ -573,6 +574,26 @@ void PlatformPanel::callbackGameLauncher(CallbackResult *callbackResult)
             running = 1;
             message = "Decompressing/Unpacking...";
         }
+        else if(callbackResult->getStatus() == GameLauncher::STATE_SELECTING_FILE)
+        {
+            running = 1;
+            message = "Selecting file...";
+        }
+        else if(callbackResult->getStatus() == GameLauncher::STATE_FOUND_MULTIPLE_FILES)
+        {            
+            string fileName = platformPanel->gameDetailDialog->selectFileName(GameLauncher::getInstance()->getFileNames());
+            if(fileName.length() > 0)
+            {
+                running = 1;
+                GameLauncher::getInstance()->selectFileName(fileName);
+            }
+            else
+            {
+                running = 0;
+                message = "Execution canceled";
+                GameLauncher::getInstance()->cancel();
+            }
+        }        
         else if(callbackResult->getStatus() == GameLauncher::STATE_RUNNING)
         {
             running = 1;

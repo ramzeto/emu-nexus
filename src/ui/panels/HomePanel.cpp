@@ -422,6 +422,26 @@ void HomePanel::callbackGameLauncher(CallbackResult *callbackResult)
             running = 1;
             message = "Decompressing/Unpacking...";
         }
+        else if(callbackResult->getStatus() == GameLauncher::STATE_SELECTING_FILE)
+        {
+            running = 1;
+            message = "Selecting file...";
+        }
+        else if(callbackResult->getStatus() == GameLauncher::STATE_FOUND_MULTIPLE_FILES)
+        {            
+            string fileName = homePanel->gameDetailDialog->selectFileName(GameLauncher::getInstance()->getFileNames());
+            if(fileName.length() > 0)
+            {
+                running = 1;
+                GameLauncher::getInstance()->selectFileName(fileName);
+            }
+            else
+            {
+                running = 0;
+                message = "Execution canceled";
+                GameLauncher::getInstance()->cancel();
+            }
+        }
         else if(callbackResult->getStatus() == GameLauncher::STATE_RUNNING)
         {
             running = 1;
@@ -432,6 +452,11 @@ void HomePanel::callbackGameLauncher(CallbackResult *callbackResult)
             running = 0;
             message = "Execution finished";
             homePanel->loadRecentsGrid();
+        }
+        else if(callbackResult->getStatus() == GameLauncher::STATE_CANCELED)
+        {
+            running = 0;
+            message = "Execution canceled";
         }
     }
     homePanel->gameDetailDialog->setStatus(running, message, callbackResult->getProgress());

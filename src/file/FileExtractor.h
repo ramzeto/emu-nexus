@@ -37,6 +37,7 @@ using namespace std;
 class FileExtractor 
 {
 public:
+    
     /**
      * 
      * @param fileName Compressed and/or packed file name to extract.

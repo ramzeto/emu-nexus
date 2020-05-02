@@ -221,23 +221,18 @@ string ParseDirectoryProcess::queryMame(string name)
     string mameName = name;
     string mameOutput = "";
     string command = parseDirectory->getMame() + " -lx " + name;
-    cout << "ParseDirectoryProcess::" << __FUNCTION__ << " command: " << command << endl;
     
     if(!Utils::getInstance()->executeApplication(command, &mameOutput))
     {
-        //cout << "ParseDirectoryProcess::" << __FUNCTION__ << " mameOutput: " << mameOutput << endl;
-        
         xmlDoc *xmlDocument = xmlParseMemory(mameOutput.c_str(), mameOutput.length());
         if(xmlDocument)
         {
             xmlNode *rootNode = xmlDocGetRootElement(xmlDocument);
             for (xmlNode *node = rootNode->children; node; node = node->next)
             {
-                cout << "ParseDirectoryProcess::" << __FUNCTION__ << " node->name: " << node->name << endl;
                 if (node->type == XML_ELEMENT_NODE && strcmp((const char *)node->name, "machine") == 0)
                 {
                     char *propertyName = (char *)xmlGetProp(node, (const xmlChar *)"name");
-                    cout << "ParseDirectoryProcess::" << __FUNCTION__ << " propertyName: " << propertyName << endl;
                     
                     if(name.compare(string(propertyName)) == 0)
                     {
@@ -407,9 +402,7 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
     string gameName = parseDirectoryProcess->parseDirectory->getUseMame() ? parseDirectoryGame->getMameName() : parseDirectoryGame->getName();
     list<string> gameNameTokens = parseDirectoryProcess->tokenizeName(gameName);
     Game *game = NULL;
-    
-    cout << "ParseDirectoryProcess::" << __FUNCTION__ << " gameName: " << gameName << endl;
-    
+        
     typedef struct{
         TheGamesDB::Game *apiGame;
         list<string> nameTokens;
@@ -422,9 +415,7 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
     unsigned int maxCoincidences = 0;
     for(unsigned int index = 0; index < apiGames->size(); index++)
     {
-        TheGamesDB::Game *apiGame = TheGamesDB::Game::getItem(apiGames, index);
-    
-        cout << "ParseDirectoryProcess::" << __FUNCTION__ << " apiGame: " << apiGame->getName() << endl;
+        TheGamesDB::Game *apiGame = TheGamesDB::Game::getItem(apiGames, index);   
         
         gameItems[index].apiGame = apiGame;
         gameItems[index].nameTokens = parseDirectoryProcess->tokenizeName(apiGame->getName());
@@ -440,8 +431,6 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
                 int is = 0;
                 for(list<string>::iterator gameItemNameToken = gameItems[index].nameTokens.begin(); gameItemNameToken != gameItems[index].nameTokens.end(); gameItemNameToken++)
                 {
-                    //cout << "ParseDirectoryProcess::" << __FUNCTION__ << " apiGame: " << apiGame->getName() << "    gameNameToken: " << *gameNameToken << "    gameItemNameToken: " << *gameItemNameToken << endl;
-
                     if((*gameNameToken).compare((*gameItemNameToken)) == 0)
                     {
                         is = 1;
@@ -470,8 +459,6 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
                 int is = 0;
                 for(list<string>::iterator gameNameToken = gameNameTokens.begin(); gameNameToken != gameNameTokens.end(); gameNameToken++)
                 {
-                    //cout << "ParseDirectoryProcess::" << __FUNCTION__ << " apiGame: " << apiGame->getName() << "    gameNameToken: " << *gameNameToken << "    gameItemNameToken: " << *gameItemNameToken << endl;
-
                     if((*gameNameToken).compare((*gameItemNameToken)) == 0)
                     {
                         is = 1;
@@ -493,12 +480,7 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
                 }
             }
         }
-    }
-    
-    for(unsigned int index = 0; index < apiGames->size(); index++)
-    {
-        cout << "ParseDirectoryProcess::" << __FUNCTION__ << " apiGame: " << gameItems[index].apiGame->getName() << "    coincidences: " << gameItems[index].coincidences << "    notCoincidences: " << gameItems[index].notCoincidences << endl;
-    }
+    }    
 
     GameItem_t *matchGameItem = NULL;
     if(maxCoincidences > 0)
@@ -537,9 +519,7 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
             }
             
             if(matches)
-            {
-                cout << "ParseDirectoryProcess::" << __FUNCTION__ << " gameName: " << gameName << "     matchGameItem->apiGame->getName(): " << matchGameItem->apiGame->getName()<< endl;
-                
+            {                
                 game = new Game((int64_t)0);
                 game->setApiId(TheGamesDB::API_ID);
                 game->setApiItemId(matchGameItem->apiGame->getId());

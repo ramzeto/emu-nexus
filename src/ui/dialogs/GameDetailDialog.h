@@ -43,12 +43,14 @@ public:
     virtual ~GameDetailDialog();
 
     void setStatus(int running, string message, int progress);
+    string selectFileName(list<string> fileNames);
     
 private:
     static const int THUMBNAIL_IMAGE_WIDTH;
     static const int THUMBNAIL_IMAGE_HEIGHT;
     static const int IMAGE_WIDTH;
     static const int IMAGE_HEIGHT;
+    static const int INFORMATION_WIDTH;
 
 
     Game *game;    

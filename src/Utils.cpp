@@ -292,17 +292,11 @@ int Utils::executeApplication(string application, string* output)
         
     while (fgets(buffer, length, fp) != NULL)
     {
-        //cout << "Utils::" << __FUNCTION__ << " " << buffer << endl;
         *output += buffer;      
     }
     pclose(fp);
     
     return 0;
-}
-
-void Utils::executeApplicationIndependent(string application)
-{
-    system(string(application + "&").c_str());
 }
 
 string Utils::strReplace(string str, string from, string to)
@@ -397,7 +391,6 @@ int Utils::scaleImage(string inFileName, int outWidth, int outHeight, string out
                 aspectRatio = (double)height / (double)width;
                 outHeight = outWidth * aspectRatio;
             }
-            //cout << __FUNCTION__ << " width: " << width << " height: " << height << " aspectRatio: " << aspectRatio << " outWidth: " << outWidth << " outHeight: " << outHeight << endl;
 
             array2d<rgb_pixel> resizedImage(outHeight, outWidth);
             resize_image(image, resizedImage, interpolate_bilinear());
@@ -433,10 +426,6 @@ int Utils::createPreviewImageFromPdf(string pdfFileName, string imageFileName)
     poppler::image previewImage = pageRenderer->render_page(portraitPage);
     
     int ok = previewImage.save(imageFileName, "jpeg");
-    if(ok)
-    {
-        cout << __FUNCTION__ << " refImageFileName: " << imageFileName << endl;
-    }
 
     delete pageRenderer;    
     delete portraitPage;

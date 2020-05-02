@@ -230,7 +230,6 @@ void FirstSetupPanel::callbackElasticsearchData(CallbackResult *callbackResult)
         for(unsigned int index = 0; index < apiGenres->size(); index++)
         {
             TheGamesDB::Genre *apiGenre = TheGamesDB::Genre::getItem(apiGenres, index);
-            //cout << __FUNCTION__ << " index: " << index << " id: " << apiGenre->getId() << " name: " << apiGenre->getName() << endl;
 
             Genre *genre = new Genre((int64_t)0);
             genre->setName(apiGenre->getName());

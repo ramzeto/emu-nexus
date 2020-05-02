@@ -777,8 +777,7 @@ void *PlatformDialog::downloadPlatformImagesWorker(void *)
         if(downloadPlatformImageRef)
         {            
             HttpConnector *httpConnector = new HttpConnector(downloadPlatformImageRef->platformImage->getUrl());
-            httpConnector->get();
-            cout  << "PlatformDialog::" << __FUNCTION__ << " fileName: " << downloadPlatformImageRef->platformImage->getFileName() << " url: " << downloadPlatformImageRef->platformImage->getUrl() << " httpStatus: " << httpConnector->getHttpStatus() << endl;
+            httpConnector->get();            
             if(httpConnector->getHttpStatus() == HttpConnector::HTTP_OK)
             {
                 Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), downloadPlatformImageRef->platformImage->getFileName());

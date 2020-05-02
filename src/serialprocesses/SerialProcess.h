@@ -34,7 +34,8 @@ using namespace std;
 /**
  * This is the base class for processes executed by the SerialProcessExecutor
  */
-class SerialProcess {
+class SerialProcess 
+{
 public:
     static const int STATUS_IDLE;
     static const int STATUS_RUNNING;

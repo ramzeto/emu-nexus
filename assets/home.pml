@@ -6,7 +6,7 @@
 
 <span size="large">The concise version of the database is stored and indexed using <a href="https://www.elastic.co/downloads/elasticsearch-oss">Elasticsearch</a> so it can be easily searchable. When <b>EMU-nexus</b> is launched, it starts the Elasticsearch process in the background. By default, Elasticsearch listens in the port 9301. The <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache 2.0</a> licensed version of Elasticseach is used.</span>
 
-<span size="large">ROM files could be uncompressed on the go. The uncompressed files are stored in cache so they can be used directly next time. Zip and 7zip formats are supported.</span>
+<span size="large">ROM files could be uncompressed on the go. The uncompressed files are stored in cache so they can be used directly next time. Tar, Tar.gz, Zip and 7zip formats are supported.</span>
 
 <span size="large"><b>EMU-nexus</b> stores all its data in <i>$HOME/.config/emu-nexus/</i>. Inside this directory, you will find the next items:</span>
 
@@ -20,7 +20,7 @@
 
 <span size="large">     * <a href="http://www.digip.org/jansson/"><i>Jansson</i></a>    Library for encoding, decoding and manipulating JSON data. It is used to process the Elasticseach responses.</span>
 <span size="large">     * <a href="https://www.sqlite.org/index.html"><i>SQLite</i></a>    SQL database engine. Is used for managing your collection data.</span>
-<span size="large">     * <a href="https://curl.haxx.se/libcurl/"><i>cURL</i></a>    Free and easy-to-use client-side URL transfer library. Used for making HTTP requests (a libcurl version with SSL support is required).</span>
+<span size="large">     * <a href="https://curl.haxx.se/libcurl/"><i>cURL</i></a>    Free and easy-to-use client-side URL transfer library. Used for making HTTP request. A libcurl version with SSL support is required (libcurl4-openssl-dev or libcurl-nss-dev or libcurl4-gnutls-dev).</span>
 <span size="large">     * <a href="http://man7.org/linux/man-pages/man7/pthreads.7.html"><i>pthread (POSIX thread)</i></a>    Set of interfaces (functions, header files) for threaded programming. <b>EMU-nexus</b> uses multiple threads to smooth its performance.</span>
 <span size="large">     * <a href="http://www.xmlsoft.org/"><i>libxml2</i></a>    XML C parser and toolkit developed for the Gnome project. Used to process MAME response data when processing ROMs that use MAME file names.</span>
 <span size="large">     * <a href="http://dlib.net/"><i>Dlib</i></a>    Modern C++ toolkit containing machine learning algorithms and tools for creating complex software in C++ to solve real world problems. <b>EMU-nexus</b> only uses a small set of Dlib to create thumbnails of the platforms and games artwork.</span>

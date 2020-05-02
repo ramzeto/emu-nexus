@@ -42,7 +42,13 @@ class DownloadGameImagesProcess : public SerialProcess
 public:
     static const string TYPE;
 
+    /**
+     * 
+     * @param requester
+     * @param statusCallback
+     */
     DownloadGameImagesProcess(void *requester, void (*statusCallback)(CallbackResult *));
+    
     virtual ~DownloadGameImagesProcess();
     
     int execute() override;

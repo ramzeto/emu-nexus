@@ -36,7 +36,7 @@
 using namespace std;
 
 /**
- * This class handles in app notifications. This notifications broadcast an event to registered listeners.
+ * This class handles in app notifications. Are used to broadcast an event to registered listeners.
  */
 class NotificationManager {
 public:

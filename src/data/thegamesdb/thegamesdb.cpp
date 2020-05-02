@@ -277,9 +277,7 @@ void *TheGamesDB::Elasticsearch::getGenresWorker(void *requesterRef)
     do
     {
         hits = 0;
-        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/genre/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
-        
-        //cout << "TheGamesDB::Database::" << __FUNCTION__ << " url: " << url << endl;
+        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/genre/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);       
         
         HttpConnector *httpConnector = new HttpConnector(url);        
         if(httpConnector->get() == HttpConnector::HTTP_OK)
@@ -289,10 +287,6 @@ void *TheGamesDB::Elasticsearch::getGenresWorker(void *requesterRef)
             
             if(jsonResponse)
             {
-                //char *jsonDump = json_dumps(jsonResponse, 0);
-                //cout << "TheGamesDB::Database::" << __FUNCTION__ << " jsonResponse: " << jsonDump << endl;
-                //free(jsonDump);
-                
                 json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
                 json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
                 
@@ -351,9 +345,7 @@ void *TheGamesDB::Elasticsearch::getDevelopersWorker(void *requesterRef)
     {
         hits = 0;
         string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/developer/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
-        
-        //cout << "TheGamesDB::Database::" << __FUNCTION__ << " url: " << url << endl;
-        
+                
         HttpConnector *httpConnector = new HttpConnector(url);        
         if(httpConnector->get() == HttpConnector::HTTP_OK)
         {
@@ -362,10 +354,6 @@ void *TheGamesDB::Elasticsearch::getDevelopersWorker(void *requesterRef)
             
             if(jsonResponse)
             {
-                //char *jsonDump = json_dumps(jsonResponse, 0);
-                //cout << "TheGamesDB::Database::" << __FUNCTION__ << " jsonResponse: " << jsonDump << endl;
-                //free(jsonDump);
-                
                 json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
                 json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
                 
@@ -424,9 +412,7 @@ void *TheGamesDB::Elasticsearch::getPublishersWorker(void *requesterRef)
     {
         hits = 0;
         string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/publisher/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
-        
-        //cout << "TheGamesDB::Database::" << __FUNCTION__ << " url: " << url << endl;
-        
+                
         HttpConnector *httpConnector = new HttpConnector(url);        
         if(httpConnector->get() == HttpConnector::HTTP_OK)
         {
@@ -434,11 +420,7 @@ void *TheGamesDB::Elasticsearch::getPublishersWorker(void *requesterRef)
             json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
             
             if(jsonResponse)
-            {
-                //char *jsonDump = json_dumps(jsonResponse, 0);
-                //cout << "TheGamesDB::Database::" << __FUNCTION__ << " jsonResponse: " << jsonDump << endl;
-                //free(jsonDump);
-                
+            {                
                 json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
                 json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
                 
@@ -497,9 +479,7 @@ void *TheGamesDB::Elasticsearch::getEsrbRatingsWorker(void *requesterRef)
     {
         hits = 0;
         string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/esrbrating/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
-        
-        //cout << "TheGamesDB::Database::" << __FUNCTION__ << " url: " << url << endl;
-        
+                
         HttpConnector *httpConnector = new HttpConnector(url);        
         if(httpConnector->get() == HttpConnector::HTTP_OK)
         {
@@ -508,10 +488,6 @@ void *TheGamesDB::Elasticsearch::getEsrbRatingsWorker(void *requesterRef)
             
             if(jsonResponse)
             {
-                //char *jsonDump = json_dumps(jsonResponse, 0);
-                //cout << "TheGamesDB::Database::" << __FUNCTION__ << " jsonResponse: " << jsonDump << endl;
-                //free(jsonDump);
-                
                 json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
                 json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
                 
@@ -575,9 +551,7 @@ void *TheGamesDB::Elasticsearch::getPlatformsWorker(void *requesterRef)
     {
         hits = 0;
         string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/platform/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
-        
-        //cout << "TheGamesDB::Database::" << __FUNCTION__ << " url: " << url << endl;
-        
+                
         HttpConnector *httpConnector = new HttpConnector(url);        
         if(httpConnector->get() == HttpConnector::HTTP_OK)
         {
@@ -585,10 +559,6 @@ void *TheGamesDB::Elasticsearch::getPlatformsWorker(void *requesterRef)
             json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
             if(jsonResponse)
             {
-                //char *jsonDump = json_dumps(jsonResponse, 0);
-                //cout << "TheGamesDB::Database::" << __FUNCTION__ << " jsonResponse: " << jsonDump << endl;
-                //free(jsonDump);
-                
                 json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
                 json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
                 
@@ -649,8 +619,6 @@ void *TheGamesDB::Elasticsearch::getGamesWorker(void *requesterRef)
     list<TheGamesDB::Game *> *games = new list<TheGamesDB::Game *>;
     string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/platform" + to_string(apiPlatformId) + "/_search?q=name:" + Utils::getInstance()->urlEncode(query) + "&from=0&size=20";
 
-    cout << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " url: " << url << endl;
-
     HttpConnector *httpConnector = new HttpConnector(url);        
     if(httpConnector->get() == HttpConnector::HTTP_OK)
     {
@@ -658,10 +626,6 @@ void *TheGamesDB::Elasticsearch::getGamesWorker(void *requesterRef)
         json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
         if(jsonResponse)
         {
-            //char *jsonDump = json_dumps(jsonResponse, 0);
-            //cout << "TheGamesDB::Database::" << __FUNCTION__ << " jsonResponse: " << jsonDump << endl;
-            //free(jsonDump);
-
             json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
             json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
             for(unsigned int index = 0; index < json_array_size(jsonHits); index++)

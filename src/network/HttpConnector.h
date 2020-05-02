@@ -32,7 +32,7 @@
 using namespace std;
 
 /**
- * Requires libcurl4-openssl-dev or libcurl-nss-dev or libcurl4-gnutls-dev
+ * This class handles the HTTP requests. A libcurl with SSL support is required (libcurl4-openssl-dev or libcurl-nss-dev or libcurl4-gnutls-dev).
  */
 class HttpConnector
 {
@@ -55,40 +55,40 @@ public:
 
     /**
      * @param downloadProgressListener Object that will receive the progress updates.
-     * @param downloadProgressListenerCallback Pointer to a callback function that will be executed when a progress update happens. The function receives this parameters (pointer to the progressListener, pointer to the HttpConnector object, bytesToDownload, downloadedBytes)
+     * @param downloadProgressListenerCallback Pointer to a callback function that will be executed when a progress update happens. The function receives this parameters (pointer to the progressListener, pointer to the HttpConnector object, bytesToDownload, downloadedBytes).
      */
     void setDownloadProgressListener(void *downloadProgressListener, void (*downloadProgressListenerCallback)(void*, HttpConnector*, size_t, size_t));
     
     /**
-     * Sets a header
+     * Sets a header.
      * @param name
      * @param value
      */
     void setHeader(string name, string value);
     
     /**
-     * Sets a parameter
+     * Sets a parameter.
      * @param name
      * @param value
      */
     void setParameter(string name, string value);
     
     /**
-     * Executes a get request
-     * @return Http status
+     * Executes a get request.
+     * @return Http status.
      */
     int get();
     
     /**
-     * @TODO Executes a post request
-     * @param body Body of the request
-     * @param bodySize Size of the body
-     * @return Http status
+     * @TODO Executes a post request.
+     * @param body Body of the request.
+     * @param bodySize Size of the body.
+     * @return Http status.
      */
     int post(unsigned char *body, size_t bodySize);
     
     /**
-     * Destroy the data received, this should be called after every get or post
+     * Destroy the data received, this should be called after every get or post.
      */
     void clean();
     

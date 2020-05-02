@@ -66,9 +66,7 @@ int ElasticsearchProcess::execute()
     HttpConnector *md5HttpConnector = new HttpConnector(URL_MD5);
     if(md5HttpConnector->get() == HttpConnector::HTTP_OK)
     {
-        string md5sum((const char *)md5HttpConnector->getResponseData(), md5HttpConnector->getResponseDataSize());        
-        cout << "md5sum : " << md5sum << endl;
-        
+        string md5sum((const char *)md5HttpConnector->getResponseData(), md5HttpConnector->getResponseDataSize());
         
         sqlite3 *sqlite = Database::getInstance()->acquire();
         ApiDatabase *apiDatabase = new ApiDatabase(TheGamesDB::API_ID, md5sum);
