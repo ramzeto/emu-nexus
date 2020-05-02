@@ -26,7 +26,7 @@
 #include "UiThreadBridge.h"
 #include "UiUtils.h"
 
-GameSearchDialog::GameSearchDialog(int64_t apiPlatformId, string query) : Dialog("SingleChoiceListDialog.ui", "singleChoiceListDialog")
+GameSearchDialog::GameSearchDialog(GtkWindow *parent, int64_t apiPlatformId, string query) : Dialog(parent, "SingleChoiceListDialog.ui", "singleChoiceListDialog")
 {
     this->apiPlatformId = apiPlatformId;
     this->query = query;

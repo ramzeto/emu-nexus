@@ -43,7 +43,7 @@
 using namespace std;
 
 
-FirstSetupPanel::FirstSetupPanel()  : Panel("FirstSetupPanel.ui", "FirstSetupPanel")
+FirstSetupPanel::FirstSetupPanel(GtkWindow *parentWindow)  : Panel(parentWindow, "FirstSetupPanel.ui", "FirstSetupPanel")
 {    
     onSetupReadyCallback = NULL;
     onSetupReadyCallbackReferenceData = NULL;
@@ -60,7 +60,7 @@ FirstSetupPanel::FirstSetupPanel()  : Panel("FirstSetupPanel.ui", "FirstSetupPan
     successButton = (GtkButton *)gtk_builder_get_object (builder, "successButton");
     g_signal_connect (successButton, "clicked", G_CALLBACK (signalSuccessButtonClicked), this);
     
-    UiUtils::getInstance()->loadImage(logoImage, Asset::getInstance()->getImageLogoBig(), 300, 300);
+    UiUtils::getInstance()->loadImage(logoImage, Asset::getInstance()->getImageLogo(), 300, 300);
     
     processUiThreadBridge = UiThreadBridge::registerBridge(this, callbackElasticsearchProcess);
     dataUiThreadBridge = UiThreadBridge::registerBridge(this, callbackElasticsearchData);

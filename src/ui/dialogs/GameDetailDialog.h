@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 ram
+ * Copyright (C) 2020 ram
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,16 +16,16 @@
  */
 
 /* 
- * File:   GameDetailBox.h
+ * File:   GameDetailDialog.h
  * Author: ram
  *
- * Created on April 9, 2019, 1:27 AM
+ * Created on May 1, 2020, 9:29 PM
  */
 
-#ifndef GAMEDETAILWIDGET_H
-#define GAMEDETAILWIDGET_H
+#ifndef GAMEDETAILDIALOG_H
+#define GAMEDETAILDIALOG_H
 
-#include "Widget.h"
+#include "Dialog.h"
 #include "Game.h"
 #include "GameImage.h"
 #include "GameDocument.h"
@@ -35,31 +35,23 @@
 
 using namespace std;
 
-/**
- * A wrapper for the widget that shows the information of a game.
- */
-class GameDetailWidget : public Widget
+
+class GameDetailDialog : public Dialog
 {
 public:
-    
-    /**
-     * 
-     * @param gameId Id of the game.
-     */
-    GameDetailWidget(int64_t gameId);
-    
-    virtual ~GameDetailWidget();
+    GameDetailDialog(GtkWindow *parent, int64_t gameId);
+    virtual ~GameDetailDialog();
+
+    void setStatus(int running, string message, int progress);
     
 private:
     static const int THUMBNAIL_IMAGE_WIDTH;
     static const int THUMBNAIL_IMAGE_HEIGHT;
+    static const int IMAGE_WIDTH;
     static const int IMAGE_HEIGHT;
-    
-    // @TODO This constant should not exists. The width should be gotten automatically.
-    static const int WIDGET_WIDTH; 
-    
-    Game *game;
-    
+
+
+    Game *game;    
     list<GameImage *> *gameImages;    
     GameImage *selectedGameImage;
     map<GameImage *, GtkWidget *> *gameImageBoxes;
@@ -76,8 +68,9 @@ private:
 
     time_t selectGameDocumentBoxTimestamp;
     time_t viewGameDocumentBoxTimestamp;
-
     
+    int running;
+
     GtkLabel *nameLabel;
     GtkLabel *fileNameLabel;
     GtkLabel *platformLabel;
@@ -88,90 +81,84 @@ private:
     GtkLabel *documentsLabel;
     GtkBox *documentsBox;
     GtkLabel *informationLabel;
+    GtkBox *launchBox;
+    GtkSpinner *spinner;
+    GtkLabel *messageLabel;
+    GtkProgressBar *progressBar;
+
     
-    void updateInfo();
+    void updateInformation();
     
-    void updateGameImageGrid();
+    void updateGameImagesGrid();
     void selectGameImage(GameImage *gameImage);
     void viewGameImage(GameImage *gameImage);
     void saveGameImage(GameImage *gameImage);
     
-    void updateGameDocumentGrid();
+    void updateGameDocumentsGrid();
     void selectGameDocument(GameDocument *gameDocument);
     void viewGameDocument(GameDocument *gameDocument);
-    void saveGameDocument(GameDocument *gameDocument);
-    
-    /**
-     * Signal triggered when the gameGrid "size-allocate" event happens.
-     * @param widget
-     * @param allocation
-     * @param gameDetailWidget
-     */
-    static void signalSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer gameDetailWidget);
-    
-    /**
-     * 
-     * @param widget
-     * @param gameDetailWidget
-     */
-    static void signalShow(GtkWidget *widget, gpointer gameDetailWidget);
+    void saveGameDocument(GameDocument *gameDocument);    
     
     /**
      * 
      * @param widget
      * @param event
-     * @param gameDetailWidget
+     * @param gameDetailDialog
      * @return 
      */
-    static gboolean signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDetailWidget);
+    static gboolean signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDetailDialog);
     
     /**
      * 
      * @param widget
      * @param event
-     * @param gameDetailWidget
+     * @param gameDetailDialog
      * @return 
      */
-    static gboolean signalImageButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDetailWidget);
+    static gboolean signalImageButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDetailDialog);
     
     /**
      * 
      * @param menuitem
-     * @param gameDetailWidget
+     * @param gameDetailDialog
      */
-    static void signalImageMenuViewActivate(GtkMenuItem *menuitem, gpointer gameDetailWidget);
+    static void signalImageMenuViewActivate(GtkMenuItem *menuitem, gpointer gameDetailDialog);
     
     /**
      * 
      * @param menuitem
-     * @param gameDetailWidget
+     * @param gameDetailDialog
      */
-    static void signalImageMenuSaveActivate(GtkMenuItem *menuitem, gpointer gameDetailWidget);
+    static void signalImageMenuSaveActivate(GtkMenuItem *menuitem, gpointer gameDetailDialog);
     
     
     /**
      * 
      * @param widget
      * @param event
-     * @param gameDetailWidget
+     * @param gameDetailDialog
      * @return 
      */
-    static gboolean signalDocumentBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDetailWidget);
+    static gboolean signalDocumentBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDetailDialog);
     
     /**
      * 
      * @param menuitem
-     * @param gameDetailWidget
+     * @param gameDetailDialog
      */
-    static void signalDocumentMenuViewActivate(GtkMenuItem *menuitem, gpointer gameDetailWidget);
+    static void signalDocumentMenuViewActivate(GtkMenuItem *menuitem, gpointer gameDetailDialog);
     
     /**
      * 
      * @param menuitem
-     * @param gameDetailWidget
+     * @param gameDetailDialog
      */
-    static void signalDocumentMenuSaveActivate(GtkMenuItem *menuitem, gpointer gameDetailWidget);
+    static void signalDocumentMenuSaveActivate(GtkMenuItem *menuitem, gpointer gameDetailDialog);
+    
+    
+    static gboolean signalDeleteEvent(GtkWidget *window, GdkEvent *event, gpointer gameDetailDialog);
+    static gboolean signalKeyPressedEvent(GtkEntry *entry, GdkEvent *event, gpointer gameDetailDialog);
 };
 
-#endif /* GAMEDETAILBOX_H */
+#endif /* GAMEDETAILDIALOG_H */
 

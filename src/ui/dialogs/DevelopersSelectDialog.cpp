@@ -29,7 +29,7 @@
 
 #include <iostream>
 
-DevelopersSelectDialog::DevelopersSelectDialog(list<Developer *> *selectedItems) : Dialog("SearchableMultiChoiceListDialog.ui", "searchableMultiChoiceListDialog")
+DevelopersSelectDialog::DevelopersSelectDialog(GtkWindow *parent, list<Developer *> *selectedItems) : Dialog(parent, "SearchableMultiChoiceListDialog.ui", "searchableMultiChoiceListDialog")
 {
     this->selectedItems = new list<Developer *>;
     for(unsigned int c = 0; c < selectedItems->size(); c++)

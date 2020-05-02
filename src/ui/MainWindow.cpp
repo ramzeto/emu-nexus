@@ -93,7 +93,7 @@ MainWindow::MainWindow()
     
     addDirectoryButton = (GtkButton *)gtk_builder_get_object (builder, "addDirectoryButton");
     g_signal_connect (addDirectoryButton, "clicked", G_CALLBACK (signalAddDirectoryButtonClicked), this);    
-
+    
     platformListContainerBox = (GtkBox *)gtk_builder_get_object (builder, "platformListContainerBox");
     platformListBox = (GtkListBox *)gtk_builder_get_object (builder, "platformListBox");
     g_signal_connect (platformListBox, "row-selected", G_CALLBACK(signalPlatformListRowSelected), this);
@@ -105,13 +105,10 @@ MainWindow::MainWindow()
     processTitleLabel = (GtkLabel *)gtk_builder_get_object (builder, "processTitleLabel");
     processMessageLabel = (GtkLabel *)gtk_builder_get_object (builder, "processMessageLabel");   
     processProgressBar = (GtkProgressBar *)gtk_builder_get_object (builder, "processProgressBar");   
-    
-    versionLabel = (GtkLabel *)gtk_builder_get_object (builder, "versionLabel");   
-    gtk_label_set_text(versionLabel, string(string("Version ") + string(BUILD_VERSION)).c_str());
-            
+                
 
     // Loads the CSS
-    GError *error = NULL;
+    /*GError *error = NULL;
     cssProvider = gtk_css_provider_new();
     gtk_css_provider_load_from_path(cssProvider, (Asset::getInstance()->getCss()).c_str(), &error);
     if(error)
@@ -122,7 +119,7 @@ MainWindow::MainWindow()
     {
         GdkScreen *screen = gtk_window_get_screen(GTK_WINDOW(mainWindow));
         gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER(cssProvider), GTK_STYLE_PROVIDER_PRIORITY_USER);
-    }
+    }*/
     
     
     
@@ -143,7 +140,7 @@ MainWindow::MainWindow()
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_PLATFORM_UPDATED, this, callbackNotification, 1);
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_ADD_DIRECTORY, this, callbackNotification, 1);
     
-    loadStartGui();
+    startGui();
 }
 
 
@@ -165,7 +162,7 @@ MainWindow::~MainWindow()
     UiThreadBridge::unregisterBridge(processUiThreadBridge);
 }
 
-void MainWindow::loadStartGui()
+void MainWindow::startGui()
 {
     sqlite3 *sqlite = Database::getInstance()->acquire();
     list<Genre *> *genres = Genre::getItems(sqlite, "");    
@@ -189,14 +186,14 @@ void MainWindow::loadStartGui()
         gtk_widget_show_all(GTK_WIDGET(platformListContainerBox));
         
         loadPlatformList();
-        showPanel(new HomePanel());
+        showPanel(new HomePanel(GTK_WINDOW(mainWindow)));
     }
     else
     {
         gtk_widget_hide(GTK_WIDGET(addPlatformButton));
         gtk_widget_hide(GTK_WIDGET(platformListContainerBox));
         
-        FirstSetupPanel *firstSetupPanel = new FirstSetupPanel();
+        FirstSetupPanel *firstSetupPanel = new FirstSetupPanel(GTK_WINDOW(mainWindow));
         firstSetupPanel->setOnSetupReadyCallback(onSetupReadyCallback, this);
         showPanel(firstSetupPanel);
     }
@@ -227,12 +224,12 @@ void MainWindow::showHome()
     gtk_widget_hide(GTK_WIDGET(addDirectoryButton));
     gtk_widget_hide(GTK_WIDGET(gameSearchEntry));
     
-    showPanel(new HomePanel());    
+    showPanel(new HomePanel(GTK_WINDOW(mainWindow)));    
 }
 
 void MainWindow::showPlatformDialog(int64_t platformId)
 {
-    PlatformDialog *platformDialog = new PlatformDialog(platformId);
+    PlatformDialog *platformDialog = new PlatformDialog(GTK_WINDOW(mainWindow), platformId);
     if(platformDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
         if(platformId)
@@ -271,8 +268,8 @@ void MainWindow::loadPlatformList()
         // Home
         if(c == 0)
         {
-            gtk_label_set_text(nameLabel, "Home");
-            gtk_label_set_text(gamesLabel, "Welcome to EMU-nexus");
+            gtk_label_set_text(nameLabel, "EMU-nexus");
+            gtk_label_set_text(gamesLabel, "Home");
             UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageHome(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
             
             gtk_widget_set_name(platformRowBox, to_string(0).c_str());
@@ -410,7 +407,7 @@ void MainWindow::selectPlatform(int64_t platformId)
     gtk_widget_show(GTK_WIDGET(addDirectoryButton));
     gtk_widget_show(GTK_WIDGET(gameSearchEntry));
     
-    showPanel(new PlatformPanel(selectedPlatformId));
+    showPanel(new PlatformPanel(GTK_WINDOW(mainWindow), selectedPlatformId));
     ((PlatformPanel *)currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(gameSearchEntry))));
 }
 
@@ -421,7 +418,7 @@ void MainWindow::removePlatform(int64_t platformId)
     platform->load(sqlite);
     Database::getInstance()->release();
     
-    MessageDialog *messageDialog = new MessageDialog("Sure you want to remove \"" + platform->getName() + "\"?", "Remove", "Cancel");   
+    MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(mainWindow), "Sure you want to remove \"" + platform->getName() + "\"?", "Remove", "Cancel");   
     if(messageDialog->execute() == GTK_RESPONSE_YES)
     {
         showHome();
@@ -439,7 +436,7 @@ void MainWindow::removePlatform(int64_t platformId)
 
 void MainWindow::onSetupReadyCallback(void* mainWindow)
 {
-    ((MainWindow *)mainWindow)->loadStartGui();
+    ((MainWindow *)mainWindow)->startGui();
 }
 
 
@@ -455,7 +452,7 @@ void MainWindow::signalMainWindowConfigureEvent(GtkWindow* window, GdkEvent* eve
         Preferences::getInstance()->setWindowWidth(event->configure.width);
         Preferences::getInstance()->setWindowHeight(event->configure.height);
     }
-    
+            
     sqlite3 *sqlite = Database::getInstance()->acquire();
     Preferences::getInstance()->save(sqlite);
     Database::getInstance()->release();
@@ -581,7 +578,7 @@ void MainWindow::callbackSerialProcessStatus(CallbackResult *callbackResult)
             }
             else
             {
-                MessageDialog *messageDialog = new MessageDialog("Database failed to start. Please restart EMU-nexus", "Ok", "");   
+                MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(mainWindow), "Database failed to start. Please restart EMU-nexus", "Ok", "");   
                 messageDialog->execute();
                 delete messageDialog;
             }

@@ -41,9 +41,10 @@ public:
     
     /**
      * 
+     * @param parent Parent GtkWindow.
      * @param selectedItems List of selected items. For safety, this objects will be copied into a new list.
      */     
-    PublishersSelectDialog(list<Publisher *> *selectedItems);
+    PublishersSelectDialog(GtkWindow *parent, list<Publisher *> *selectedItems);
     virtual ~PublishersSelectDialog();
     
     /**

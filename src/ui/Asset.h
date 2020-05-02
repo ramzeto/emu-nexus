@@ -36,7 +36,6 @@ class Asset {
 
 public:
     static const string ASSET_CSS;
-    static const string ASSET_IMAGE_LOGO_BIG;
     static const string ASSET_IMAGE_HOME;
     static const string ASSET_IMAGE_DOWNLOADING;
     static const string ASSET_IMAGE_DOCUMENT;
@@ -47,13 +46,7 @@ public:
      * 
      * @return CSS filename.
      */
-    string getCss();
-    
-    /**
-     * 
-     * @return Big image logo filename.
-     */
-    string getImageLogoBig();
+    string getCss();   
     
     /**
      * 

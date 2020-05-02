@@ -38,11 +38,11 @@ class Panel
 public:
     
     /**
-     * 
+     * @param parentWindow Parent GtkWindow.
      * @param panelFileName Filename of the panel design.
      * @param panelBoxId Id from the base box of the panel.
      */
-    Panel(string panelFileName, string panelBoxId);
+    Panel(GtkWindow *parentWindow, string panelFileName, string panelBoxId);
        
     
     /**
@@ -62,6 +62,7 @@ public:
     virtual void destroy();   
     
 protected:
+    GtkWindow *parentWindow;
     GtkBuilder *builder;
     GtkBox *panelBox;
     

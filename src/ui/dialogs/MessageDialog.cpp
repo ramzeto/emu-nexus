@@ -24,7 +24,7 @@
 
 #include "MessageDialog.h"
 
-MessageDialog::MessageDialog(string message, string positiveButtonText, string negativeButtonText) : Dialog("MessageDialog.ui", "messageDialog")
+MessageDialog::MessageDialog(GtkWindow *parent, string message, string positiveButtonText, string negativeButtonText) : Dialog(parent, "MessageDialog.ui", "messageDialog")
 {
     messageLabel = (GtkLabel *)gtk_builder_get_object(builder, "messageLabel");
     gtk_label_set_text(messageLabel, message.c_str());

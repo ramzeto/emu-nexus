@@ -62,16 +62,18 @@ private:
     GtkLabel *processMessageLabel;
     GtkProgressBar *processProgressBar;
     
-    GtkLabel *versionLabel;
     GtkCssProvider *cssProvider;
-    
+        
     list<Platform *> *platforms;
     Panel *currentPanel;
     int64_t selectedPlatformId;
     
     UiThreadBridge *processUiThreadBridge;
 
-    void loadStartGui();
+    /**
+     * Starts GUI.
+     */
+    void startGui();
     
     /**
      * Shows a panel in the contentBox.

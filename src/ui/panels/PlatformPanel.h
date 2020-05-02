@@ -27,8 +27,7 @@
 
 #include "Panel.h"
 #include "Game.h"
-#include "GameDetailWidget.h"
-#include "LaunchDialog.h"
+#include "GameDetailDialog.h"
 #include "UiThreadBridge.h"
 #include "CallbackResult.h"
 
@@ -46,9 +45,10 @@ public:
     
     /**
      * 
+     * @param parentWindow Parent GtkWindow.
      * @param platformId Id of the platform.
      */
-    PlatformPanel(int platformId);        
+    PlatformPanel(GtkWindow *parentWindow, int platformId);        
     
     /**
      * Shows the game dialog for adding or editing.
@@ -77,7 +77,6 @@ private:
     
     GtkScrolledWindow *gameGridScrolledWindow;
     GtkListBox *gameGridListBox;
-    GtkBox *gameDetailBox;
         
     int64_t platformId;
     list<Game *> *games;
@@ -89,9 +88,8 @@ private:
     int64_t selectedGameId;
     time_t selectGameTimestamp;
     time_t launchGameTimestamp;
-    GameDetailWidget *gameDetailWidget;
     string searchQuery;
-    LaunchDialog *launchDialog;
+    GameDetailDialog *gameDetailDialog;
     UiThreadBridge *launcherUiThreadBridge;
     
     virtual ~PlatformPanel();
@@ -131,6 +129,12 @@ private:
     void launchGame(int64_t gameId);
     
     /**
+     * Shows a game detail.
+     * @param gameId
+     */
+    void showGameDetail(int64_t gameId);    
+    
+    /**
      * Signal triggered when the gameGridListBox "size-allocate" event happens.
      * @param widget
      * @param allocation
@@ -154,6 +158,13 @@ private:
      * @return 
      */
     static gboolean signalGameItemBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer platformPanel);
+
+    /**
+     * Signal triggered when the user selects the detail menu option on a game in the grid.
+     * @param menuitem
+     * @param mainWindow
+     */
+    static void signalGameMenuDetailActivate(GtkMenuItem *menuitem, gpointer platformPanel);
     
     /**
      * Signal triggered when the user selects the edit menu option on a game in the grid.

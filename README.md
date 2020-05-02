@@ -1,6 +1,6 @@
 # EMU-nexus
 
-EMU-nexus is a front-end designed to launch emulators and to organize ROM collections, but it can be used to launch any program. It is developed in C++ and it uses GTK3 as graphical user interface. It does not try to compete with any other front-end. It is not designed for an HTPC, it is intended to be used in an everyday not specific purpose PC.
+EMU-nexus is a front-end designed to launch emulators and to organize ROM collections. It is developed in C++ and it uses GTK3 as graphical user interface. It does not try to compete with any other front-end. It is not designed for an HTPC, it is intended to be used in an everyday not specific purpose PC. It is distributed under the GPLv3 license.
 
 
 The information about consoles, systems and games comes from TheGamesDB. To avoid stress on TheGamesDB servers, a concise version of the database is processed in the cloud. This concise version is updated regularly and downloaded automatically by EMU-nexus.
@@ -17,9 +17,7 @@ EMU-nexus stores all its data in $HOME/.config/emu-nexus/. Inside this directory
      * emu-nexus.sqlite    SQLite database containing the data of your collection.
 
 
-
-EMU-nexus is distributed under the GPLv3 license.
-
+ROM files could be uncompressed on the go. The uncompressed files are stored in cache so they can be used directly next time. Zip and 7zip formats are supported.
 
 
 EMU-nexus source code is available in its Github repository. These are the libraries on which EMU-nexus was built:

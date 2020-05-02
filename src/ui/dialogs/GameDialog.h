@@ -52,10 +52,11 @@ public:
     
     /**
      * 
+     * @param parent Parent GtkWindow.
      * @param platformId Id of the platform of the game.
      * @param gameId Id of the game to configure. If is 0, a new game will be created.
      */
-    GameDialog(int64_t platformId, int64_t gameId);    
+    GameDialog(GtkWindow *parent, int64_t platformId, int64_t gameId);    
     
     /**
      * This method should be called to dismiss the dialog. Explicitely deleting the dialog is forbidden. The dialog downloads the game images when required and the download process may continue after the dialog is dismissed.

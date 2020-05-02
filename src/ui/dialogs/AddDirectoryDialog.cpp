@@ -32,9 +32,10 @@
 #include "NotificationManager.h"
 #include "Notifications.h"
 #include "CallbackResult.h"
+#include "Dialog.h"
 
 
-AddDirectoryDialog::AddDirectoryDialog(int64_t platformId) : Dialog("AddDirectoryDialog.ui", "addDirectoryDialog")
+AddDirectoryDialog::AddDirectoryDialog(GtkWindow *parent, int64_t platformId) : Dialog(parent, "AddDirectoryDialog.ui", "addDirectoryDialog")
 {
     this->platformId = platformId;
 
@@ -242,7 +243,7 @@ void AddDirectoryDialog::accept()
     string directory = Utils::getInstance()->trim(string(gtk_entry_get_text(directoryEntry)));
     if(directory.length() == 0)
     {
-        MessageDialog *messageDialog = new MessageDialog("Directory cannot be empty", "Ok", "");   
+        MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(dialog), "Directory cannot be empty", "Ok", "");   
         messageDialog->execute();
         delete messageDialog;
         
@@ -252,7 +253,7 @@ void AddDirectoryDialog::accept()
     string fileExtensions = Utils::getInstance()->trim(string(gtk_entry_get_text(fileExtensionsEntry)));
     if(fileExtensions.length() == 0)
     {
-        MessageDialog *messageDialog = new MessageDialog("You should provide at least one file extension", "Ok", "");   
+        MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(dialog), "You should provide at least one file extension", "Ok", "");   
         messageDialog->execute();
         delete messageDialog;
         
@@ -262,7 +263,7 @@ void AddDirectoryDialog::accept()
     string mame = Utils::getInstance()->trim(string(gtk_entry_get_text(mameExecutableEntry)));
     if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(mameCheckButton)) && mame.length() == 0)
     {
-        MessageDialog *messageDialog = new MessageDialog("MAME path is not valid", "Ok", "");   
+        MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(dialog), "MAME path is not valid", "Ok", "");   
         messageDialog->execute();
         delete messageDialog;
         
@@ -271,7 +272,7 @@ void AddDirectoryDialog::accept()
     
     if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(mameCheckButton)) && !Utils::getInstance()->fileExists(mame))
     {
-        MessageDialog *messageDialog = new MessageDialog("MAME binary does not exists", "Ok", "");   
+        MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(dialog), "MAME binary does not exists", "Ok", "");   
         messageDialog->execute();
         delete messageDialog;
         

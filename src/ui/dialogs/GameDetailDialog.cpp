@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 ram
+ * Copyright (C) 2020 ram
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,13 +16,13 @@
  */
 
 /* 
- * File:   GameDetailBox.cpp
+ * File:   GameDetailDialog.cpp
  * Author: ram
  * 
- * Created on April 9, 2019, 1:27 AM
+ * Created on May 1, 2020, 9:29 PM
  */
 
-#include "GameDetailWidget.h"
+#include "GameDetailDialog.h"
 #include "Platform.h"
 #include "UiUtils.h"
 #include "GameDeveloper.h"
@@ -36,17 +36,19 @@
 #include "Database.h"
 #include "Asset.h"
 #include "Directory.h"
+#include "EsrbRating.h"
 
 #include <unistd.h>
 #include <cstdlib>
 #include <iostream>
 
-const int GameDetailWidget::THUMBNAIL_IMAGE_WIDTH = 90;
-const int GameDetailWidget::THUMBNAIL_IMAGE_HEIGHT = 90;
-const int GameDetailWidget::IMAGE_HEIGHT = 400;
-const int GameDetailWidget::WIDGET_WIDTH = 400;
 
-GameDetailWidget::GameDetailWidget(int64_t gameId) : Widget("GameDetailWidget.ui", "gameDetailBox")
+const int GameDetailDialog::THUMBNAIL_IMAGE_WIDTH = 90;
+const int GameDetailDialog::THUMBNAIL_IMAGE_HEIGHT = 90;
+const int GameDetailDialog::IMAGE_WIDTH = 400;
+const int GameDetailDialog::IMAGE_HEIGHT = 400;
+
+GameDetailDialog::GameDetailDialog(GtkWindow *parent, int64_t gameId) : Dialog(parent, "GameDetailDialog.ui", "gameDetailDialog")
 {
     nameLabel = (GtkLabel *)gtk_builder_get_object (builder, "nameLabel");
     fileNameLabel = (GtkLabel *)gtk_builder_get_object (builder, "fileNameLabel");
@@ -59,6 +61,12 @@ GameDetailWidget::GameDetailWidget(int64_t gameId) : Widget("GameDetailWidget.ui
     documentsLabel = (GtkLabel *)gtk_builder_get_object (builder, "documentsLabel");
     documentsBox = (GtkBox *)gtk_builder_get_object (builder, "documentsBox");
     informationLabel = (GtkLabel *)gtk_builder_get_object (builder, "informationLabel");
+ 
+    launchBox = (GtkBox *)gtk_builder_get_object(builder, "launchBox");
+    spinner = (GtkSpinner *)gtk_builder_get_object(builder, "spinner");
+    messageLabel = (GtkLabel *)gtk_builder_get_object(builder, "messageLabel");
+    progressBar = (GtkProgressBar *)gtk_builder_get_object(builder, "progressBar");
+    gtk_widget_hide(GTK_WIDGET(launchBox));
     
     sqlite3 *sqlite = Database::getInstance()->acquire();
     game = new Game(gameId);
@@ -77,6 +85,7 @@ GameDetailWidget::GameDetailWidget(int64_t gameId) : Widget("GameDetailWidget.ui
     gameDocumentBoxes = new map<GameDocument *, GtkWidget *>;
     selectedGameDocument = NULL;
     
+    running = 0;
     selectGameImageTimestamp = 0;
     viewGameImageTimestamp = 0;
     selectGameImageBoxTimestamp = 0;
@@ -84,7 +93,7 @@ GameDetailWidget::GameDetailWidget(int64_t gameId) : Widget("GameDetailWidget.ui
     selectGameDocumentBoxTimestamp = 0;
     viewGameDocumentBoxTimestamp = 0;
     
-    
+    gtk_window_set_title(GTK_WINDOW(dialog), game->getName().c_str());
     gtk_label_set_text(nameLabel, game->getName().c_str());
     gtk_label_set_text(fileNameLabel, Utils::getInstance()->getFileBasename(game->getFileName()).c_str());
     gtk_label_set_text(imageTypeLabel, "");
@@ -93,15 +102,16 @@ GameDetailWidget::GameDetailWidget(int64_t gameId) : Widget("GameDetailWidget.ui
     delete platform;        
     
     gtk_image_clear(image);
-    //g_signal_connect (rootWidget, "show", G_CALLBACK(signalShow), this);    
-    //g_signal_connect (rootWidget, "size-allocate", G_CALLBACK(signalSizeAllocate), this);
     
-    updateInfo();
-    updateGameImageGrid();
-    updateGameDocumentGrid();
+    updateInformation();
+    updateGameImagesGrid();
+    updateGameDocumentsGrid();
+    
+    g_signal_connect(dialog, "delete-event", G_CALLBACK(signalDeleteEvent), this);
+    g_signal_connect(dialog, "key-press-event", G_CALLBACK (signalKeyPressedEvent), this);
 }
 
-GameDetailWidget::~GameDetailWidget()
+GameDetailDialog::~GameDetailDialog()
 {
     delete game;
     
@@ -112,7 +122,36 @@ GameDetailWidget::~GameDetailWidget()
     delete gameDocumentBoxes;
 }
 
-void GameDetailWidget::updateInfo()
+void GameDetailDialog::setStatus(int running, string message, int progress)
+{
+    this->running = running;
+    gtk_widget_show_all(GTK_WIDGET(launchBox));
+    
+    if(running)
+    {        
+        gtk_spinner_start(spinner);
+        
+        if(progress >= 0)
+        {
+            gtk_widget_show(GTK_WIDGET(progressBar));
+            gtk_progress_bar_set_fraction(progressBar, ((double)progress) / 100.0);
+        }
+        else
+        {
+            gtk_widget_hide(GTK_WIDGET(progressBar));
+        }
+    }
+    else
+    {
+        gtk_spinner_stop(spinner);
+        gtk_widget_hide(GTK_WIDGET(progressBar));
+    }
+    
+    gtk_window_set_title(GTK_WINDOW(dialog), message.c_str());
+    gtk_label_set_text(messageLabel, message.c_str());    
+}
+
+void GameDetailDialog::updateInformation()
 {
     string html = "";
     
@@ -197,32 +236,48 @@ void GameDetailWidget::updateInfo()
     }
     GameGenre::releaseItems(gameGenres);
     
+    if(game->getReleaseDate().length() > 0)
+    {
+        html += "<b>Released</b>\n";
+        html += Utils::getInstance()->htmlEntities(game->getReleaseDate());
+        html += "\n\n";
+    }
     
+    if(game->getEsrbRatingId() > 0)
+    {
+        EsrbRating *esrbRating = new EsrbRating(game->getEsrbRatingId());
+        if(esrbRating->load(sqlite))
+        {
+            html += "<b>ESRB rating</b>\n";
+            html += Utils::getInstance()->htmlEntities(esrbRating->getName());
+            html += "\n\n";
+        }
+        delete esrbRating;
+    }        
     Database::getInstance()->release();
     
     if(game->getDescription().length() > 0)
     {
-        html += "\n\n";
-        html += "<b>Description</b>\n\n";
+        html += "<b>Description</b>\n";
         html += Utils::getInstance()->htmlEntities(game->getDescription());
     }
     
     if(game->getNotes().length() > 0)
     {
-        html += "\n\n\n";
-        html += "<b>Notes</b>\n\n";
+        html += "\n\n";
+        html += "<b>Notes</b>\n";
         html += Utils::getInstance()->htmlEntities(game->getNotes());
     }
     
     gtk_label_set_markup(informationLabel, html.c_str());
 }
 
-void GameDetailWidget::updateGameImageGrid()
+void GameDetailDialog::updateGameImagesGrid()
 {
     gameImageBoxes->clear();
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(imagesBox), 1);
     
-    int width = WIDGET_WIDTH - 20;//gtk_widget_get_allocated_width(rootWidget);
+    int width = IMAGE_WIDTH;//gtk_widget_get_allocated_width(rootWidget);
     int columns = width / THUMBNAIL_IMAGE_WIDTH;
     
     int rows = gameImages->size() / columns;
@@ -293,7 +348,7 @@ void GameDetailWidget::updateGameImageGrid()
     }
 }
 
-void GameDetailWidget::selectGameImage(GameImage *gameImage)
+void GameDetailDialog::selectGameImage(GameImage *gameImage)
 {
     if(!Utils::getInstance()->fileExists(gameImage->getFileName()))
     {
@@ -338,11 +393,10 @@ void GameDetailWidget::selectGameImage(GameImage *gameImage)
         gtk_label_set_text(imageTypeLabel, "Banner");
     }
 
-    int width = WIDGET_WIDTH - 20;//gtk_widget_get_allocated_width(rootWidget);
-    UiUtils::getInstance()->loadImage(image, selectedGameImage->getFileName(), width, IMAGE_HEIGHT);
+    UiUtils::getInstance()->loadImage(image, selectedGameImage->getFileName(), IMAGE_WIDTH, IMAGE_HEIGHT);
 }
 
-void GameDetailWidget::viewGameImage(GameImage* gameImage)
+void GameDetailDialog::viewGameImage(GameImage* gameImage)
 {
     string tempDirectoryName = Utils::getInstance()->getTempFileName();
     Utils::getInstance()->makeDirectory(tempDirectoryName);
@@ -379,7 +433,7 @@ void GameDetailWidget::viewGameImage(GameImage* gameImage)
     }
 }
 
-void GameDetailWidget::saveGameImage(GameImage* gameImage)
+void GameDetailDialog::saveGameImage(GameImage* gameImage)
 {
     string imageName = game->getName();
     imageName = Utils::getInstance()->strReplace(imageName, "/", "_");
@@ -427,7 +481,7 @@ void GameDetailWidget::saveGameImage(GameImage* gameImage)
     gtk_widget_destroy(fileChooserDialog);
 }
 
-void GameDetailWidget::updateGameDocumentGrid()
+void GameDetailDialog::updateGameDocumentsGrid()
 {
     if(gameDocuments->size() == 0)
     {
@@ -440,7 +494,7 @@ void GameDetailWidget::updateGameDocumentGrid()
     gameDocumentBoxes->clear();
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(documentsBox), 1);
     
-    int width = WIDGET_WIDTH - 20;//gtk_widget_get_allocated_width(rootWidget);
+    int width = IMAGE_WIDTH;//gtk_widget_get_allocated_width(rootWidget);
     int columns = width / THUMBNAIL_IMAGE_WIDTH;
     
     int rows = gameDocuments->size() / columns;
@@ -495,7 +549,7 @@ void GameDetailWidget::updateGameDocumentGrid()
     }
 }
 
-void GameDetailWidget::selectGameDocument(GameDocument *gameDocument)
+void GameDetailDialog::selectGameDocument(GameDocument *gameDocument)
 {
     if(selectedGameDocument)
     {
@@ -514,7 +568,7 @@ void GameDetailWidget::selectGameDocument(GameDocument *gameDocument)
     }
 }
 
-void GameDetailWidget::viewGameDocument(GameDocument *gameDocument)
+void GameDetailDialog::viewGameDocument(GameDocument *gameDocument)
 {    
     string tempDirectoryName = Utils::getInstance()->getTempFileName();
     Utils::getInstance()->makeDirectory(tempDirectoryName);
@@ -529,7 +583,7 @@ void GameDetailWidget::viewGameDocument(GameDocument *gameDocument)
     }
 }
 
-void GameDetailWidget::saveGameDocument(GameDocument *gameDocument)
+void GameDetailDialog::saveGameDocument(GameDocument *gameDocument)
 {
     string imageName = game->getName() + " (" + gameDocument->getName() + ")";
     imageName = Utils::getInstance()->strReplace(imageName, "/", "_");
@@ -557,46 +611,36 @@ void GameDetailWidget::saveGameDocument(GameDocument *gameDocument)
 
 
 
-void GameDetailWidget::signalSizeAllocate(GtkWidget* widget, GtkAllocation* allocation, gpointer gameDetailWidget)
-{
-    cout << __FUNCTION__ << " width: " << allocation->width << " height: " << allocation->height << endl;
-    ((GameDetailWidget *)gameDetailWidget)->updateGameImageGrid();
-}
 
-void GameDetailWidget::signalShow(GtkWidget* widget, gpointer gameDetailWidget)
-{
-    cout << __FUNCTION__ << endl;
-}
-
-gboolean GameDetailWidget::signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDetailWidget)
+gboolean GameDetailDialog::signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDetailDialog)
 {
     // Mouse left button
     if(event->button.button == 1)
     {
-        GameImage *gameImage = GameImage::getItem(((GameDetailWidget *)gameDetailWidget)->gameImages, atoi(gtk_widget_get_name(widget)));
+        GameImage *gameImage = GameImage::getItem(((GameDetailDialog *)gameDetailDialog)->gameImages, atoi(gtk_widget_get_name(widget)));
         
-        if(gameImage == ((GameDetailWidget *)gameDetailWidget)->selectedGameImage)
+        if(gameImage == ((GameDetailDialog *)gameDetailDialog)->selectedGameImage)
         {
             time_t now = time(NULL);
-            if(now == ((GameDetailWidget *)gameDetailWidget)->selectGameImageBoxTimestamp && (now - ((GameDetailWidget *)gameDetailWidget)->viewGameImageBoxTimestamp) > 2)
+            if(now == ((GameDetailDialog *)gameDetailDialog)->selectGameImageBoxTimestamp && (now - ((GameDetailDialog *)gameDetailDialog)->viewGameImageBoxTimestamp) > 2)
             {
-                 ((GameDetailWidget *)gameDetailWidget)->viewGameImageBoxTimestamp = now;
-                 ((GameDetailWidget *)gameDetailWidget)->viewGameImage(((GameDetailWidget *)gameDetailWidget)->selectedGameImage);
+                 ((GameDetailDialog *)gameDetailDialog)->viewGameImageBoxTimestamp = now;
+                 ((GameDetailDialog *)gameDetailDialog)->viewGameImage(((GameDetailDialog *)gameDetailDialog)->selectedGameImage);
             }
-            ((GameDetailWidget *)gameDetailWidget)->selectGameImageBoxTimestamp = now;
+            ((GameDetailDialog *)gameDetailDialog)->selectGameImageBoxTimestamp = now;
         }
         else
         {
-            ((GameDetailWidget *)gameDetailWidget)->selectGameImage(gameImage);
+            ((GameDetailDialog *)gameDetailDialog)->selectGameImage(gameImage);
         }                
     }    
     
     return TRUE;
 }
 
-gboolean GameDetailWidget::signalImageButtonPressedEvent(GtkWidget* widget, GdkEvent* event, gpointer gameDetailWidget)
+gboolean GameDetailDialog::signalImageButtonPressedEvent(GtkWidget* widget, GdkEvent* event, gpointer gameDetailDialog)
 {    
-    if(!((GameDetailWidget *)gameDetailWidget)->selectedGameImage)
+    if(!((GameDetailDialog *)gameDetailDialog)->selectedGameImage)
     {
         return TRUE;
     }
@@ -605,12 +649,12 @@ gboolean GameDetailWidget::signalImageButtonPressedEvent(GtkWidget* widget, GdkE
     if(event->button.button == 1)
     {
         time_t now = time(NULL);        
-        if(now == ((GameDetailWidget *)gameDetailWidget)->selectGameImageTimestamp && (now - ((GameDetailWidget *)gameDetailWidget)->viewGameImageTimestamp) > 2)
+        if(now == ((GameDetailDialog *)gameDetailDialog)->selectGameImageTimestamp && (now - ((GameDetailDialog *)gameDetailDialog)->viewGameImageTimestamp) > 2)
         {
-             ((GameDetailWidget *)gameDetailWidget)->viewGameImageTimestamp = now;
-             ((GameDetailWidget *)gameDetailWidget)->viewGameImage(((GameDetailWidget *)gameDetailWidget)->selectedGameImage);
+             ((GameDetailDialog *)gameDetailDialog)->viewGameImageTimestamp = now;
+             ((GameDetailDialog *)gameDetailDialog)->viewGameImage(((GameDetailDialog *)gameDetailDialog)->selectedGameImage);
         }
-        ((GameDetailWidget *)gameDetailWidget)->selectGameImageTimestamp = now;
+        ((GameDetailDialog *)gameDetailDialog)->selectGameImageTimestamp = now;
     }
     // Mouse right button
     else if(event->button.button == 3)
@@ -620,10 +664,10 @@ gboolean GameDetailWidget::signalImageButtonPressedEvent(GtkWidget* widget, GdkE
         GtkWidget *saveMenuitem = gtk_menu_item_new_with_label("Save");
 
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), viewMenuitem);
-        g_signal_connect(viewMenuitem, "activate", G_CALLBACK(signalImageMenuViewActivate), gameDetailWidget);
+        g_signal_connect(viewMenuitem, "activate", G_CALLBACK(signalImageMenuViewActivate), gameDetailDialog);
         
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), saveMenuitem);
-        g_signal_connect(saveMenuitem, "activate", G_CALLBACK(signalImageMenuSaveActivate), gameDetailWidget);
+        g_signal_connect(saveMenuitem, "activate", G_CALLBACK(signalImageMenuSaveActivate), gameDetailDialog);
         
         gtk_widget_show_all(menu);
         gtk_menu_popup_at_pointer(GTK_MENU(menu), event);        
@@ -633,52 +677,52 @@ gboolean GameDetailWidget::signalImageButtonPressedEvent(GtkWidget* widget, GdkE
     return TRUE;
 }
 
-void GameDetailWidget::signalImageMenuViewActivate(GtkMenuItem* menuitem, gpointer gameDetailWidget)
+void GameDetailDialog::signalImageMenuViewActivate(GtkMenuItem* menuitem, gpointer gameDetailDialog)
 {
-    ((GameDetailWidget *)gameDetailWidget)->viewGameImage(((GameDetailWidget *)gameDetailWidget)->selectedGameImage);    
+    ((GameDetailDialog *)gameDetailDialog)->viewGameImage(((GameDetailDialog *)gameDetailDialog)->selectedGameImage);    
 }
 
-void GameDetailWidget::signalImageMenuSaveActivate(GtkMenuItem* menuitem, gpointer gameDetailWidget)
+void GameDetailDialog::signalImageMenuSaveActivate(GtkMenuItem* menuitem, gpointer gameDetailDialog)
 {
-    ((GameDetailWidget *)gameDetailWidget)->saveGameImage(((GameDetailWidget *)gameDetailWidget)->selectedGameImage);
+    ((GameDetailDialog *)gameDetailDialog)->saveGameImage(((GameDetailDialog *)gameDetailDialog)->selectedGameImage);
 }
 
-gboolean GameDetailWidget::signalDocumentBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDetailWidget)
+gboolean GameDetailDialog::signalDocumentBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDetailDialog)
 {        
     // Mouse left button
     if(event->button.button == 1)
     {
-        GameDocument *gameDocument = GameDocument::getItem(((GameDetailWidget *)gameDetailWidget)->gameDocuments, atoi(gtk_widget_get_name(widget)));
-        if(gameDocument == ((GameDetailWidget *)gameDetailWidget)->selectedGameDocument)
+        GameDocument *gameDocument = GameDocument::getItem(((GameDetailDialog *)gameDetailDialog)->gameDocuments, atoi(gtk_widget_get_name(widget)));
+        if(gameDocument == ((GameDetailDialog *)gameDetailDialog)->selectedGameDocument)
         {
             time_t now = time(NULL);
-            if(now == ((GameDetailWidget *)gameDetailWidget)->selectGameDocumentBoxTimestamp && (now - ((GameDetailWidget *)gameDetailWidget)->viewGameDocumentBoxTimestamp) > 2)
+            if(now == ((GameDetailDialog *)gameDetailDialog)->selectGameDocumentBoxTimestamp && (now - ((GameDetailDialog *)gameDetailDialog)->viewGameDocumentBoxTimestamp) > 2)
             {
-                 ((GameDetailWidget *)gameDetailWidget)->viewGameDocumentBoxTimestamp = now;
-                 ((GameDetailWidget *)gameDetailWidget)->viewGameDocument(((GameDetailWidget *)gameDetailWidget)->selectedGameDocument);
+                 ((GameDetailDialog *)gameDetailDialog)->viewGameDocumentBoxTimestamp = now;
+                 ((GameDetailDialog *)gameDetailDialog)->viewGameDocument(((GameDetailDialog *)gameDetailDialog)->selectedGameDocument);
             }
-            ((GameDetailWidget *)gameDetailWidget)->selectGameDocumentBoxTimestamp = now;
+            ((GameDetailDialog *)gameDetailDialog)->selectGameDocumentBoxTimestamp = now;
         }
         else
         {
-            ((GameDetailWidget *)gameDetailWidget)->selectGameDocument(gameDocument);
+            ((GameDetailDialog *)gameDetailDialog)->selectGameDocument(gameDocument);
         }
     }
     // Mouse right button
     else if(event->button.button == 3)
     {
-        GameDocument *gameDocument = GameDocument::getItem(((GameDetailWidget *)gameDetailWidget)->gameDocuments, atoi(gtk_widget_get_name(widget)));
-        ((GameDetailWidget *)gameDetailWidget)->selectGameDocument(gameDocument);
+        GameDocument *gameDocument = GameDocument::getItem(((GameDetailDialog *)gameDetailDialog)->gameDocuments, atoi(gtk_widget_get_name(widget)));
+        ((GameDetailDialog *)gameDetailDialog)->selectGameDocument(gameDocument);
     
         GtkWidget *menu = gtk_menu_new();
         GtkWidget *viewMenuitem = gtk_menu_item_new_with_label("View");
         GtkWidget *saveMenuitem = gtk_menu_item_new_with_label("Save");
 
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), viewMenuitem);
-        g_signal_connect(viewMenuitem, "activate", G_CALLBACK(signalDocumentMenuViewActivate), gameDetailWidget);
+        g_signal_connect(viewMenuitem, "activate", G_CALLBACK(signalDocumentMenuViewActivate), gameDetailDialog);
         
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), saveMenuitem);
-        g_signal_connect(saveMenuitem, "activate", G_CALLBACK(signalDocumentMenuSaveActivate), gameDetailWidget);
+        g_signal_connect(saveMenuitem, "activate", G_CALLBACK(signalDocumentMenuSaveActivate), gameDetailDialog);
         
         gtk_widget_show_all(menu);
         gtk_menu_popup_at_pointer(GTK_MENU(menu), event);        
@@ -688,12 +732,24 @@ gboolean GameDetailWidget::signalDocumentBoxButtonPressedEvent(GtkWidget *widget
     return TRUE;
 }
 
-void GameDetailWidget::signalDocumentMenuViewActivate(GtkMenuItem *menuitem, gpointer gameDetailWidget)
+void GameDetailDialog::signalDocumentMenuViewActivate(GtkMenuItem *menuitem, gpointer gameDetailDialog)
 {
-    ((GameDetailWidget *)gameDetailWidget)->viewGameDocument(((GameDetailWidget *)gameDetailWidget)->selectedGameDocument);
+    ((GameDetailDialog *)gameDetailDialog)->viewGameDocument(((GameDetailDialog *)gameDetailDialog)->selectedGameDocument);
 }
 
-void GameDetailWidget::signalDocumentMenuSaveActivate(GtkMenuItem *menuitem, gpointer gameDetailWidget)
+void GameDetailDialog::signalDocumentMenuSaveActivate(GtkMenuItem *menuitem, gpointer gameDetailDialog)
 {
-    ((GameDetailWidget *)gameDetailWidget)->saveGameDocument(((GameDetailWidget *)gameDetailWidget)->selectedGameDocument);
+    ((GameDetailDialog *)gameDetailDialog)->saveGameDocument(((GameDetailDialog *)gameDetailDialog)->selectedGameDocument);
+}
+
+gboolean GameDetailDialog::signalDeleteEvent(GtkWidget* window, GdkEvent* event, gpointer gameDetailDialog)
+{
+    cout << "GameDetailDialog::" << __FUNCTION__ << endl;
+    return ((GameDetailDialog *)gameDetailDialog)->running;
+}
+
+gboolean GameDetailDialog::signalKeyPressedEvent(GtkEntry* entry, GdkEvent* event, gpointer gameDetailDialog)
+{
+    cout << "GameDetailDialog::" << __FUNCTION__ << endl;
+    return ((GameDetailDialog *)gameDetailDialog)->running;
 }

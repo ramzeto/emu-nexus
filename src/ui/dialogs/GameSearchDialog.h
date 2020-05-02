@@ -41,10 +41,11 @@ public:
     
     /**
      * 
+     * @param parent Parent GtkWindow.
      * @param apiPlatformId Id of the API (TheGamesDB) platform.
      * @param query Query to search.
      */
-    GameSearchDialog(int64_t apiPlatformId,  string query);
+    GameSearchDialog(GtkWindow *parent, int64_t apiPlatformId,  string query);
     virtual ~GameSearchDialog();
     
     /**

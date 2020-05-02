@@ -25,12 +25,13 @@
 #include "Dialog.h"
 #include "Directory.h"
 
-Dialog::Dialog(string uiFileName, string dialogId)
+Dialog::Dialog(GtkWindow *parent, string uiFileName, string dialogId)
 {
     dismissed = 0;
     builder = gtk_builder_new_from_file(string(Directory::getInstance()->getUiTemplatesDirectory() + uiFileName).c_str());
-    dialog = (GtkWidget *)gtk_builder_get_object(builder, dialogId.c_str());
+    dialog = (GtkDialog *)gtk_builder_get_object(builder, dialogId.c_str());
 
+    gtk_window_set_transient_for(GTK_WINDOW(dialog), parent);
     gtk_window_set_resizable(GTK_WINDOW(dialog), 0);
 }
 
@@ -38,7 +39,7 @@ Dialog::~Dialog()
 {
     if(dialog)
     {
-        gtk_widget_destroy (dialog);
+        gtk_widget_destroy(GTK_WIDGET(dialog));
         dialog = NULL;
     }
     
@@ -56,7 +57,7 @@ int Dialog::execute()
 void Dialog::dismiss()
 {
     dismissed = 1;
-    gtk_widget_destroy (dialog);
+    gtk_widget_destroy(GTK_WIDGET(dialog));
     dialog = NULL;
 }
 

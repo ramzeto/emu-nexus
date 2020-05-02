@@ -48,7 +48,7 @@ const int GameDialog::THUMBNAIL_IMAGE_HEIGHT = 90;
 const int GameDialog::IMAGE_WIDTH = 300;
 const int GameDialog::IMAGE_HEIGHT = 400;
 
-GameDialog::GameDialog(int64_t platformId, int64_t gameId) : Dialog("GameDialog.ui", "gameDialog")
+GameDialog::GameDialog(GtkWindow *parent, int64_t platformId, int64_t gameId) : Dialog(parent, "GameDialog.ui", "gameDialog")
 {
     saved = 0;
     
@@ -316,21 +316,21 @@ void GameDialog::removeDeveloper(int64_t developerId)
 
 void GameDialog::showDevelopersDialog()
 {
-    DevelopersSelectDialog *dialog = new DevelopersSelectDialog(developers);
-    if(dialog->execute() == GTK_RESPONSE_ACCEPT)
+    DevelopersSelectDialog *developersSelectDialog = new DevelopersSelectDialog(GTK_WINDOW(dialog), developers);
+    if(developersSelectDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
         Developer::releaseItems(developers);
         developers = new list<Developer *>;
         
-        for(unsigned int c = 0; c < dialog->getSelectedItems()->size(); c++)
+        for(unsigned int c = 0; c < developersSelectDialog->getSelectedItems()->size(); c++)
         {
-            Developer *developer = new Developer(*Developer::getItem(dialog->getSelectedItems(), c));
+            Developer *developer = new Developer(*Developer::getItem(developersSelectDialog->getSelectedItems(), c));
             developers->push_back(developer);
         }
         
         loadDevelopers();
     }
-    delete dialog;
+    delete developersSelectDialog;
 }
 
 void GameDialog::loadPublishers()
@@ -374,21 +374,21 @@ void GameDialog::removePublisher(int64_t publisherId)
 
 void GameDialog::showPublishersDialog()
 {
-    PublishersSelectDialog *dialog = new PublishersSelectDialog(publishers);
-    if(dialog->execute() == GTK_RESPONSE_ACCEPT)
+    PublishersSelectDialog *publishersSelectDialog = new PublishersSelectDialog(GTK_WINDOW(dialog), publishers);
+    if(publishersSelectDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
         Publisher::releaseItems(publishers);
         publishers = new list<Publisher *>;
         
-        for(unsigned int c = 0; c < dialog->getSelectedItems()->size(); c++)
+        for(unsigned int c = 0; c < publishersSelectDialog->getSelectedItems()->size(); c++)
         {
-            Publisher *publisher = new Publisher(*Publisher::getItem(dialog->getSelectedItems(), c));
+            Publisher *publisher = new Publisher(*Publisher::getItem(publishersSelectDialog->getSelectedItems(), c));
             publishers->push_back(publisher);
         }
         
         loadPublishers();
     }
-    delete dialog;
+    delete publishersSelectDialog;
 }
 
 void GameDialog::loadGenres()
@@ -432,21 +432,21 @@ void GameDialog::removeGenre(int64_t genreId)
 
 void GameDialog::showGenresDialog()
 {
-    GenresSelectDialog *dialog = new GenresSelectDialog(genres);
-    if(dialog->execute() == GTK_RESPONSE_ACCEPT)
+    GenresSelectDialog *genresDialog = new GenresSelectDialog(GTK_WINDOW(dialog), genres);
+    if(genresDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
         Genre::releaseItems(genres);
         genres = new list<Genre *>;
         
-        for(unsigned int c = 0; c < dialog->getSelectedItems()->size(); c++)
+        for(unsigned int c = 0; c < genresDialog->getSelectedItems()->size(); c++)
         {
-            Genre *genre = new Genre(*Genre::getItem(dialog->getSelectedItems(), c));
+            Genre *genre = new Genre(*Genre::getItem(genresDialog->getSelectedItems(), c));
             genres->push_back(genre);
         }
         
         loadGenres();
     }
-    delete dialog;
+    delete genresDialog;
 }
 
 void GameDialog::loadEsrbRatings()
@@ -1073,7 +1073,7 @@ void GameDialog::search()
     
     if(TheGamesDB::Elasticsearch::getInstance()->getStatus() != TheGamesDB::Elasticsearch::STATUS_OK)
     {
-        MessageDialog *messageDialog = new MessageDialog("Database is not ready yet. Please wait a moment.", "Ok", "");   
+        MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(dialog), "Database is not ready yet. Please wait a moment.", "Ok", "");   
         messageDialog->execute();
         delete messageDialog;
         
@@ -1085,10 +1085,10 @@ void GameDialog::search()
     platform->load(sqlite);
     Database::getInstance()->release();
     
-    GameSearchDialog *dialog = new GameSearchDialog(platform->getApiItemId(), query);
-    if(dialog->execute() == GTK_RESPONSE_ACCEPT)
+    GameSearchDialog *gameSearchDialog = new GameSearchDialog(GTK_WINDOW(dialog), platform->getApiItemId(), query);
+    if(gameSearchDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
-        TheGamesDB::Game *apiGame = dialog->getSelectedApiGame();
+        TheGamesDB::Game *apiGame = gameSearchDialog->getSelectedApiGame();
         if(apiGame)
         {
             game->setApiId(TheGamesDB::API_ID);
@@ -1226,7 +1226,7 @@ void GameDialog::search()
             
         }
     }
-    delete dialog;
+    delete gameSearchDialog;
     delete platform;
 }
 
@@ -1240,7 +1240,7 @@ void GameDialog::save()
     string name = Utils::getInstance()->trim(string(gtk_entry_get_text(nameEntry)));
     if(name.length() == 0)
     {
-        MessageDialog *messageDialog = new MessageDialog("Name cannot be empty", "Ok", "");   
+        MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(dialog), "Name cannot be empty", "Ok", "");   
         messageDialog->execute();
         delete messageDialog;
         
@@ -1250,7 +1250,7 @@ void GameDialog::save()
     string fileName = Utils::getInstance()->trim(string(gtk_entry_get_text(fileNameEntry)));
     if(fileName.length() == 0)
     {
-        MessageDialog *messageDialog = new MessageDialog("Filename cannot be empty", "Ok", "");   
+        MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(dialog), "Filename cannot be empty", "Ok", "");   
         messageDialog->execute();
         delete messageDialog;
         

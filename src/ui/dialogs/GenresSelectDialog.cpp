@@ -29,7 +29,7 @@
 
 #include <iostream>
 
-GenresSelectDialog::GenresSelectDialog(list<Genre *> *selectedItems) : Dialog("SearchableMultiChoiceListDialog.ui", "searchableMultiChoiceListDialog")
+GenresSelectDialog::GenresSelectDialog(GtkWindow *parent, list<Genre *> *selectedItems) : Dialog(parent, "SearchableMultiChoiceListDialog.ui", "searchableMultiChoiceListDialog")
 {
     this->selectedItems = new list<Genre *>;
     for(unsigned int c = 0; c < selectedItems->size(); c++)

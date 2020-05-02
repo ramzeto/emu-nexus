@@ -32,7 +32,7 @@
 class FirstSetupPanel : public Panel
 {
 public:
-    FirstSetupPanel();
+    FirstSetupPanel(GtkWindow *parentWindow);
     virtual ~FirstSetupPanel();
     
     void setOnSetupReadyCallback(void (*onSetupReadyCallback)(void *), void *onSetupReadyCallbackReferenceData);

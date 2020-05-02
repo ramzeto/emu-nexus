@@ -46,13 +46,12 @@ const int PlatformPanel::GAME_GRID_ITEM_HEIGHT = 300;
 const int PlatformPanel::GAME_GRID_ITEM_IMAGE_WIDTH = GAME_GRID_ITEM_WIDTH - 20;
 const int PlatformPanel::GAME_GRID_ITEM_IMAGE_HEIGHT = GAME_GRID_ITEM_IMAGE_WIDTH * 1.443;
     
-PlatformPanel::PlatformPanel(int platformId)  : Panel("PlatformPanel.ui", "platformBox")
+PlatformPanel::PlatformPanel(GtkWindow *parentWindow, int platformId)  : Panel(parentWindow, "PlatformPanel.ui", "platformBox")
 {
     this->platformId = platformId;
     
     gameGridScrolledWindow = (GtkScrolledWindow *)gtk_builder_get_object (builder, "gameGridScrolledWindow");
     gameGridListBox = (GtkListBox *)gtk_builder_get_object (builder, "gameGridListBox");
-    gameDetailBox = (GtkBox *)gtk_builder_get_object (builder, "gameDetailBox");
     
     isShown = 0;
     panelWidth = 0;
@@ -63,9 +62,8 @@ PlatformPanel::PlatformPanel(int platformId)  : Panel("PlatformPanel.ui", "platf
     games = NULL;
     selectGameTimestamp = 0;
     launchGameTimestamp = 0;
-    gameDetailWidget = NULL;
     searchQuery = "";
-    launchDialog = NULL;
+    gameDetailDialog = NULL;
     
     g_signal_connect (getPanelBox(), "show", G_CALLBACK(signalShow), this);
     
@@ -94,7 +92,7 @@ PlatformPanel::~PlatformPanel()
 
 void PlatformPanel::showGameDialog(int64_t gameId)
 {
-    GameDialog *gameDialog = new GameDialog(platformId, gameId);   
+    GameDialog *gameDialog = new GameDialog(GTK_WINDOW(parentWindow), platformId, gameId);   
     if(gameDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
         // New game
@@ -130,7 +128,7 @@ void PlatformPanel::updateGames(string searchQuery)
 
 void PlatformPanel::showAddDirectoryDialog()
 {
-    AddDirectoryDialog *addDirectoryDialog = new AddDirectoryDialog(platformId);   
+    AddDirectoryDialog *addDirectoryDialog = new AddDirectoryDialog(GTK_WINDOW(parentWindow), platformId);   
     if(addDirectoryDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
         
@@ -167,7 +165,7 @@ void PlatformPanel::loadGridPage()
         
         loadGames();
     }
-     
+
     int width = gtk_widget_get_allocated_width(GTK_WIDGET(gameGridScrolledWindow));
     int columns = width / GAME_GRID_ITEM_WIDTH;
     if(!columns)
@@ -182,7 +180,7 @@ void PlatformPanel::loadGridPage()
         return;
     }
     rows *= 2;
-        
+
     for(int row = 0; row < rows; row++)
     {
         if(gameGridItemIndex >= games->size())
@@ -344,19 +342,6 @@ void PlatformPanel::selectGame(int64_t gameId)
             gtk_widget_set_state_flags(gameGridItemBox, GTK_STATE_FLAG_SELECTED, 1);        
         }        
     }
-    
-    if(gameDetailWidget)
-    {
-        UiUtils::getInstance()->clearContainer(GTK_CONTAINER(gameDetailBox), 0);
-        delete gameDetailWidget;
-        gameDetailWidget = NULL;
-    }
-    
-    if(selectedGameId)
-    {
-        gameDetailWidget = new GameDetailWidget(selectedGameId);
-        gtk_container_add(GTK_CONTAINER(gameDetailBox), gameDetailWidget->getRootWidget());
-    }
 }
 
 void PlatformPanel::removeGame(int64_t gameId)
@@ -366,7 +351,7 @@ void PlatformPanel::removeGame(int64_t gameId)
     game->load(sqlite);
     Database::getInstance()->release();
     
-    MessageDialog *messageDialog = new MessageDialog("Sure you want to remove \"" + game->getName() + "\"?", "Remove", "Cancel");   
+    MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(parentWindow), "Sure you want to remove \"" + game->getName() + "\"?", "Remove", "Cancel");   
     if(messageDialog->execute() == GTK_RESPONSE_YES)
     {
         sqlite = Database::getInstance()->acquire();
@@ -390,18 +375,29 @@ void PlatformPanel::removeGame(int64_t gameId)
 }
 
 void PlatformPanel::launchGame(int64_t gameId)
-{
-    cout << __FUNCTION__ << endl;
-    
-    launchDialog = new LaunchDialog(gameId);
+{    
+    gameDetailDialog = new GameDetailDialog(GTK_WINDOW(parentWindow), gameId);
     
     GameLauncher::getInstance()->launch(gameId, launcherUiThreadBridge, UiThreadBridge::callback);
     
-    launchDialog->execute();
-    delete launchDialog;
+    gameDetailDialog->execute();
+    delete gameDetailDialog;
     
-    launchDialog = NULL;
+    gameDetailDialog = NULL;
 }
+
+void PlatformPanel::showGameDetail(int64_t gameId)
+{
+    gameDetailDialog = new GameDetailDialog(GTK_WINDOW(parentWindow), gameId);   
+    gameDetailDialog->execute();
+    delete gameDetailDialog;
+    
+    gameDetailDialog = NULL;
+}
+
+
+
+
 
 void PlatformPanel::signalGameGridSizeAllocate(GtkWidget* widget, GtkAllocation* allocation, gpointer platformPanel)
 {    
@@ -461,9 +457,13 @@ gboolean PlatformPanel::signalGameItemBoxButtonPressedEvent(GtkWidget* widget, G
         ((PlatformPanel *)platformPanel)->selectGame(atoi(gtk_widget_get_name(widget)));
 
         GtkWidget *menu = gtk_menu_new();
+        GtkWidget *detailMenuitem = gtk_menu_item_new_with_label("Information");
         GtkWidget *editMenuitem = gtk_menu_item_new_with_label("Edit");
         GtkWidget *removeMenuitem = gtk_menu_item_new_with_label("Remove");
-
+        
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), detailMenuitem);
+        g_signal_connect(detailMenuitem, "activate", G_CALLBACK(signalGameMenuDetailActivate), platformPanel);
+        
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), editMenuitem);
         g_signal_connect(editMenuitem, "activate", G_CALLBACK(signalGameMenuEditActivate), platformPanel);
         
@@ -475,6 +475,11 @@ gboolean PlatformPanel::signalGameItemBoxButtonPressedEvent(GtkWidget* widget, G
     }
     
     return TRUE;
+}
+
+void PlatformPanel::signalGameMenuDetailActivate(GtkMenuItem* menuitem, gpointer platformPanel)
+{
+    ((PlatformPanel *)platformPanel)->showGameDetail(((PlatformPanel *)platformPanel)->selectedGameId);
 }
 
 void PlatformPanel::signalGameMenuEditActivate(GtkMenuItem* menuitem, gpointer platformPanel)
@@ -492,12 +497,12 @@ void PlatformPanel::signalShow(GtkWidget* widget, gpointer platformPanel)
     if(!((PlatformPanel *)platformPanel)->isShown)
     {
         // @TODO .- Change this horrible solution to force the list to show the first time.
-        g_timeout_add(50, callbackFirstShowHackyTimeout, platformPanel);        
+        g_timeout_add(50, callbackFirstShowHackyTimeout, platformPanel);
     }
 }
 
 gint PlatformPanel::callbackFirstShowHackyTimeout(gpointer platformPanel)
-{
+{    
     ((PlatformPanel *)platformPanel)->isShown = 1;
     ((PlatformPanel *)platformPanel)->loadGridPage();
     return 0;
@@ -530,7 +535,7 @@ void PlatformPanel::callbackGameLauncher(CallbackResult *callbackResult)
     PlatformPanel *platformPanel = (PlatformPanel *)callbackResult->getRequester();
     
     string message = "";
-    int activity = 0;
+    int running = 0;
     if(callbackResult->getError())
     {
         if(callbackResult->getError() == GameLauncher::ERROR_BUSY)
@@ -554,30 +559,30 @@ void PlatformPanel::callbackGameLauncher(CallbackResult *callbackResult)
             message = "An unknown error happened";
         }
         
-        activity = 0;
+        running = 0;
     }
     else
     {
         if(callbackResult->getStatus() == GameLauncher::STATE_IDLE)
         {
-            activity = 1;
+            running = 1;
             message = "Preparing...";
         }
         else if(callbackResult->getStatus() == GameLauncher::STATE_INFLATING)
         {
-            activity = 1;
+            running = 1;
             message = "Decompressing/Unpacking...";
         }
         else if(callbackResult->getStatus() == GameLauncher::STATE_RUNNING)
         {
-            activity = 1;
+            running = 1;
             message = "Running...";
         }
         else if(callbackResult->getStatus() == GameLauncher::STATE_FINISHED)
         {
-            activity = 0;
+            running = 0;
             message = "Execution finished";
         }
     }
-    platformPanel->launchDialog->setStatus(activity, message, callbackResult->getProgress());
+    platformPanel->gameDetailDialog->setStatus(running, message, callbackResult->getProgress());
 }

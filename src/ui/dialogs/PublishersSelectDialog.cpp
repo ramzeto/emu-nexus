@@ -29,7 +29,7 @@
 
 #include <iostream>
 
-PublishersSelectDialog::PublishersSelectDialog(list<Publisher *> *selectedItems) : Dialog("SearchableMultiChoiceListDialog.ui", "searchableMultiChoiceListDialog")
+PublishersSelectDialog::PublishersSelectDialog(GtkWindow *parent, list<Publisher *> *selectedItems) : Dialog(parent, "SearchableMultiChoiceListDialog.ui", "searchableMultiChoiceListDialog")
 {
     this->selectedItems = new list<Publisher *>;
     for(unsigned int c = 0; c < selectedItems->size(); c++)

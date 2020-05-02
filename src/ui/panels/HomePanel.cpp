@@ -29,8 +29,10 @@
 #include "Database.h"
 #include "GameImage.h"
 #include "GameLauncher.h"
+#include "GameDialog.h"
 #include "Directory.h"
 #include "Asset.h"
+#include "Build.h"
 
 #include <iostream>
 
@@ -41,7 +43,7 @@ const int HomePanel::GAME_GRID_ITEM_IMAGE_WIDTH = GAME_GRID_ITEM_WIDTH - 20;
 const int HomePanel::GAME_GRID_ITEM_IMAGE_HEIGHT = GAME_GRID_ITEM_IMAGE_WIDTH * 1.443;
 
 
-HomePanel::HomePanel() : Panel("HomePanel.ui", "homeBox")
+HomePanel::HomePanel(GtkWindow *parentWindow) : Panel(parentWindow, "HomePanel.ui", "homeBox")
 {
     isShown = 0;
     panelWidth = 0;
@@ -49,19 +51,21 @@ HomePanel::HomePanel() : Panel("HomePanel.ui", "homeBox")
     selectedGameId = 0;
     recentGames = NULL;
     gameGridItems = new map<int64_t, GtkWidget *>;
-    launchDialog = NULL;
+    gameDetailDialog = NULL;
     
     recentsBox = (GtkBox *)gtk_builder_get_object (builder, "recentsBox");
     recentsGridBox = (GtkBox *)gtk_builder_get_object (builder, "recentsGridBox");
     logoImage = (GtkImage *)gtk_builder_get_object (builder, "logoImage");
+    versionLabel = (GtkLabel *)gtk_builder_get_object (builder, "versionLabel");
     informationLabel = (GtkLabel *)gtk_builder_get_object (builder, "informationLabel");
     
+    gtk_label_set_text(versionLabel, (string("Version ") + string(BUILD_VERSION)).c_str());
     gtk_label_set_markup(informationLabel, Utils::getInstance()->getFileContents(Asset::getInstance()->getHomePml()).c_str());
     
     g_signal_connect (getPanelBox(), "show", G_CALLBACK(signalShow), this);
     g_signal_connect (getPanelBox(), "size-allocate", G_CALLBACK(signalRecentsGridSizeAllocate), this);
     
-    UiUtils::getInstance()->loadImage(logoImage, Asset::getInstance()->getImageLogoBig(), 300, 300);
+    UiUtils::getInstance()->loadImage(logoImage, Asset::getInstance()->getImageLogo(), 300, 300);
     
     launcherUiThreadBridge = UiThreadBridge::registerBridge(this, callbackGameLauncher);
 }
@@ -182,17 +186,15 @@ void HomePanel::loadRecentsGrid()
 }
 
 void HomePanel::launchGame(int64_t gameId)
-{
-    cout << "HomePanel::" << __FUNCTION__ << endl;
-    
-    launchDialog = new LaunchDialog(gameId);
+{    
+    gameDetailDialog = new GameDetailDialog(GTK_WINDOW(parentWindow), gameId);
     
     GameLauncher::getInstance()->launch(gameId, launcherUiThreadBridge, UiThreadBridge::callback);
     
-    launchDialog->execute();
-    delete launchDialog;
+    gameDetailDialog->execute();
+    delete gameDetailDialog;
     
-    launchDialog = NULL;
+    gameDetailDialog = NULL;
 }
 
 void HomePanel::updateGame(int64_t gameId)
@@ -245,68 +247,136 @@ void HomePanel::selectGame(int64_t gameId)
     }
 }
 
-void HomePanel::signalRecentsGridSizeAllocate(GtkWidget* widget, GtkAllocation* allocation, gpointer pHomePanel)
+void HomePanel::showGameDialog(int64_t gameId)
+{
+    Game *game = new Game(gameId);            
+    sqlite3 *sqlite = Database::getInstance()->acquire();
+    game->load(sqlite);
+    Database::getInstance()->release();
+    
+    GameDialog *gameDialog = new GameDialog(GTK_WINDOW(parentWindow), game->getPlatformId(), game->getId());   
+    if(gameDialog->execute() == GTK_RESPONSE_ACCEPT)
+    {
+        updateGame(gameId);
+        selectGame(gameId);        
+    }
+    GameDialog::deleteWhenReady(gameDialog);
+    
+    delete game;
+}
+
+void HomePanel::removeGame(int64_t gameId)
+{
+    RecentGame *recentGame = new RecentGame(gameId);
+    sqlite3 *sqlite = Database::getInstance()->acquire();    
+    recentGame->load(sqlite);
+    recentGame->remove(sqlite);
+    Database::getInstance()->release();
+    delete recentGame;
+
+    loadRecentsGrid();
+}
+
+void HomePanel::showGameDetail(int64_t gameId)
+{
+    gameDetailDialog = new GameDetailDialog(GTK_WINDOW(parentWindow), gameId);
+    gameDetailDialog->execute();
+    delete gameDetailDialog;
+    
+    gameDetailDialog = NULL;
+}
+
+
+
+void HomePanel::signalRecentsGridSizeAllocate(GtkWidget* widget, GtkAllocation* allocation, gpointer homePanel)
 {    
-    HomePanel *homePanel = (HomePanel *)pHomePanel;
-    if(homePanel->panelWidth != allocation->width || homePanel->panelHeight != allocation->height)
+    if(((HomePanel *)homePanel)->panelWidth != allocation->width || ((HomePanel *)homePanel)->panelHeight != allocation->height)
     {        
-        homePanel->panelWidth = allocation->width;
-        homePanel->panelHeight = allocation->height;
+        ((HomePanel *)homePanel)->panelWidth = allocation->width;
+        ((HomePanel *)homePanel)->panelHeight = allocation->height;
         
-        homePanel->loadRecentsGrid();
+        ((HomePanel *)homePanel)->loadRecentsGrid();
     }
 }
 
-void HomePanel::signalShow(GtkWidget* widget, gpointer pHomePanel)
+void HomePanel::signalShow(GtkWidget* widget, gpointer homePanel)
 {    
-    HomePanel *homePanel = (HomePanel *)pHomePanel;
-    if(!homePanel->isShown)
+    if(!((HomePanel *)homePanel)->isShown)
     {
         // @TODO .- Change this horrible solution to force the list to show the first time.
-        g_timeout_add(50, callbackFirstShowHackyTimeout, homePanel);        
+        g_timeout_add(50, callbackFirstShowHackyTimeout, ((HomePanel *)homePanel));        
     }
 }
 
-gint HomePanel::callbackFirstShowHackyTimeout(gpointer pHomePanel)
+gint HomePanel::callbackFirstShowHackyTimeout(gpointer homePanel)
 {    
-    HomePanel *homePanel = (HomePanel *)pHomePanel;
-    homePanel->isShown = 1;
-    homePanel->loadRecentsGrid();
+    ((HomePanel *)homePanel)->isShown = 1;
+    ((HomePanel *)homePanel)->loadRecentsGrid();
     return 0;
 }
 
-gboolean HomePanel::signalGameItemBoxButtonPressedEvent(GtkWidget* widget, GdkEvent* event, gpointer pHomePanel)
-{
-    HomePanel *homePanel = (HomePanel *)pHomePanel;
-    
+gboolean HomePanel::signalGameItemBoxButtonPressedEvent(GtkWidget* widget, GdkEvent* event, gpointer homePanel)
+{    
     // Mouse left button
     if(event->button.button == 1)
     {
         int64_t gameId = atol(gtk_widget_get_name(widget));
         time_t now = time(NULL);
         
-        if(homePanel->selectedGameId == gameId)
+        if(((HomePanel *)homePanel)->selectedGameId == gameId)
         {
-            if(homePanel->selectGameTimestamp == now && (now - (homePanel->launchGameTimestamp)) > 2)
+            if(((HomePanel *)homePanel)->selectGameTimestamp == now && (now - (((HomePanel *)homePanel)->launchGameTimestamp)) > 2)
             {
-                homePanel->launchGameTimestamp = now;
-                homePanel->launchGame(gameId);
+                ((HomePanel *)homePanel)->launchGameTimestamp = now;
+                ((HomePanel *)homePanel)->launchGame(gameId);
             }
         }
         else
         {
-            homePanel->launchGameTimestamp = 0;
-            homePanel->selectGame(gameId);
+            ((HomePanel *)homePanel)->launchGameTimestamp = 0;
+            ((HomePanel *)homePanel)->selectGame(gameId);
         }
-        homePanel->selectGameTimestamp = now;
+        ((HomePanel *)homePanel)->selectGameTimestamp = now;
     }
     // Mouse right button
     else if(event->button.button == 3)
     {
-    
+        ((HomePanel *)homePanel)->selectGame(atoi(gtk_widget_get_name(widget)));
+
+        GtkWidget *menu = gtk_menu_new();
+        GtkWidget *detailMenuitem = gtk_menu_item_new_with_label("Information");
+        GtkWidget *editMenuitem = gtk_menu_item_new_with_label("Edit");
+        GtkWidget *removeMenuitem = gtk_menu_item_new_with_label("Remove from recents");
+        
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), detailMenuitem);
+        g_signal_connect(detailMenuitem, "activate", G_CALLBACK(signalGameMenuDetailActivate), homePanel);
+        
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), editMenuitem);
+        g_signal_connect(editMenuitem, "activate", G_CALLBACK(signalGameMenuEditActivate), homePanel);
+        
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), removeMenuitem);
+        g_signal_connect(removeMenuitem, "activate", G_CALLBACK(signalGameMenuRemoveActivate), homePanel);
+        
+        gtk_widget_show_all(menu);
+        gtk_menu_popup_at_pointer(GTK_MENU(menu), event);  
     }
     
     return TRUE;
+}
+
+void HomePanel::signalGameMenuDetailActivate(GtkMenuItem* menuitem, gpointer homePanel)
+{
+    ((HomePanel *)homePanel)->showGameDetail(((HomePanel *)homePanel)->selectedGameId);
+}
+
+void HomePanel::signalGameMenuEditActivate(GtkMenuItem* menuitem, gpointer homePanel)
+{
+    ((HomePanel *)homePanel)->showGameDialog(((HomePanel *)homePanel)->selectedGameId);
+}
+
+void HomePanel::signalGameMenuRemoveActivate(GtkMenuItem* menuitem, gpointer homePanel)
+{
+    ((HomePanel *)homePanel)->removeGame(((HomePanel *)homePanel)->selectedGameId);
 }
 
 void HomePanel::callbackGameLauncher(CallbackResult *callbackResult)
@@ -314,7 +384,7 @@ void HomePanel::callbackGameLauncher(CallbackResult *callbackResult)
     HomePanel *homePanel = (HomePanel *)callbackResult->getRequester();
     
     string message = "";
-    int activity = 0;
+    int running = 0;
     if(callbackResult->getError())
     {
         if(callbackResult->getError() == GameLauncher::ERROR_BUSY)
@@ -338,32 +408,32 @@ void HomePanel::callbackGameLauncher(CallbackResult *callbackResult)
             message = "An unknown error happened";
         }
         
-        activity = 0;
+        running = 0;
     }
     else
     {
         if(callbackResult->getStatus() == GameLauncher::STATE_IDLE)
         {
-            activity = 1;
+            running = 1;
             message = "Preparing...";
         }
         else if(callbackResult->getStatus() == GameLauncher::STATE_INFLATING)
         {
-            activity = 1;
+            running = 1;
             message = "Decompressing/Unpacking...";
         }
         else if(callbackResult->getStatus() == GameLauncher::STATE_RUNNING)
         {
-            activity = 1;
+            running = 1;
             message = "Running...";
         }
         else if(callbackResult->getStatus() == GameLauncher::STATE_FINISHED)
         {
-            activity = 0;
+            running = 0;
             message = "Execution finished";
             homePanel->loadRecentsGrid();
         }
     }
-    homePanel->launchDialog->setStatus(activity, message, callbackResult->getProgress());
+    homePanel->gameDetailDialog->setStatus(running, message, callbackResult->getProgress());
 }
 

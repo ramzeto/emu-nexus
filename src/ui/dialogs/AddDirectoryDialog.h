@@ -30,7 +30,7 @@
 class AddDirectoryDialog : public Dialog
 {
 public:
-    AddDirectoryDialog(int64_t platformId);
+    AddDirectoryDialog(GtkWindow *parent, int64_t platformId);
     virtual ~AddDirectoryDialog();
     
 private:

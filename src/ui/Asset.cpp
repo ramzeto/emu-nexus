@@ -28,11 +28,10 @@
 #include <cstdlib>
 
 const string Asset::ASSET_CSS = "dark.css";
-const string Asset::ASSET_IMAGE_LOGO_BIG = "logo_big.png";
-const string Asset::ASSET_IMAGE_HOME = "home.png";
-const string Asset::ASSET_IMAGE_DOWNLOADING = "downloading.png";
-const string Asset::ASSET_IMAGE_DOCUMENT = "document.png";
 const string Asset::ASSET_IMAGE_LOGO = "logo.png";
+const string Asset::ASSET_IMAGE_HOME = ASSET_IMAGE_LOGO;
+const string Asset::ASSET_IMAGE_DOWNLOADING = ASSET_IMAGE_LOGO;
+const string Asset::ASSET_IMAGE_DOCUMENT = ASSET_IMAGE_LOGO;
 const string Asset::ASSET_HOME_PML = "home.pml";
 
 Asset *Asset::instance = NULL;
@@ -50,9 +49,9 @@ string Asset::getCss()
     return Directory::getInstance()->getCssDirectory() + ASSET_CSS;
 }
 
-string Asset::getImageLogoBig()
+string Asset::getImageLogo()
 {
-    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_LOGO_BIG;
+    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_LOGO;
 }
 
 string Asset::getImageHome()
@@ -68,11 +67,6 @@ string Asset::getImageDownloading()
 string Asset::getImageDocument()
 {
     return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_DOCUMENT;
-}
-
-string Asset::getImageLogo()
-{
-    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_LOGO;
 }
 
 string Asset::getHomePml()

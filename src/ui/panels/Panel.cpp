@@ -28,8 +28,10 @@
 
 using namespace std;
 
-Panel::Panel(string panelFileName, string panelBoxId) 
+Panel::Panel(GtkWindow *parentWindow, string panelFileName, string panelBoxId) 
 {
+    this->parentWindow = parentWindow;
+    
     builder = gtk_builder_new_from_file(string(Directory::getInstance()->getUiTemplatesDirectory() + panelFileName).c_str());
     panelBox = (GtkBox *)gtk_builder_get_object (builder, panelBoxId.c_str());
     destroyed = 0;

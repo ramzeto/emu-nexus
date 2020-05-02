@@ -42,7 +42,7 @@ const int PlatformDialog::THUMBNAIL_IMAGE_HEIGHT = 90;
 const int PlatformDialog::IMAGE_WIDTH = 200;
 const int PlatformDialog::IMAGE_HEIGHT = 200;
 
-PlatformDialog::PlatformDialog(int64_t platformId) : Dialog("PlatformDialog.ui", "platformDialog")
+PlatformDialog::PlatformDialog(GtkWindow *parent, int64_t platformId) : Dialog(parent, "PlatformDialog.ui", "platformDialog")
 {
     saved = 0;
     apiPlatform = NULL;
@@ -561,7 +561,7 @@ void PlatformDialog::save()
     string name = Utils::getInstance()->trim(string(gtk_entry_get_text(nameEntry)));
     if(name.length() == 0)
     {
-        MessageDialog *messageDialog = new MessageDialog("Name cannot be empty", "Ok", "");   
+        MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(dialog), "Name cannot be empty", "Ok", "");   
         messageDialog->execute();
         delete messageDialog;
         

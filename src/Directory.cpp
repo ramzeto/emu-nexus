@@ -72,7 +72,7 @@ string Directory::getAssetsDirectory()
     delete[] buffer;
 
     if (Utils::getInstance()->fileExists(localAssetsDirectory))
-    {
+    {        
         return localAssetsDirectory;
     }
 

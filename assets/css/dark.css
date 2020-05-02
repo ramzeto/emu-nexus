@@ -10,53 +10,63 @@ and open the template in the editor.
 
 window{
     background-color: #353b44;
+    border-color: transparent;
 }
 
-dialog{
-    background-color: #353b44;
-}
-
-dialog button{
-    background: #252930;
-    border: #252930;
-}
-
-dialog button:active{
-    background: #5e6e87;
-    border: #5e6e87;
-}
-
-box button{
-    background: #252930;
-    border: #252930;
-}
-
-box button:active{
-    background: #5e6e87;
-    border: #5e6e87;
+headerbar{
+    padding: 10px;
+    background: #353b44;
+    border-color: transparent;
 }
 
 headerbar button{
     background: #252930;
     border: #252930;
+    border-color: transparent;
 }
 
 headerbar button:active{
     background: #5e6e87;
     border: #5e6e87;
+    border-color: transparent;
 }
 
 headerbar button label{
-    color: white;
+    color: white;    
 }
 
 headerbar label{
     color: #5e6e87;
 }
 
-/*headerbar{
-    background: black;
-}*/
+dialog{
+    background-color: #353b44;
+    border-color: transparent;
+}
+
+dialog button{
+    background: #252930;
+    border: #252930;
+    border-color: transparent;
+}
+
+dialog button:active{
+    background: #5e6e87;
+    border: #5e6e87;
+    border-color: transparent;
+}
+
+box button{
+    background: #252930;
+    border: #252930;
+    border-color: transparent;
+}
+
+box button:active{
+    background: #5e6e87;
+    border: #5e6e87;
+    border-color: transparent;
+}
 
 entry{
     background: #252a30;
@@ -82,6 +92,14 @@ combobox box{
 
 scrolledwindow{
     border-color: transparent;
+}
+
+scrollbar {
+    background-color: transparent;
+}
+
+slider {
+    background-color: #475366;
 }
 
 list{
@@ -181,6 +199,10 @@ list#SearchableListDialog_listBox row:hover{
 
 box#homeBox{
     background-color: #252a30;
+}
+
+box#overlayBox{
+    background-color: red;
 }
 
 menu{

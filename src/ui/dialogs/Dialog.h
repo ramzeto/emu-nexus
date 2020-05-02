@@ -39,11 +39,12 @@ class Dialog
 public:
     
     /**
-     * 
+     *
+     * @param parent Parent GtkWindow.
      * @param uiFileName Filename of the dialog design.
      * @param dialogId Id from the base widget of the dialog.
      */
-    Dialog(string uiFileName, string dialogId);
+    Dialog(GtkWindow *parent, string uiFileName, string dialogId);
     virtual ~Dialog();
     
     /**
@@ -59,7 +60,7 @@ public:
     
 protected:
     GtkBuilder *builder;
-    GtkWidget *dialog;
+    GtkDialog *dialog;
     int dismissed;
 };
 

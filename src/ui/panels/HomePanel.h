@@ -27,7 +27,7 @@
 
 #include "Panel.h"
 #include "RecentGame.h"
-#include "LaunchDialog.h"
+#include "GameDetailDialog.h"
 #include "UiThreadBridge.h"
 #include "CallbackResult.h"
 
@@ -39,8 +39,9 @@ using namespace std;
 class HomePanel : public Panel
 {
 public:
-    HomePanel();
+    HomePanel(GtkWindow *parentWindow);    
     virtual ~HomePanel();
+    
 private:
     static const int GAME_GRID_ITEM_WIDTH;
     static const int GAME_GRID_ITEM_HEIGHT;
@@ -52,6 +53,7 @@ private:
     GtkBox *recentsBox;
     GtkBox *recentsGridBox;
     GtkImage *logoImage;
+    GtkLabel *versionLabel;
     GtkLabel *informationLabel;
     
     int isShown;
@@ -62,7 +64,7 @@ private:
     time_t launchGameTimestamp;
     map<int64_t, GtkWidget *> *gameGridItems;
     list<RecentGame *> *recentGames;
-    LaunchDialog *launchDialog;
+    GameDetailDialog *gameDetailDialog;
     
     UiThreadBridge *launcherUiThreadBridge;
     
@@ -70,6 +72,25 @@ private:
     void launchGame(int64_t gameId);
     void updateGame(int64_t gameId);
     void selectGame(int64_t gameId);
+    
+    /**
+     * Shows the game dialog for editing.
+     * @param gameId.
+     */
+    void showGameDialog(int64_t gameId);
+    
+    /**
+     * Removes a game
+     * @param gameId
+     */
+    void removeGame(int64_t gameId);
+    
+    /**
+     * Shows a game detail.
+     * @param gameId
+     */
+    void showGameDetail(int64_t gameId); 
+        
 
     /**
      * Signal triggered when the recentsGridBox "size-allocate" event happens.
@@ -77,14 +98,14 @@ private:
      * @param allocation
      * @param pHomePanel
      */
-    static void signalRecentsGridSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer pHomePanel);
+    static void signalRecentsGridSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer homePanel);
     
     /**
      * 
      * @param widget
      * @param pHomePanel
      */
-    static void signalShow(GtkWidget *widget, gpointer pHomePanel);
+    static void signalShow(GtkWidget *widget, gpointer homePanel);
 
     
     /**
@@ -92,7 +113,7 @@ private:
      * @param pHomePanel
      * @return 
      */
-    static gint callbackFirstShowHackyTimeout(gpointer pHomePanel);  
+    static gint callbackFirstShowHackyTimeout(gpointer homePanel);  
     
     /**
      * Signal triggered when the user presses a mouse button over a game in the recents grid.
@@ -101,7 +122,28 @@ private:
      * @param pHomePanel
      * @return 
      */
-    static gboolean signalGameItemBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer pHomePanel);
+    static gboolean signalGameItemBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer homePanel);
+    
+    /**
+     * Signal triggered when the user selects the detail menu option on a game in the grid.
+     * @param menuitem
+     * @param mainWindow
+     */
+    static void signalGameMenuDetailActivate(GtkMenuItem *menuitem, gpointer homePanel);
+    
+    /**
+     * Signal triggered when the user selects the edit menu option on a game in the grid.
+     * @param menuitem
+     * @param mainWindow
+     */
+    static void signalGameMenuEditActivate(GtkMenuItem *menuitem, gpointer homePanel);
+    
+    /**
+     * Signal triggered when the user selects the remove menu option on a game in the grid.
+     * @param menuitem
+     * @param mainWindow
+     */
+    static void signalGameMenuRemoveActivate(GtkMenuItem *menuitem, gpointer homePanel);
     
     /**
      * 
