@@ -104,24 +104,7 @@ MainWindow::MainWindow()
     processSpinner = (GtkSpinner *)gtk_builder_get_object (builder, "processSpinner");;
     processTitleLabel = (GtkLabel *)gtk_builder_get_object (builder, "processTitleLabel");
     processMessageLabel = (GtkLabel *)gtk_builder_get_object (builder, "processMessageLabel");   
-    processProgressBar = (GtkProgressBar *)gtk_builder_get_object (builder, "processProgressBar");   
-                
-
-    // Loads the CSS
-    /*GError *error = NULL;
-    cssProvider = gtk_css_provider_new();
-    gtk_css_provider_load_from_path(cssProvider, (Asset::getInstance()->getCss()).c_str(), &error);
-    if(error)
-    {
-        cerr << __FUNCTION__ << " " << error->message << endl;
-    }
-    else
-    {
-        GdkScreen *screen = gtk_window_get_screen(GTK_WINDOW(mainWindow));
-        gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER(cssProvider), GTK_STYLE_PROVIDER_PRIORITY_USER);
-    }*/
-    
-    
+    processProgressBar = (GtkProgressBar *)gtk_builder_get_object (builder, "processProgressBar");
     
     gtk_widget_show_all(GTK_WIDGET(mainWindow));
     

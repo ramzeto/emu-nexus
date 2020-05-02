@@ -38,7 +38,6 @@ public:
     string getDataDirectory();
     string getAssetsDirectory();
     string getUiTemplatesDirectory();
-    string getCssDirectory();
     string getAssetImagesDirectory();
     string getMediaDirectory();
     string getElasticseachDirectory();    
@@ -49,7 +48,6 @@ public:
 private:
     static const string DIRECTORY_ASSETS;
     static const string DIRECTORY_UI_TEMPLATES;
-    static const string DIRECTORY_CSS;
     static const string DIRECTORY_ASSET_IMAGES;
     static const string DIRECTORY_MEDIA;
     static const string DIRECTORY_ELASTICSEARCH;    

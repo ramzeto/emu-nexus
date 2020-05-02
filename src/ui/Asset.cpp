@@ -27,7 +27,6 @@
 
 #include <cstdlib>
 
-const string Asset::ASSET_CSS = "dark.css";
 const string Asset::ASSET_IMAGE_LOGO = "logo.png";
 const string Asset::ASSET_IMAGE_HOME = ASSET_IMAGE_LOGO;
 const string Asset::ASSET_IMAGE_DOWNLOADING = ASSET_IMAGE_LOGO;
@@ -42,11 +41,6 @@ Asset::Asset()
 
 Asset::~Asset()
 {
-}
-
-string Asset::getCss()
-{
-    return Directory::getInstance()->getCssDirectory() + ASSET_CSS;
 }
 
 string Asset::getImageLogo()

@@ -35,18 +35,11 @@ using namespace std;
 class Asset {
 
 public:
-    static const string ASSET_CSS;
     static const string ASSET_IMAGE_HOME;
     static const string ASSET_IMAGE_DOWNLOADING;
     static const string ASSET_IMAGE_DOCUMENT;
     static const string ASSET_IMAGE_LOGO;
     static const string ASSET_HOME_PML;
-
-    /**
-     * 
-     * @return CSS filename.
-     */
-    string getCss();   
     
     /**
      * 
