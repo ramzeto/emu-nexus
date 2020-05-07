@@ -338,7 +338,6 @@ void PlatformPanel::selectGame(int64_t gameId)
     {
         if(gameGridItems->find(selectedGameId) != gameGridItems->end())
         {
-            cout << __FUNCTION__ << "gameId: " << gameId << endl;
             GtkWidget *gameGridItemBox = gameGridItems->at(selectedGameId);
             gtk_widget_set_state_flags(gameGridItemBox, GTK_STATE_FLAG_SELECTED, 1);
         }        

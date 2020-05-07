@@ -561,33 +561,47 @@ list<Game *> *Game::getItems(sqlite3 *sqlite, int64_t platformId, string querySt
     
 	list<Game *> *items = new list<Game *>;
 
-	string query = "select id, platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId, apiItemId from Game where platformId = ? and name like ? order by name";
+	//string query = "select id, platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId, apiItemId from Game where platformId = ? and name like ? order by name";
+        string query = "select Game.id, Game.platformId, Game.esrbRatingId, Game.name, Game.description, Game.releaseDate, Game.fileName, Game.notes, Game.command, Game.deflate, Game.deflateFileExtensions, Game.timestamp, Game.apiId, Game.apiItemId "; 
+        query += " from Game ";
+        query += " left join GameDeveloper on GameDeveloper.gameId = Game.id ";
+        query += " left join Developer on GameDeveloper.developerId = Developer.id ";
+        query += " left join GamePublisher on GamePublisher.gameId = Game.id ";
+        query += " left join Publisher on GamePublisher.publisherId = Publisher.id ";
+        query += " left join GameGenre on GameGenre.gameId = Game.id ";
+        query += " left join Genre on GameGenre.genreId = Genre.id ";
+        query += " where Game.platformId = ? and (Game.name like ? or Developer.name like ? or Publisher.name like ? or Genre.name like ?) ";
+        query += " group by Game.id order by Game.name";
+        
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
             sqlite3_bind_text(statement, 2, queryString.c_str(), queryString.length(), NULL);
+            sqlite3_bind_text(statement, 3, queryString.c_str(), queryString.length(), NULL);
+            sqlite3_bind_text(statement, 4, queryString.c_str(), queryString.length(), NULL);
+            sqlite3_bind_text(statement, 5, queryString.c_str(), queryString.length(), NULL);
             
-		while (sqlite3_step(statement) == SQLITE_ROW)
-		{
-			Game *item = new Game();
-			item->id = (int64_t)sqlite3_column_int64(statement, 0);
-			item->platformId = (int64_t)sqlite3_column_int64(statement, 1);
-			item->esrbRatingId = (int64_t)sqlite3_column_int64(statement, 2);
-			item->name = string((const char*) sqlite3_column_text(statement, 3));
-			item->description = string((const char*) sqlite3_column_text(statement, 4));
-			item->releaseDate = string((const char*) sqlite3_column_text(statement, 5));
-			item->fileName = string((const char*) sqlite3_column_text(statement, 6));
-			item->notes = string((const char*) sqlite3_column_text(statement, 7));
-			item->command = string((const char*) sqlite3_column_text(statement, 8));
-			item->deflate = (int64_t)sqlite3_column_int64(statement, 9);
-			item->deflateFileExtensions = string((const char*) sqlite3_column_text(statement, 10));
-			item->timestamp = string((const char*) sqlite3_column_text(statement, 11));
-			item->apiId = (int64_t)sqlite3_column_int64(statement, 12);
-			item->apiItemId = (int64_t)sqlite3_column_int64(statement, 13);
+            while (sqlite3_step(statement) == SQLITE_ROW)
+            {
+                    Game *item = new Game();
+                    item->id = (int64_t)sqlite3_column_int64(statement, 0);
+                    item->platformId = (int64_t)sqlite3_column_int64(statement, 1);
+                    item->esrbRatingId = (int64_t)sqlite3_column_int64(statement, 2);
+                    item->name = string((const char*) sqlite3_column_text(statement, 3));
+                    item->description = string((const char*) sqlite3_column_text(statement, 4));
+                    item->releaseDate = string((const char*) sqlite3_column_text(statement, 5));
+                    item->fileName = string((const char*) sqlite3_column_text(statement, 6));
+                    item->notes = string((const char*) sqlite3_column_text(statement, 7));
+                    item->command = string((const char*) sqlite3_column_text(statement, 8));
+                    item->deflate = (int64_t)sqlite3_column_int64(statement, 9);
+                    item->deflateFileExtensions = string((const char*) sqlite3_column_text(statement, 10));
+                    item->timestamp = string((const char*) sqlite3_column_text(statement, 11));
+                    item->apiId = (int64_t)sqlite3_column_int64(statement, 12);
+                    item->apiItemId = (int64_t)sqlite3_column_int64(statement, 13);
 
-			items->push_back(item);
-		}
+                    items->push_back(item);
+            }
 	}
 	else
 	{
