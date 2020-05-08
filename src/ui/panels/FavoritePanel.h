@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 ram
+ * Copyright (C) 2020 ram
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,83 +16,54 @@
  */
 
 /* 
- * File:   PlatformPanel.h
+ * File:   FavoritePanel.h
  * Author: ram
  *
- * Created on February 8, 2019, 10:04 PM
+ * Created on May 8, 2020, 2:05 PM
  */
 
-#ifndef PLATFORMPANEL_H
-#define PLATFORMPANEL_H
+#ifndef FAVORITEPANEL_H
+#define FAVORITEPANEL_H
 
 #include "Panel.h"
-#include "Game.h"
-#include "CallbackResult.h"
 #include "GameGridItemWidget.h"
+#include "GameFavorite.h"
+#include "CallbackResult.h"
 
 #include <map>
 #include <list>
 
-using namespace std;
 
-/**
- * Panel that handles the games of a platform.
- */
-class PlatformPanel : public Panel
+class FavoritePanel : public Panel
 {
 public:
-    
-    /**
-     * 
-     * @param parentWindow Parent GtkWindow.
-     * @param platformId Id of the platform.
-     */
-    PlatformPanel(GtkWindow *parentWindow, int platformId);        
-    
-    /**
-     * Shows the game dialog for adding or editing.
-     * @param gameId 0 is for a new game.
-     */
-    void showGameDialog(int64_t gameId);
-    
-    /**
-     * Updates the game grid
-     * @param searchQuery Search query
-     */
-    void updateGames(string searchQuery);
-    
-    
-    /**
-     * Shows the add directory dialog
-     */
-    void showAddDirectoryDialog();
+    FavoritePanel(GtkWindow *parentWindow);    
     
 private:
     GtkScrolledWindow *gameGridScrolledWindow;
     GtkListBox *gameGridListBox;
-        
-    int64_t platformId;
-    list<Game *> *games;
+
+    list<GameFavorite *> *gameFavorites;
     map<int64_t, GameGridItemWidget *> *gameGridItems;
     int isShown;
     int panelWidth;
     int panelHeight;
     unsigned int gameGridItemIndex;
     int64_t selectedGameId;
-    string searchQuery;
+
+    virtual ~FavoritePanel();
     
-    
-    virtual ~PlatformPanel();
-    
-    /**
-     * Loads the game list
-     */
-    void loadGames();
     
     /**
      * Loads the game grid
      */
     void loadGridPage();
+    
+    /**
+     * Shows the game dialog for adding or editing.
+     * @param gameId 0 is for a new game.
+     */
+    void showGameDialog(int64_t gameId);
     
     /**
      * Updates the game visual representation in the grid
@@ -105,12 +76,6 @@ private:
      * @param gameId
      */
     void selectGame(int64_t gameId);
-    
-    /**
-     * Removes a game
-     * @param gameId
-     */
-    void removeGame(int64_t gameId);
     
     /**
      * Launches a game
@@ -155,18 +120,12 @@ private:
     static void onGameGridItemWidgetMenuEditSelect(GameGridItemWidget *gameGridItemWidget);
     
     /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetMenuRemoveSelect(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
      * Signal triggered when the gameGridListBox "size-allocate" event happens.
      * @param widget
      * @param allocation
      * @param platformPanel
      */
-    static void signalGameGridSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer platformPanel);
+    static void signalGameGridSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer favoritePanel);
         
     /**
      * Signal triggered when the gameGridScrolledWindow "edge-reached" event happens.
@@ -174,14 +133,14 @@ private:
      * @param positionType
      * @param data
      */
-    static void signalGameGridScrolledWindowEdgeReached(GtkScrolledWindow *scrolledWindow, GtkPositionType positionType, gpointer platformPanel);        
+    static void signalGameGridScrolledWindowEdgeReached(GtkScrolledWindow *scrolledWindow, GtkPositionType positionType, gpointer favoritePanel);        
     
     /**
      * 
      * @param widget
      * @param platformPanel
      */
-    static void signalShow(GtkWidget *widget, gpointer platformPanel);
+    static void signalShow(GtkWidget *widget, gpointer favoritePanel);
     
     
     /**
@@ -189,15 +148,14 @@ private:
      * @param platformPanel
      * @return 
      */
-    static gint callbackFirstShowHackyTimeout(gpointer platformPanel);
-        
+    static gint callbackFirstShowHackyTimeout(gpointer favoritePanel);
+    
     /**
      * 
      * @param callbackResult
      */
     static void callbackNotification(CallbackResult *callbackResult);
-    
 };
 
-#endif /* PLATFORMPANEL_H */
+#endif /* FAVORITEPANEL_H */
 

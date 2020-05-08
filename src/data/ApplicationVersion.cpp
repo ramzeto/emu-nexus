@@ -23,6 +23,9 @@
 */
 
 #include "ApplicationVersion.h"
+#include "Database.h"
+#include "Logger.h"
+
 #include <iostream>
 
 ApplicationVersion::ApplicationVersion()
@@ -75,12 +78,13 @@ void ApplicationVersion::setTimestamp(string timestamp)
 	this->timestamp = timestamp;
 }
 
-int ApplicationVersion::load(sqlite3 *sqlite)
+int ApplicationVersion::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
 	string query = "select version, timestamp from ApplicationVersion where  version = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_text(statement, 1, version.c_str(), version.length(), NULL);
 		if (sqlite3_step(statement) == SQLITE_ROW)
@@ -92,19 +96,21 @@ int ApplicationVersion::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "ApplicationVersion::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("ApiDatabase", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int ApplicationVersion::save(sqlite3 *sqlite)
+int ApplicationVersion::save()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 1;
 	string insert = "insert into ApplicationVersion (version, timestamp) values(?, ?)";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_text(statement, 1, version.c_str(), version.length(), NULL);
 		sqlite3_bind_text(statement, 2, timestamp.c_str(), timestamp.length(), NULL);
@@ -112,10 +118,11 @@ int ApplicationVersion::save(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "ApplicationVersion::save " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("ApiDatabase", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
@@ -132,12 +139,13 @@ json_t *ApplicationVersion::toJson()
 	return json;
 }
 
-list<ApplicationVersion *> *ApplicationVersion::getItems(sqlite3 *sqlite)
+list<ApplicationVersion *> *ApplicationVersion::getItems()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<ApplicationVersion *> *items = new list<ApplicationVersion *>;
 	string query = "select version, timestamp from ApplicationVersion order by timestamp";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		while (sqlite3_step(statement) == SQLITE_ROW)
 		{
@@ -150,10 +158,11 @@ list<ApplicationVersion *> *ApplicationVersion::getItems(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "ApplicationVersion::getItems " << sqlite3_errmsg(sqlite) << endl;
+                Logger::getInstance()->error("ApiDatabase", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return items;
 }
 
@@ -193,10 +202,10 @@ json_t *ApplicationVersion::toJsonArray(list<ApplicationVersion *> *items)
 }
 
 
-ApplicationVersion* ApplicationVersion::getCurrentVersion(sqlite3 *sqlite)
-{
+ApplicationVersion* ApplicationVersion::getCurrentVersion()
+{    
     ApplicationVersion *applicationVersion = NULL;
-    list<ApplicationVersion *> *applicationVersions = getItems(sqlite);
+    list<ApplicationVersion *> *applicationVersions = getItems();
     if(applicationVersions->size() > 0)
     {        
         applicationVersion = new ApplicationVersion(*getItem(applicationVersions, applicationVersions->size() - 1));

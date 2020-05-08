@@ -27,15 +27,12 @@
 #include "Preferences.h"
 #include "Utils.h"
 #include "MessageDialog.h"
-#include "Database.h"
 #include "PlatformImage.h"
 #include "HttpConnector.h"
 #include "Asset.h"
 #include "NotificationManager.h"
 #include "Notifications.h"
 #include "Directory.h"
-
-#include <iostream>
 
 const int PlatformDialog::THUMBNAIL_IMAGE_WIDTH = 90;
 const int PlatformDialog::THUMBNAIL_IMAGE_HEIGHT = 90;
@@ -48,12 +45,10 @@ PlatformDialog::PlatformDialog(GtkWindow *parent, int64_t platformId) : Dialog(p
     apiPlatform = NULL;
     apiPlatforms = NULL;
     
-    sqlite3 *sqlite = Database::getInstance()->acquire();
     platform = new Platform(platformId);
-    platform->load(sqlite);    
+    platform->load();
     
-    platformImages = PlatformImage::getItems(sqlite, platform->getId());
-    Database::getInstance()->release();
+    platformImages = PlatformImage::getItems(platform->getId());
     
     platformImageTypes = new list<int64_t>;    
     selectedPlatformImage = NULL;
@@ -378,11 +373,8 @@ void PlatformDialog::addImage()
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
         string imageFileName = string(cFileName);
         
-        Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(imageFileName));
-        
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();        
+        Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(imageFileName));        
+        Preferences::getInstance()->save();
         
         g_free (cFileName);
         
@@ -532,21 +524,16 @@ void PlatformDialog::saveNewImage(PlatformImage* platformImage)
     if(Utils::getInstance()->fileExists(platformImage->getFileName()))
     {
         // Saves before to generate the id
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         platformImage->setPlatformId(platform->getId());
-        platformImage->save(sqlite);
-        Database::getInstance()->release();
+        platformImage->save();
         
         string imageFileName = platform->getMediaDirectory() + PlatformImage::FILE_PREFIX + to_string(platformImage->getId());
         if(!Utils::getInstance()->copyFile(platformImage->getFileName(), imageFileName))
         {
             platformImage->setFileName(imageFileName);
 
-            Utils::getInstance()->scaleImage(platformImage->getFileName(), PlatformImage::THUMBNAIL_WIDTH, PlatformImage::THUMBNAIL_HEIGHT, platformImage->getThumbnailFileName());
-            
-            sqlite = Database::getInstance()->acquire();
-            platformImage->save(sqlite);
-            Database::getInstance()->release();
+            Utils::getInstance()->scaleImage(platformImage->getFileName(), PlatformImage::THUMBNAIL_WIDTH, PlatformImage::THUMBNAIL_HEIGHT, platformImage->getThumbnailFileName());            
+            platformImage->save();
         }        
     }    
 }
@@ -588,17 +575,14 @@ void PlatformDialog::save()
 
     platform->setCommand(string(gtk_entry_get_text(commandEntry)));
     platform->setDeflate(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(deflateCheckButton)));
-    platform->setDeflateFileExtensions(string(gtk_entry_get_text(deflateFileExtensionsEntry)));
-    
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    platform->save(sqlite);    
+    platform->setDeflateFileExtensions(string(gtk_entry_get_text(deflateFileExtensionsEntry)));    
+    platform->save();
     
     for(unsigned int c = 0; c < platformImagesToRemove->size(); c++)
     {
         PlatformImage *platformImage = PlatformImage::getItem(platformImagesToRemove, c);
-        platformImage->remove(sqlite);
+        platformImage->remove();
     }
-    Database::getInstance()->release();
         
     for(unsigned int c = 0; c < platformImages->size(); c++)
     {
@@ -625,9 +609,7 @@ void PlatformDialog::save()
         }
         else
         {
-            sqlite3 *sqlite = Database::getInstance()->acquire();
-            platformImage->save(sqlite);
-            Database::getInstance()->release();
+            platformImage->save();
         }
     }
 
@@ -749,7 +731,6 @@ void PlatformDialog::downloadPlatformImage(PlatformDialog* platformDialog, Platf
         downloadingPlatformImages = 1;
         if(pthread_create(&downloadPlatformImagesThread, NULL, downloadPlatformImagesWorker, NULL) != 0) 
         {
-            cerr << "PlatformDialog::" << __FUNCTION__ << endl;
             exit(EXIT_FAILURE);
         }
     }

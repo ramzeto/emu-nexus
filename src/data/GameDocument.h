@@ -25,7 +25,6 @@
 #ifndef GAMEDOCUMENT_H
 #define GAMEDOCUMENT_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -83,13 +82,13 @@ public:
         void setPreviewImageFileName(string previewImageFileName);
         string getPreviewImageFileName();
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
-        int remove(sqlite3 *sqlite);                
+	int load();
+	int save();
+        int remove();
 
 	json_t *toJson();
 
-	static list<GameDocument *> *getItems(sqlite3 *sqlite, int64_t gameId);
+	static list<GameDocument *> *getItems(int64_t gameId);
 	static GameDocument *getItem(list<GameDocument *> *items, unsigned int index);
 	static void releaseItems(list<GameDocument *> *items);
 	static json_t *toJsonArray(list<GameDocument *> *items);

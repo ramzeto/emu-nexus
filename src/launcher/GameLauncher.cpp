@@ -25,11 +25,11 @@
 #include "GameLauncher.h"
 #include "Game.h"
 #include "Platform.h"
-#include "Database.h"
-#include "CacheGame.h"
+#include "GameCache.h"
+#include "GameActivity.h"
 #include "Utils.h"
-#include "RecentGame.h"
 #include "Preferences.h"
+#include "Logger.h"
 
 #include <dirent.h>
 #include <cstdlib>
@@ -181,13 +181,11 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
         
     instance->postStatus(gameLauncherData, 0, STATE_IDLE, -1);
     
-    sqlite3 *sqlite = Database::getInstance()->acquire();
     Game *game = new Game(gameLauncherData->gameId);
-    game->load(sqlite);
+    game->load();
     
     Platform *platform = new Platform(game->getPlatformId());        
-    platform->load(sqlite);
-    Database::getInstance()->release();
+    platform->load();
     
     string command = platform->getCommand();   
     int deflate = platform->getDeflate();
@@ -202,41 +200,24 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
     
     if(deflate)
     {
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        CacheGame *cacheGame = CacheGame::getCacheGame(sqlite, game->getId());
-        if(!cacheGame)
+        // Caches the game
+        GameCache *gameCache = GameCache::getGameCache(game->getId());
+        if(!gameCache)
         {
-            cacheGame = new CacheGame((int64_t)0);
-            cacheGame->setGameId(game->getId());
-            cacheGame->setTimestamp(Utils::getInstance()->nowIsoDateTime());
-            cacheGame->save(sqlite);
+            gameCache = new GameCache((int64_t)0);
+            gameCache->setGameId(game->getId());
+            gameCache->setTimestamp(Utils::getInstance()->nowIsoDateTime());
+            gameCache->save();
         }
-        Database::getInstance()->release();
         
-        // If cached game directory does not exist, then it should be created and the game ROM should be extracted
-        if(!Utils::getInstance()->directoryExists(cacheGame->getDirectory()))
-        {
-            Utils::getInstance()->makeDirectory(cacheGame->getDirectory());
-            instance->postStatus(gameLauncherData, 0, STATE_INFLATING, -1);
-            
-            FileExtractor *fileExtractor = new FileExtractor(game->getFileName());
-            fileExtractor->setProgressListener(gameLauncherData, fileExtractorProgressListenerCallback);
-            if(fileExtractor->extract(cacheGame->getDirectory()))
-            {
-                instance->postStatus(gameLauncherData, ERROR_INFLATE_NOT_SUPPORTED, STATE_INFLATING, -1);
-            }
-            delete fileExtractor;                        
-        }
         
         // Clears cache if necessary
-        sqlite = Database::getInstance()->acquire();
-        list<CacheGame *> *cacheGames = CacheGame::getItems(sqlite);
-        Database::getInstance()->release();
+        list<GameCache *> *gameCaches = GameCache::getItems();
         size_t cacheSize = 0;
-        for(unsigned int c = 0; c < cacheGames->size(); c++)
+        for(unsigned int c = 0; c < gameCaches->size(); c++)
         {
-            CacheGame *aCacheGame = CacheGame::getItem(cacheGames, c);
-            cacheSize += aCacheGame->getSize();
+            GameCache *aGameCache = GameCache::getItem(gameCaches, c);
+            cacheSize += aGameCache->getSize();
         }
         
         size_t allowdCacheSize = Preferences::getInstance()->getCacheSize() * 1024 * 1024; //MB to Bytes
@@ -244,19 +225,17 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
         {
             size_t size = 0;
             size_t sizeToClear = cacheSize - allowdCacheSize;
-            for(unsigned int c = 0; c < cacheGames->size(); c++)
+            for(unsigned int c = 0; c < gameCaches->size(); c++)
             {
-                CacheGame *aCacheGame = CacheGame::getItem(cacheGames, c);
-                if(aCacheGame->getId() == cacheGame->getId())
+                GameCache *aGameCache = GameCache::getItem(gameCaches, c);
+                if(aGameCache->getId() == gameCache->getId())
                 {
                     continue;
                 }
                 
-                size += aCacheGame->getSize();
+                size += aGameCache->getSize();
                 
-                sqlite = Database::getInstance()->acquire();
-                aCacheGame->remove(sqlite);
-                Database::getInstance()->release();
+                aGameCache->remove();
                 
                 if(size >= sizeToClear)
                 {
@@ -264,9 +243,25 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
                 }
             }
         }
-        CacheGame::releaseItems(cacheGames);
+        GameCache::releaseItems(gameCaches);
         
-                
+        
+        // If cached game directory does not exist, then it should be created and the game ROM should be extracted
+        if(!Utils::getInstance()->directoryExists(gameCache->getDirectory()))
+        {
+            Utils::getInstance()->makeDirectory(gameCache->getDirectory());
+            instance->postStatus(gameLauncherData, 0, STATE_INFLATING, -1);
+            
+            FileExtractor *fileExtractor = new FileExtractor(game->getFileName());
+            fileExtractor->setProgressListener(gameLauncherData, fileExtractorProgressListenerCallback);
+            if(fileExtractor->extract(gameCache->getDirectory()))
+            {
+                instance->postStatus(gameLauncherData, ERROR_INFLATE_NOT_SUPPORTED, STATE_INFLATING, -1);
+            }
+            delete fileExtractor;                        
+        }
+        
+        
         // Tries to find a file with the proper extension
         if(!instance->error)
         {
@@ -274,7 +269,7 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
             
             instance->fileName = "";
             instance->fileNames.clear();
-            instance->getFileNamesWithExtensions(Utils::getInstance()->strSplitByWhiteSpace(deflateFileExtensions), cacheGame->getDirectory());
+            instance->getFileNamesWithExtensions(Utils::getInstance()->strSplitByWhiteSpace(deflateFileExtensions), gameCache->getDirectory());
             if(instance->fileNames.size() == 0)
             {
                 instance->postStatus(gameLauncherData, ERROR_FILE_NOT_FOUND, STATE_SELECTING_FILE, -1);
@@ -330,15 +325,16 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
         // If an error happens, the cache game is removed
         if(instance->error)
         {
-            sqlite = Database::getInstance()->acquire();
-            cacheGame->remove(sqlite);
-            Database::getInstance()->release();            
+            gameCache->remove();
         }
+        
+        delete gameCache;
     }
     else
     {
         instance->fileName = game->getFileName();
     }
+    
     
     // Executes
     if(instance->state != STATE_CANCELED && !instance->error)
@@ -362,8 +358,17 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
             // Replaces %FILE% for the actual game file name
             command = Utils::getInstance()->strReplace(command, "%FILE%", fileName);
             
-            cout << "GameLauncher::" << __FUNCTION__ << " command: " << command << endl;
+            GameActivity *gameActivity = new GameActivity((int64_t)0);
+            gameActivity->setGameId(game->getId());
+            gameActivity->setTimestamp(Utils::getInstance()->nowIsoDateTime());            
+            time_t start = time(NULL);
+            
+            Logger::getInstance()->message("GameLauncher", __FUNCTION__, command);
             system(command.c_str());
+            
+            gameActivity->setDuration(time(NULL) - start);
+            gameActivity->save();
+            delete gameActivity;
             
             instance->state = STATE_FINISHED;
             instance->error = 0;
@@ -373,31 +378,7 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
             instance->state = STATE_FINISHED;
             instance->error = ERROR_FILE_NOT_FOUND;
         }
-    }
-    
-    // If the execution was successful, saves to recents
-    if(instance->state != STATE_CANCELED && !instance->error)
-    {
-        RecentGame *recentGame = new RecentGame(game->getId());
-        recentGame->setTimestamp(Utils::getInstance()->nowIsoDateTime());
-        sqlite = Database::getInstance()->acquire();
-        recentGame->save(sqlite);
-        list<RecentGame *> *recentGames = RecentGame::getItems(sqlite, 1);
-        Database::getInstance()->release();
-        
-        if(recentGames->size() > RecentGame::LIMIT)
-        {
-            unsigned int itemsToRemove = recentGames->size() - RecentGame::LIMIT;
-            for(unsigned int c = 0; c < itemsToRemove; c++)
-            {
-                RecentGame *recentGame = RecentGame::getItem(recentGames, c);
-                sqlite = Database::getInstance()->acquire();
-                recentGame->remove(sqlite);
-                Database::getInstance()->release();
-            }
-        }
-        RecentGame::releaseItems(recentGames);
-    }
+    }   
     
     delete game;
     delete platform;

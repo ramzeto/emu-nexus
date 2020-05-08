@@ -60,16 +60,16 @@ public:
 	int64_t getApiItemId();
 	void setApiItemId(int64_t apiItemId);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
+	int load();
+	int save();
 
 	json_t *toJson();
 
-	static list<Developer *> *getItems(sqlite3 *sqlite, string name);
+	static list<Developer *> *getItems(string name);
 	static Developer *getItem(list<Developer *> *items, unsigned int index);
 	static void releaseItems(list<Developer *> *items);
 	static json_t *toJsonArray(list<Developer *> *items);
-        static Developer *getDeveloper(sqlite3 *sqlite, int64_t apiId, int64_t apiItemId);
+        static Developer *getDeveloper(int64_t apiId, int64_t apiItemId);
         
         /**
          * Inserts every item in the list. It assumes that every item is a new item and generates a new id for each one.

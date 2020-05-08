@@ -25,7 +25,6 @@
 #ifndef PARSEDIRECTORY_H
 #define PARSEDIRECTORY_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -88,13 +87,13 @@ public:
 	string getBannerImagesDirectory();
 	void setBannerImagesDirectory(string bannerImagesDirectory);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
+	int load();
+	int save();
 
 	json_t *toJson();
 
-        static ParseDirectory *getPengingItem(sqlite3 *sqlite);
-	static list<ParseDirectory *> *getItems(sqlite3 *sqlite);        
+        static ParseDirectory *getPengingItem();
+	static list<ParseDirectory *> *getItems();
 	static ParseDirectory *getItem(list<ParseDirectory *> *items, unsigned int index);
 	static void releaseItems(list<ParseDirectory *> *items);
 	static json_t *toJsonArray(list<ParseDirectory *> *items);

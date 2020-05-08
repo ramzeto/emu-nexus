@@ -26,7 +26,6 @@
 #include "Utils.h"
 #include "HttpConnector.h"
 #include "ApiDatabase.h"
-#include "Database.h"
 #include "Directory.h"
 #include "Preferences.h"
 

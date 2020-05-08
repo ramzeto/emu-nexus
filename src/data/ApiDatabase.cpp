@@ -24,7 +24,9 @@
 
 
 #include "ApiDatabase.h"
-#include <iostream>
+#include "Database.h"
+#include "Logger.h"
+
 
 ApiDatabase::ApiDatabase()
 {
@@ -89,12 +91,13 @@ void ApiDatabase::setTimestamp(string timestamp)
 	this->timestamp = timestamp;
 }
 
-int ApiDatabase::load(sqlite3 *sqlite)
+int ApiDatabase::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
 	string query = "select apiId, md5sum, timestamp from ApiDatabase where  apiId = ? and  md5sum = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)apiId);
 		sqlite3_bind_text(statement, 2, md5sum.c_str(), md5sum.length(), NULL);
@@ -108,19 +111,22 @@ int ApiDatabase::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "ApiDatabase::load " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("ApiDatabase", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
 
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int ApiDatabase::save(sqlite3 *sqlite)
+int ApiDatabase::save()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 1;
 	string insert = "insert into ApiDatabase (apiId, md5sum, timestamp) values(?, ?, ?)";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)apiId);
 		sqlite3_bind_text(statement, 2, md5sum.c_str(), md5sum.length(), NULL);
@@ -129,10 +135,12 @@ int ApiDatabase::save(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "ApiDatabase::save " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("ApiDatabase", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 	}
 
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
@@ -152,12 +160,13 @@ json_t *ApiDatabase::toJson()
 	return json;
 }
 
-list<ApiDatabase *> *ApiDatabase::getItems(sqlite3 *sqlite)
+list<ApiDatabase *> *ApiDatabase::getItems()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<ApiDatabase *> *items = new list<ApiDatabase *>;
 	string query = "select apiId, md5sum, timestamp from ApiDatabase";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		while (sqlite3_step(statement) == SQLITE_ROW)
 		{
@@ -171,10 +180,12 @@ list<ApiDatabase *> *ApiDatabase::getItems(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "ApiDatabase::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("ApiDatabase", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
 
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return items;
 }
 

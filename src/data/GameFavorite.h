@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 ram
+ * Copyright (C) 2020 ram
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,16 +16,15 @@
  */
 
 /* 
- * File:   RecentGame.h
+ * File:   GameFavorite.h
  * Author: ram
  *
- * Created on July 21, 2019, 8:46 PM
+ * Created on May 7, 2020, 10:44 PM
  */
 
-#ifndef RECENTGAME_H
-#define RECENTGAME_H
+#ifndef FAVORITEGAME_H
+#define FAVORITEGAME_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -33,38 +32,37 @@
 
 using namespace std;
 
-class RecentGame
+class GameFavorite
 {
 private:
 	int64_t gameId;
 	string timestamp;
 
-	RecentGame();
+	GameFavorite();
 
 public:
-    static const unsigned int LIMIT;
-    
-	RecentGame(int64_t gameId);
-	RecentGame(const RecentGame &orig);
-	RecentGame(json_t *json);
+	GameFavorite(int64_t gameId);
+	GameFavorite(const GameFavorite &orig);
+	GameFavorite(json_t *json);
 
-	~RecentGame();
+	~GameFavorite();
 
 	int64_t getGameId();
 	string getTimestamp();
 	void setTimestamp(string timestamp);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
-        int remove(sqlite3 *sqlite);
+	int load();
+	int save();
+        int remove();
 
 	json_t *toJson();
 
-	static list<RecentGame *> *getItems(sqlite3 *sqlite, int ascending);
-	static RecentGame *getItem(list<RecentGame *> *items, unsigned int index);
-	static void releaseItems(list<RecentGame *> *items);
-	static json_t *toJsonArray(list<RecentGame *> *items);
+	static list<GameFavorite *> *getItems(int64_t gameId = -1, string timestamp = "");
+	static GameFavorite *getItem(list<GameFavorite *> *items, unsigned int index);
+	static void releaseItems(list<GameFavorite *> *items);
+	static json_t *toJsonArray(list<GameFavorite *> *items);
 };
 
 #endif
+
 

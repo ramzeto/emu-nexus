@@ -23,7 +23,9 @@
  */
 
 #include "GameDocument.h"
-#include <iostream>
+#include "Database.h"
+#include "Logger.h"
+
 #include <unistd.h>
 
 const string GameDocument::FILE_PREFIX = "document_";
@@ -187,12 +189,13 @@ string GameDocument::getPreviewImageFileName()
     return previewImageFileName;
 }
         
-int GameDocument::load(sqlite3 *sqlite)
+int GameDocument::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
 	string query = "select id, gameId, type, name, fileName, apiId, apiItemId from GameDocument where  id = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
 		if (sqlite3_step(statement) == SQLITE_ROW)
@@ -209,21 +212,24 @@ int GameDocument::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "GameDocument::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameDocument", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int GameDocument::save(sqlite3 *sqlite)
-{
+int GameDocument::save()
+{        
 	int result = 1;
+        
+        sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
 		string insert = "insert into GameDocument (gameId, type, name, fileName, apiId, apiItemId) values(?, ?, ?, ?, ?, ?)";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
@@ -234,12 +240,12 @@ int GameDocument::save(sqlite3 *sqlite)
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
-				id = sqlite3_last_insert_rowid(sqlite);
+				id = sqlite3_last_insert_rowid(db);
 			}
 		}
 		else
 		{
-			cerr << "GameDocument::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("GameDocument", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 		}
 
 		sqlite3_finalize(statement);
@@ -248,7 +254,7 @@ int GameDocument::save(sqlite3 *sqlite)
 	{
 		string update = "update GameDocument set gameId = ?, type = ?, name = ?, fileName = ?, apiId = ?, apiItemId = ? where id = ?";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
@@ -262,15 +268,17 @@ int GameDocument::save(sqlite3 *sqlite)
 		}
 		else
 		{
-			cerr << "GameDocument::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("GameDocument", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
 		}
 
 		sqlite3_finalize(statement);
 	}
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int GameDocument::remove(sqlite3 *sqlite)
+int GameDocument::remove()
 {
     if(id == 0)
     {
@@ -279,18 +287,20 @@ int GameDocument::remove(sqlite3 *sqlite)
     
     int result = 1;
     
+    sqlite3 *db = Database::getInstance()->acquire();
     string command = "delete from GameDocument where id = ?";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
     {
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
             result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
     }
     else
     {
-            cerr << "GameDocument::remove " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("GameDocument", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
     }
     sqlite3_finalize(statement);
+    Database::getInstance()->release();
         
     unlink(fileName.c_str());
     unlink(getPreviewImageFileName().c_str());
@@ -326,12 +336,13 @@ json_t *GameDocument::toJson()
 	return json;
 }
 
-list<GameDocument *> *GameDocument::getItems(sqlite3 *sqlite, int64_t gameId)
+list<GameDocument *> *GameDocument::getItems(int64_t gameId)
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<GameDocument *> *items = new list<GameDocument *>;
 	string query = "select id, gameId, type, name, fileName, apiId, apiItemId from GameDocument where gameId = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
             
@@ -351,10 +362,11 @@ list<GameDocument *> *GameDocument::getItems(sqlite3 *sqlite, int64_t gameId)
 	}
 	else
 	{
-		cerr << "GameDocument::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameDocument", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return items;
 }
 

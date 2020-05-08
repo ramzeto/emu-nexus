@@ -25,7 +25,6 @@
 #ifndef APIDATABASE_H
 #define APIDATABASE_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -54,12 +53,12 @@ public:
 	string getTimestamp();
 	void setTimestamp(string timestamp);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
+	int load();
+	int save();
 
 	json_t *toJson();
 
-	static list<ApiDatabase *> *getItems(sqlite3 *sqlite);
+	static list<ApiDatabase *> *getItems();
 	static ApiDatabase *getItem(list<ApiDatabase *> *items, unsigned int index);
 	static void releaseItems(list<ApiDatabase *> *items);
 	static json_t *toJsonArray(list<ApiDatabase *> *items);

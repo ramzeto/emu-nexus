@@ -88,6 +88,11 @@ private:
     
     /**
      * 
+     */
+    void showFavorites();
+    
+    /**
+     * 
      * @param platformId
      */
     void showPlatformDialog(int64_t platformId);
@@ -96,6 +101,11 @@ private:
      * Loads the platform list.
      */
     void loadPlatformList();
+    
+    /**
+     * 
+     */
+    void updateFavorites();
     
     /**
      * Updates a platform from the list.

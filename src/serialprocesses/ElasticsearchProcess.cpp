@@ -24,7 +24,6 @@
 
 #include "ElasticsearchProcess.h"
 #include "SerialProcessExecutor.h"
-#include "Database.h"
 #include "ApiDatabase.h"
 #include "Utils.h"
 #include "FileExtractor.h"
@@ -68,10 +67,8 @@ int ElasticsearchProcess::execute()
     {
         string md5sum((const char *)md5HttpConnector->getResponseData(), md5HttpConnector->getResponseDataSize());
         
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         ApiDatabase *apiDatabase = new ApiDatabase(TheGamesDB::API_ID, md5sum);
-        int isCurrentVersion = apiDatabase->load(sqlite);
-        Database::getInstance()->release();
+        int isCurrentVersion = apiDatabase->load();
         
         if(!Utils::getInstance()->directoryExists(Directory::getInstance()->getElasticseachDirectory()))
         {
@@ -163,9 +160,7 @@ int ElasticsearchProcess::execute()
                     FileExtractor *fileExtractor = new FileExtractor(targzFileName);
                     if(!fileExtractor->extract(Directory::getInstance()->getDataDirectory()))
                     {
-                        sqlite3 *sqlite = Database::getInstance()->acquire();
-                        apiDatabase->save(sqlite);
-                        Database::getInstance()->release();
+                        apiDatabase->save();
                     }                    
                     delete fileExtractor;
                     

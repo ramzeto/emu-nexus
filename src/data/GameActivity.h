@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 ram
+ * Copyright (C) 2020 ram
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,14 +16,14 @@
  */
 
 /* 
- * File:   GamePublisher.h
+ * File:   GameActivity.h
  * Author: ram
- * 
- * Created March 27, 2019, 9:51 pm
-*/
+ *
+ * Created on May 8, 2020, 11:12 AM
+ */
 
-#ifndef GAMEPUBLISHER_H
-#define GAMEPUBLISHER_H
+#ifndef GAMEACTIVITY_H
+#define GAMEACTIVITY_H
 
 #include <string>
 #include <list>
@@ -32,36 +32,42 @@
 
 using namespace std;
 
-class GamePublisher
+class GameActivity
 {
 private:
+	int64_t id;
 	int64_t gameId;
-	int64_t publisherId;
+	string timestamp;
+	int64_t duration;
 
-	GamePublisher();
+	GameActivity();
 
 public:
-	GamePublisher(int64_t gameId, int64_t publisherId);
-	GamePublisher(const GamePublisher &orig);
-	GamePublisher(json_t *json);
+	GameActivity(int64_t id);
+	GameActivity(const GameActivity &orig);
+	GameActivity(json_t *json);
 
-	~GamePublisher();
+	~GameActivity();
 
+	int64_t getId();
 	int64_t getGameId();
-        void setGameId(int64_t gameId);
-        
-	int64_t getPublisherId();
+	void setGameId(int64_t gameId);
+	string getTimestamp();
+	void setTimestamp(string timestamp);
+	int64_t getDuration();
+	void setDuration(int64_t duration);
 
 	int load();
 	int save();
 
 	json_t *toJson();
 
-	static list<GamePublisher *> *getItems(int64_t gameId);
-	static GamePublisher *getItem(list<GamePublisher *> *items, unsigned int index);
-	static void releaseItems(list<GamePublisher *> *items);
+	static list<GameActivity *> *getItems(int64_t id = -1, int64_t gameId = -1, string timestamp = "", int64_t duration = -1);
+        static list<GameActivity *> *getRecentItems();
+	static GameActivity *getItem(list<GameActivity *> *items, unsigned int index);
+	static void releaseItems(list<GameActivity *> *items);        
+	static json_t *toJsonArray(list<GameActivity *> *items);
         static int remove(int64_t gameId);
-	static json_t *toJsonArray(list<GamePublisher *> *items);
 };
 
 #endif

@@ -23,8 +23,9 @@
 */
 
 #include "GameGenre.h"
+#include "Database.h"
+#include "Logger.h"
 
-#include <iostream>
 
 GameGenre::GameGenre()
 {
@@ -78,13 +79,13 @@ int64_t GameGenre::getGenreId()
 	return genreId;
 }
 
-int GameGenre::load(sqlite3 *sqlite)
+int GameGenre::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
-
 	string query = "select gameId, genreId from GameGenre where  gameId = ? and  genreId = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 		sqlite3_bind_int64(statement, 2, (sqlite3_int64)genreId);
@@ -97,21 +98,21 @@ int GameGenre::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "GameGenre::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameGenre", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return result;
 }
 
-int GameGenre::save(sqlite3 *sqlite)
+int GameGenre::save()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 1;
-
 	string insert = "insert into GameGenre (gameId, genreId) values(?, ?)";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 		sqlite3_bind_int64(statement, 2, (sqlite3_int64)genreId);
@@ -119,10 +120,10 @@ int GameGenre::save(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "GameGenre::save " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameGenre", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return result;
 }
@@ -140,13 +141,13 @@ json_t *GameGenre::toJson()
 	return json;
 }
 
-list<GameGenre *> *GameGenre::getItems(sqlite3 *sqlite, int64_t gameId)
+list<GameGenre *> *GameGenre::getItems(int64_t gameId)
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<GameGenre *> *items = new list<GameGenre *>;
-
 	string query = "select gameId, genreId from GameGenre where gameId = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 		while (sqlite3_step(statement) == SQLITE_ROW)
@@ -160,10 +161,10 @@ list<GameGenre *> *GameGenre::getItems(sqlite3 *sqlite, int64_t gameId)
 	}
 	else
 	{
-		cerr << "GameGenre::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameGenre", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return items;
 }
@@ -192,13 +193,13 @@ void GameGenre::releaseItems(list<GameGenre *> *items)
 	delete items;
 }
 
-int GameGenre::remove(sqlite3 *sqlite, int64_t gameId)
+int GameGenre::remove(int64_t gameId)
 {
-    int result = 1;
-
+    sqlite3 *db = Database::getInstance()->acquire();
+    int result = 1;    
     string command = "delete from GameGenre where gameId = ?";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 
@@ -206,10 +207,10 @@ int GameGenre::remove(sqlite3 *sqlite, int64_t gameId)
     }
     else
     {
-        cerr << "GameGenre::remove " << sqlite3_errmsg(sqlite) << endl;
+        Logger::getInstance()->error("GameGenre", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
     }
-
     sqlite3_finalize(statement);
+    Database::getInstance()->release();
     
     return result;
 }

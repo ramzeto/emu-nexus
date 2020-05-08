@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 ram
+ * Copyright (C) 2020 ram
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,33 +16,34 @@
  */
 
 /* 
- * File:   Notifications.h
+ * File:   Widget.h
  * Author: ram
  *
- * Created on June 17, 2019, 8:22 PM
+ * Created on May 7, 2020, 9:12 PM
  */
 
-#ifndef NOTIFICATIONS_H
-#define NOTIFICATIONS_H
+#ifndef WIDGET_H
+#define WIDGET_H
 
+#include <gtk/gtk.h>
 #include <string>
 
 using namespace std;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-    static const string NOTIFICATION_PLATFORM_UPDATED = "NOTIFICATION_PLATFORM_UPDATED";
-    static const string NOTIFICATION_GAME_UPDATED = "NOTIFICATION_GAME_UPDATED";
-    static const string NOTIFICATION_ADD_DIRECTORY = "NOTIFICATION_ADD_DIRECTORY";
-    static const string NOTIFICATION_FAVORITES_UPDATED = "NOTIFICATION_FAVORITES_UPDATED";
+class Widget 
+{
+public:
+    Widget(string widgetFileName, string widgetId);
+    virtual ~Widget();
+    
+    GtkWidget *getWidget();
+    
+protected:
+    GtkBuilder *builder;
+    GtkWidget *widget;
 
+};
 
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* NOTIFICATIONS_H */
+#endif /* WIDGET_H */
 

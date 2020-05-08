@@ -23,8 +23,9 @@
 */
 
 #include "GameImage.h"
+#include "Database.h"
+#include "Logger.h"
 
-#include <iostream>
 #include <unistd.h>
 
 const string GameImage::FILE_PREFIX = "game_image_";
@@ -209,13 +210,13 @@ void GameImage::setDownloaded(int64_t downloaded)
 	this->downloaded = downloaded;
 }
 
-int GameImage::load(sqlite3 *sqlite)
+int GameImage::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
-
 	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where  id = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
 		if (sqlite3_step(statement) == SQLITE_ROW)
@@ -234,23 +235,24 @@ int GameImage::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "GameImage::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return result;
 }
 
-int GameImage::save(sqlite3 *sqlite)
+int GameImage::save()
 {
 	int result = 1;
 
+        sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
 		string insert = "insert into GameImage (gameId, type, fileName, external, apiId, apiItemId, url, downloaded) values(?, ?, ?, ?, ?, ?, ?, ?)";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
@@ -263,12 +265,12 @@ int GameImage::save(sqlite3 *sqlite)
                         
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
-				id = sqlite3_last_insert_rowid(sqlite);
+				id = sqlite3_last_insert_rowid(db);
 			}
 		}
 		else
 		{
-			cerr << "GameImage::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("GameImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 		}
 
 		sqlite3_finalize(statement);
@@ -277,7 +279,7 @@ int GameImage::save(sqlite3 *sqlite)
 	{
 		string update = "update GameImage set gameId = ?, type = ?, fileName = ?, external = ?, apiId = ?, apiItemId = ?, url = ?, downloaded = ? where id = ?";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
@@ -293,16 +295,17 @@ int GameImage::save(sqlite3 *sqlite)
 		}
 		else
 		{
-			cerr << "GameImage::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("GameImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
 		}
 
 		sqlite3_finalize(statement);
 	}
+        Database::getInstance()->release();
 
 	return result;
 }
 
-int GameImage::remove(sqlite3 *sqlite)
+int GameImage::remove()
 {
     if(id == 0)
     {
@@ -310,20 +313,21 @@ int GameImage::remove(sqlite3 *sqlite)
     }
     
     int result = 1;
-    
+    sqlite3 *db = Database::getInstance()->acquire();
     string command = "delete from GameImage where id = ?";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
     {
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
             result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
     }
     else
     {
-            cerr << "GameImage::remove " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("GameImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
     }
     sqlite3_finalize(statement);
-        
+    Database::getInstance()->release();
+    
     if(!external)
     {
         unlink(fileName.c_str());
@@ -373,13 +377,13 @@ json_t *GameImage::toJson()
 	return json;
 }
 
-GameImage* GameImage::getPrimaryImage(sqlite3 *sqlite, int64_t gameId)
+GameImage* GameImage::getPrimaryImage(int64_t gameId)
 {
     GameImage *item = NULL;
-    
+    sqlite3 *db = Database::getInstance()->acquire();
     string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where gameId = ?  and type = ? limit 1";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
         sqlite3_bind_int64(statement, 2, (sqlite3_int64)GameImage::TYPE_BOX_FRONT);
@@ -400,16 +404,15 @@ GameImage* GameImage::getPrimaryImage(sqlite3 *sqlite, int64_t gameId)
     }
     else
     {
-            cerr << "GameImage::getPrimaryImage " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("GameImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
     }
-    sqlite3_finalize(statement);
-
+    sqlite3_finalize(statement);    
     
     if(!item)
     {
         string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where gameId = ? limit 1";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
             
@@ -429,23 +432,24 @@ GameImage* GameImage::getPrimaryImage(sqlite3 *sqlite, int64_t gameId)
 	}
 	else
 	{
-		cerr << "GameImage::getPrimaryImage " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
 	sqlite3_finalize(statement);
     }
+    Database::getInstance()->release();
     
     
     return item;
 }
 
 
-list<GameImage *> *GameImage::getItems(sqlite3 *sqlite, int64_t gameId)
+list<GameImage *> *GameImage::getItems(int64_t gameId)
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<GameImage *> *items = new list<GameImage *>;
-
 	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where gameId = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
             
@@ -467,21 +471,21 @@ list<GameImage *> *GameImage::getItems(sqlite3 *sqlite, int64_t gameId)
 	}
 	else
 	{
-		cerr << "GameImage::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return items;
 }
 
-list<GameImage*>* GameImage::getItems(sqlite3* sqlite, int64_t gameId, int64_t type)
+list<GameImage*>* GameImage::getItems(int64_t gameId, int64_t type)
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<GameImage *> *items = new list<GameImage *>;
-
 	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where gameId = ? and type = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
             sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
@@ -504,21 +508,21 @@ list<GameImage*>* GameImage::getItems(sqlite3* sqlite, int64_t gameId, int64_t t
 	}
 	else
 	{
-		cerr << "GameImage::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return items;
 }
 
-list<GameImage*>* GameImage::getPendingToDownloadItems(sqlite3* sqlite)
+list<GameImage*>* GameImage::getPendingToDownloadItems()
 {
-	list<GameImage *> *items = new list<GameImage *>;
-
+        sqlite3 *db = Database::getInstance()->acquire();
+	list<GameImage *> *items = new list<GameImage *>;        
 	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where downloaded = 0 and url <> ''";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		while (sqlite3_step(statement) == SQLITE_ROW)
 		{
@@ -538,10 +542,10 @@ list<GameImage*>* GameImage::getPendingToDownloadItems(sqlite3* sqlite)
 	}
 	else
 	{
-		cerr << "GameImage::getPendingToDownloadItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return items;
 }

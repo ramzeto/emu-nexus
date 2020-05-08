@@ -25,7 +25,6 @@
 #ifndef PREFERENCES_H
 #define PREFERENCES_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -51,10 +50,9 @@ private:
 
     /**
      * Loads the object from the database
-     * @param sqlite
      * @return 1 if the object exists in the database and loads successfully, 0 otherwise.
      */
-    int load(sqlite3 *sqlite);
+    int load();
 
     static Preferences *instance;
 
@@ -81,10 +79,9 @@ public:
     
     /**
      * Saves the object to the database.
-     * @param sqlite
      * @return  0 on success
      */
-    int save(sqlite3 *sqlite);
+    int save();
     
     /**
      * 

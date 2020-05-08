@@ -23,7 +23,6 @@
  */
 
 #include "DevelopersSelectDialog.h"
-#include "Database.h"
 #include "UiUtils.h"
 #include "Directory.h"
 
@@ -76,9 +75,7 @@ void DevelopersSelectDialog::updateItems()
         Developer::releaseItems(items);
     }
     
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    items = Developer::getItems(sqlite, string(gtk_entry_get_text(GTK_ENTRY(searchEntry))));
-    Database::getInstance()->release();
+    items = Developer::getItems(string(gtk_entry_get_text(GTK_ENTRY(searchEntry))));
     
     page = 0;
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(listBox), 1);
@@ -126,9 +123,7 @@ void DevelopersSelectDialog::setItemActive(int64_t itemId, int active)
     if(active)
     {
         Developer *item = new Developer(itemId);
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        item->load(sqlite);
-        Database::getInstance()->release();
+        item->load();
         
         selectedItems->push_back(item);
     }

@@ -74,11 +74,11 @@ public:
 private:
     static const string DATABASE_FILE_NAME;
     
-    Database();
-    virtual ~Database();    
-    
     sqlite3 *sqlite;
     pthread_mutex_t mutex;
+
+    Database();
+    virtual ~Database();    
     
     static Database *instance;
 };

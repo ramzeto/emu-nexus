@@ -59,16 +59,16 @@ public:
 	int64_t getApiItemId();
 	void setApiItemId(int64_t apiItemId);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
+	int load();
+	int save();
 
 	json_t *toJson();
 
-	static list<Publisher *> *getItems(sqlite3 *sqlite, string name);
+	static list<Publisher *> *getItems(string name);
 	static Publisher *getItem(list<Publisher *> *items, unsigned int index);
 	static void releaseItems(list<Publisher *> *items);
 	static json_t *toJsonArray(list<Publisher *> *items);
-        static Publisher *getPublisher(sqlite3 *sqlite, int64_t apiId, int64_t apiItemId);
+        static Publisher *getPublisher(int64_t apiId, int64_t apiItemId);
         
         /**
          * Inserts every item in the list. It assumes that every item is a new item and generates a new id for each one.

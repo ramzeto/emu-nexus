@@ -30,7 +30,7 @@
 using namespace std;
 
 /**
- * Class made for exchanging data between objects using callbacks.
+ * Class made for exchanging data between objects. It is designed ti be thread safe.
  */
 class CallbackResult 
 {

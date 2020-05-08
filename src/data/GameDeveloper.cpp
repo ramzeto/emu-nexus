@@ -23,8 +23,9 @@
 */
 
 #include "GameDeveloper.h"
+#include "Database.h"
+#include "Logger.h"
 
-#include <iostream>
 
 GameDeveloper::GameDeveloper()
 {
@@ -77,13 +78,14 @@ void GameDeveloper::setGameId(int64_t gameId)
     this->gameId = gameId;
 }
 
-int GameDeveloper::load(sqlite3 *sqlite)
+int GameDeveloper::load()
 {
 	int result = 0;
 
+        sqlite3 *db = Database::getInstance()->acquire();
 	string query = "select gameId, developerId from GameDeveloper where  gameId = ? and  developerId = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 		sqlite3_bind_int64(statement, 2, (sqlite3_int64)developerId);
@@ -96,21 +98,22 @@ int GameDeveloper::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "GameDeveloper::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameDeveloper", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return result;
 }
 
-int GameDeveloper::save(sqlite3 *sqlite)
+int GameDeveloper::save()
 {
 	int result = 1;
 
+        sqlite3 *db = Database::getInstance()->acquire();
 	string insert = "insert into GameDeveloper (gameId, developerId) values(?, ?)";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 		sqlite3_bind_int64(statement, 2, (sqlite3_int64)developerId);
@@ -118,10 +121,10 @@ int GameDeveloper::save(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "GameDeveloper::save " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameDeveloper", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return result;
 }
@@ -139,13 +142,13 @@ json_t *GameDeveloper::toJson()
 	return json;
 }
 
-list<GameDeveloper *> *GameDeveloper::getItems(sqlite3 *sqlite, int64_t gameId)
+list<GameDeveloper *> *GameDeveloper::getItems(int64_t gameId)
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<GameDeveloper *> *items = new list<GameDeveloper *>;
-
 	string query = "select gameId, developerId from GameDeveloper where gameId = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
             
@@ -160,10 +163,11 @@ list<GameDeveloper *> *GameDeveloper::getItems(sqlite3 *sqlite, int64_t gameId)
 	}
 	else
 	{
-		cerr << "GameDeveloper::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameDeveloper", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 
 	return items;
 }
@@ -192,13 +196,14 @@ void GameDeveloper::releaseItems(list<GameDeveloper *> *items)
 	delete items;
 }
 
-int GameDeveloper::remove(sqlite3 *sqlite, int64_t gameId)
+int GameDeveloper::remove(int64_t gameId)
 {
     int result = 1;
 
+    sqlite3 *db = Database::getInstance()->acquire();
     string command = "delete from GameDeveloper where gameId = ?";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 
@@ -206,10 +211,10 @@ int GameDeveloper::remove(sqlite3 *sqlite, int64_t gameId)
     }
     else
     {
-        cerr << "GameDeveloper::remove " << sqlite3_errmsg(sqlite) << endl;
+        Logger::getInstance()->error("GameDeveloper", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
     }
-
     sqlite3_finalize(statement);
+    Database::getInstance()->release();
     
     return result;
 }

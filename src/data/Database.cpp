@@ -99,10 +99,9 @@ void Database::init()
         firstTime = 1;
     }
     
-    sqlite3 *sqlite = acquire();
     if(!firstTime)
     {
-        ApplicationVersion *applicationVersion = ApplicationVersion::getCurrentVersion(sqlite);
+        ApplicationVersion *applicationVersion = ApplicationVersion::getCurrentVersion();
         if(applicationVersion)
         {
             version = applicationVersion->getVersion();
@@ -110,7 +109,7 @@ void Database::init()
         }
     }
     
-    
+    acquire();
     list<string> commands;
     
     // New installation
@@ -134,15 +133,14 @@ void Database::init()
         commands.push_back("CREATE TABLE IF NOT EXISTS GameImage(id integer primary key, gameId integer, type integer, fileName text, external integer, apiId integer, apiItemId integer, url text, downloaded integer)");
         commands.push_back("CREATE TABLE IF NOT EXISTS GameDocument(id integer primary key, gameId integer, type integer, name text, fileName text, apiId integer, apiItemId integer)");
         
-        commands.push_back("CREATE TABLE IF NOT EXISTS RecentGame(gameId integer, timestamp text, unique(gameId) on conflict replace)");
-        commands.push_back("CREATE TABLE IF NOT EXISTS CacheGame(id integer primary key, gameId integer, timestamp text)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS GameActivity(id integer primary key, gameId integer, timestamp text, duration integer)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS GameCache(id integer primary key, gameId integer, timestamp text)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS GameFavorite(gameId integer, timestamp text, unique(gameId) on conflict replace)");
         
         commands.push_back("CREATE TABLE IF NOT EXISTS ParseDirectory(id integer primary key, platformId integer, timestamp text, start text, end text, directory text, fileExtensions text, useMame integer, mame text, boxFrontImagesDirectory text, boxBackImagesDirectory text, screenshotImagesDirectory text, logoImagesDirectory text, bannerImagesDirectory text)");
         commands.push_back("CREATE TABLE IF NOT EXISTS ParseDirectoryGame(id integer primary key, parseDirectoryId integer, timestamp text, fileName text, name text, mameName text, processed integer)");
     }
-    
-    
-    
+            
     for(list<string>::iterator command = commands.begin(); command != commands.end(); command++)
     {
         sqlite3_stmt *statement;
@@ -162,15 +160,15 @@ void Database::init()
         sqlite3_finalize(statement);        
     }
     
+    release();
+    
     if(version.compare(BUILD_VERSION) != 0)
     {
         ApplicationVersion *applicationVersion = new ApplicationVersion(BUILD_VERSION);
         applicationVersion->setTimestamp(Utils::getInstance()->nowIsoDateTime());
-        applicationVersion->save(sqlite);    
+        applicationVersion->save();
         delete applicationVersion;
-    } 
-    
-    release();        
+    }     
 }
 
 Database* Database::getInstance()

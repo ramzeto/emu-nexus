@@ -26,8 +26,8 @@
 #define HOMEPANEL_H
 
 #include "Panel.h"
-#include "RecentGame.h"
-#include "GameDetailDialog.h"
+#include "GameActivity.h"
+#include "GameGridItemWidget.h"
 #include "UiThreadBridge.h"
 #include "CallbackResult.h"
 
@@ -42,14 +42,7 @@ public:
     HomePanel(GtkWindow *parentWindow);    
     virtual ~HomePanel();
     
-private:
-    static const int GAME_GRID_ITEM_WIDTH;
-    static const int GAME_GRID_ITEM_HEIGHT;
-    
-    static const int GAME_GRID_ITEM_IMAGE_WIDTH;
-    static const int GAME_GRID_ITEM_IMAGE_HEIGHT;
-    
-    
+private:            
     GtkBox *recentsBox;
     GtkBox *recentsGridBox;
     GtkImage *logoImage;
@@ -62,12 +55,9 @@ private:
     int64_t selectedGameId;
     time_t selectGameTimestamp;
     time_t launchGameTimestamp;
-    map<int64_t, GtkWidget *> *gameGridItems;
-    list<RecentGame *> *recentGames;
-    GameDetailDialog *gameDetailDialog;
-    
-    UiThreadBridge *launcherUiThreadBridge;
-    
+    map<int64_t, GameGridItemWidget *> *gameGridItems;
+    list<GameActivity *> *gameActivities;
+        
     void loadRecentsGrid();
     void launchGame(int64_t gameId);
     void updateGame(int64_t gameId);
@@ -77,13 +67,7 @@ private:
      * Shows the game dialog for editing.
      * @param gameId.
      */
-    void showGameDialog(int64_t gameId);
-    
-    /**
-     * Removes a game
-     * @param gameId
-     */
-    void removeGame(int64_t gameId);
+    void showGameDialog(int64_t gameId);    
     
     /**
      * Shows a game detail.
@@ -92,6 +76,36 @@ private:
     void showGameDetail(int64_t gameId); 
         
 
+    /**
+     * 
+     * @param gameGridItemWidget
+     */
+    static void onGameGridItemWidgetSelect(GameGridItemWidget *gameGridItemWidget);
+    
+    /**
+     * 
+     * @param gameGridItemWidget
+     */
+    static void onGameGridItemWidgetActive(GameGridItemWidget *gameGridItemWidget);
+    
+    /**
+     * 
+     * @param gameGridItemWidget
+     */
+    static void onGameGridItemWidgetMenuFavoriteSelect(GameGridItemWidget *gameGridItemWidget);
+    
+    /**
+     * 
+     * @param gameGridItemWidget
+     */
+    static void onGameGridItemWidgetMenuDetailSelect(GameGridItemWidget *gameGridItemWidget);
+    
+    /**
+     * 
+     * @param gameGridItemWidget
+     */
+    static void onGameGridItemWidgetMenuEditSelect(GameGridItemWidget *gameGridItemWidget);
+    
     /**
      * Signal triggered when the recentsGridBox "size-allocate" event happens.
      * @param widget
@@ -114,37 +128,7 @@ private:
      * @return 
      */
     static gint callbackFirstShowHackyTimeout(gpointer homePanel);  
-    
-    /**
-     * Signal triggered when the user presses a mouse button over a game in the recents grid.
-     * @param widget
-     * @param event
-     * @param pHomePanel
-     * @return 
-     */
-    static gboolean signalGameItemBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer homePanel);
-    
-    /**
-     * Signal triggered when the user selects the detail menu option on a game in the grid.
-     * @param menuitem
-     * @param mainWindow
-     */
-    static void signalGameMenuDetailActivate(GtkMenuItem *menuitem, gpointer homePanel);
-    
-    /**
-     * Signal triggered when the user selects the edit menu option on a game in the grid.
-     * @param menuitem
-     * @param mainWindow
-     */
-    static void signalGameMenuEditActivate(GtkMenuItem *menuitem, gpointer homePanel);
-    
-    /**
-     * Signal triggered when the user selects the remove menu option on a game in the grid.
-     * @param menuitem
-     * @param mainWindow
-     */
-    static void signalGameMenuRemoveActivate(GtkMenuItem *menuitem, gpointer homePanel);
-    
+        
     /**
      * 
      * @param callbackResult

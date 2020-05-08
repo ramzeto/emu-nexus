@@ -23,7 +23,6 @@
  */
 
 #include "ParseDirectoryProcess.h"
-#include "Database.h"
 #include "ParseDirectory.h"
 #include "ParseDirectoryGame.h"
 #include "Game.h"
@@ -73,24 +72,18 @@ int ParseDirectoryProcess::execute()
 {
     status = STATUS_RUNNING;
         
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    parseDirectory = ParseDirectory::getPengingItem(sqlite);
-    Database::getInstance()->release();
+    parseDirectory = ParseDirectory::getPengingItem();
     
     if(parseDirectory)
     {
         postStatus(parseDirectory->getDirectory());
         
         parseDirectory->setStart(Utils::getInstance()->nowIsoDateTime());        
-        sqlite = Database::getInstance()->acquire();
-        parseDirectory->save(sqlite);
-        Database::getInstance()->release();
+        parseDirectory->save();
     
         parseGameFiles(Utils::getInstance()->strSplitByWhiteSpace(parseDirectory->getFileExtensions()), parseDirectory->getDirectory());
         
-        sqlite = Database::getInstance()->acquire();
-        parseDirectoryGames = ParseDirectoryGame::getPendingItems(sqlite, parseDirectory->getId());
-        Database::getInstance()->release();
+        parseDirectoryGames = ParseDirectoryGame::getPendingItems(parseDirectory->getId());
         
         parseDirectoryGamesIndex = 0;        
         fetchGameInformation();
@@ -136,9 +129,7 @@ void ParseDirectoryProcess::parseGameFiles(list<string> extensions, string direc
                 {
                     if(Utils::getInstance()->strToLowerCase(fileName).find(*extension) != string::npos)
                     {
-                        sqlite3 *sqlite = Database::getInstance()->acquire();
-                        Game *game = Game::getGameWithFileName(sqlite, parseDirectory->getPlatformId(), directory + fileName);
-                        Database::getInstance()->release();
+                        Game *game = Game::getGameWithFileName(parseDirectory->getPlatformId(), directory + fileName);
                         
                         if(game)
                         {
@@ -146,7 +137,7 @@ void ParseDirectoryProcess::parseGameFiles(list<string> extensions, string direc
                             break;
                         }
                         
-                        ParseDirectoryGame *parseDirectoryGame = ParseDirectoryGame::getItem(sqlite, parseDirectory->getId(), directory + fileName);
+                        ParseDirectoryGame *parseDirectoryGame = ParseDirectoryGame::getItem(parseDirectory->getId(), directory + fileName);
                         if(!parseDirectoryGame)
                         {
                             parseDirectoryGame = new ParseDirectoryGame((int64_t)0);
@@ -165,9 +156,7 @@ void ParseDirectoryProcess::parseGameFiles(list<string> extensions, string direc
                                 parseDirectoryGame->setMameName("");
                             }
 
-                            sqlite = Database::getInstance()->acquire();
-                            parseDirectoryGame->save(sqlite);
-                            Database::getInstance()->release();
+                            parseDirectoryGame->save();
                         }
                         
                         postStatus("Processing files", parseDirectoryGame->getFileName());
@@ -317,11 +306,8 @@ void ParseDirectoryProcess::getGameImagesFromDirectory(Game *game, string name, 
                     gameImage->setType(gameImageType);
                     gameImage->setExternal(0);
                     gameImage->setDownloaded(1);
-                    gameImage->setUrl("");
-                    
-                    sqlite3 *sqlite = Database::getInstance()->acquire();
-                    gameImage->save(sqlite);
-                    Database::getInstance()->release();
+                    gameImage->setUrl("");                    
+                    gameImage->save();
                     
                     string imageFileName = game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId());
                     if(!Utils::getInstance()->copyFile(directory + fileName, imageFileName))
@@ -336,10 +322,7 @@ void ParseDirectoryProcess::getGameImagesFromDirectory(Game *game, string name, 
                         gameImage->setFileName(directory + fileName);
                     }
                     
-                    sqlite = Database::getInstance()->acquire();
-                    gameImage->save(sqlite);
-                    Database::getInstance()->release();
-                    
+                    gameImage->save();                    
                     delete gameImage;
                 }
             }
@@ -359,9 +342,7 @@ void ParseDirectoryProcess::fetchGameInformation()
         status = STATUS_RUNNING;
         
         Platform *platform = new Platform(parseDirectory->getPlatformId());
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        platform->load(sqlite);
-        Database::getInstance()->release();
+        platform->load();
         
         ParseDirectoryGame *parseDirectoryGame = ParseDirectoryGame::getItem(parseDirectoryGames, parseDirectoryGamesIndex);
     
@@ -380,9 +361,7 @@ void ParseDirectoryProcess::fetchGameInformation()
     else
     {
         parseDirectory->setEnd(Utils::getInstance()->nowIsoDateTime());
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        parseDirectory->save(sqlite);
-        Database::getInstance()->release();
+        parseDirectory->save();
         
         CallbackResult *callbackResult = new CallbackResult(NULL);
         callbackResult->setType(NOTIFICATION_PLATFORM_UPDATED);
@@ -529,28 +508,19 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
                 game->setFileName(parseDirectoryGame->getFileName());
                 game->setDescription(matchGameItem->apiGame->getDescription());
                 game->setEsrbRatingId(matchGameItem->apiGame->getEsrbRatingId());
-                game->setReleaseDate(matchGameItem->apiGame->getReleaseDate());
-                
-                sqlite3 *sqlite = Database::getInstance()->acquire();
-                game->save(sqlite);
-                Database::getInstance()->release();
+                game->setReleaseDate(matchGameItem->apiGame->getReleaseDate());                
+                game->save();
                 
                 list<TheGamesDB::GameGenre *> *apiGameGenres = matchGameItem->apiGame->getGameGenres();
                 for(unsigned int index = 0; index < apiGameGenres->size(); index++)
                 {
-                    TheGamesDB::GameGenre *apiGameGenre = TheGamesDB::GameGenre::getItem(apiGameGenres, index);
-                    
-                    sqlite = Database::getInstance()->acquire();
-                    Genre *genre = Genre::getGenre(sqlite, TheGamesDB::API_ID, apiGameGenre->getGenreId());
-                    Database::getInstance()->release();
+                    TheGamesDB::GameGenre *apiGameGenre = TheGamesDB::GameGenre::getItem(apiGameGenres, index);                    
+                    Genre *genre = Genre::getGenre(TheGamesDB::API_ID, apiGameGenre->getGenreId());
                     
                     if(genre)
                     {
-                        GameGenre *gameGenre = new GameGenre(game->getId(), genre->getId());
-                        
-                        sqlite = Database::getInstance()->acquire();
-                        gameGenre->save(sqlite);
-                        Database::getInstance()->release();
+                        GameGenre *gameGenre = new GameGenre(game->getId(), genre->getId());                        
+                        gameGenre->save();
                         
                         delete gameGenre;
                         delete genre;
@@ -560,19 +530,13 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
                 list<TheGamesDB::GamePublisher *> *apiGamePublishers = matchGameItem->apiGame->getGamePublishers();
                 for(unsigned int index = 0; index < apiGamePublishers->size(); index++)
                 {
-                    TheGamesDB::GamePublisher *apiGamePublisher = TheGamesDB::GamePublisher::getItem(apiGamePublishers, index);
-                    
-                    sqlite = Database::getInstance()->acquire();
-                    Publisher *publisher = Publisher::getPublisher(sqlite, TheGamesDB::API_ID, apiGamePublisher->getPublisherId());
-                    Database::getInstance()->release();
+                    TheGamesDB::GamePublisher *apiGamePublisher = TheGamesDB::GamePublisher::getItem(apiGamePublishers, index);                    
+                    Publisher *publisher = Publisher::getPublisher(TheGamesDB::API_ID, apiGamePublisher->getPublisherId());
                     
                     if(publisher)
                     {
-                        GamePublisher *gamePublisher = new GamePublisher(game->getId(), publisher->getId());
-                        
-                        sqlite = Database::getInstance()->acquire();
-                        gamePublisher->save(sqlite);
-                        Database::getInstance()->release();
+                        GamePublisher *gamePublisher = new GamePublisher(game->getId(), publisher->getId());                        
+                        gamePublisher->save();
                         
                         delete gamePublisher;
                         delete publisher;
@@ -582,19 +546,13 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
                 list<TheGamesDB::GameDeveloper *> *apiGameDevelopers = matchGameItem->apiGame->getGameDevelopers();
                 for(unsigned int index = 0; index < apiGameDevelopers->size(); index++)
                 {
-                    TheGamesDB::GameDeveloper *apiGameDeveloper = TheGamesDB::GameDeveloper::getItem(apiGameDevelopers, index);
-                    
-                    sqlite = Database::getInstance()->acquire();
-                    Developer *developer = Developer::getDeveloper(sqlite, TheGamesDB::API_ID, apiGameDeveloper->getDeveloperId());
-                    Database::getInstance()->release();
+                    TheGamesDB::GameDeveloper *apiGameDeveloper = TheGamesDB::GameDeveloper::getItem(apiGameDevelopers, index);                    
+                    Developer *developer = Developer::getDeveloper(TheGamesDB::API_ID, apiGameDeveloper->getDeveloperId());
                     
                     if(developer)
                     {
-                        GameDeveloper *gameDeveloper = new GameDeveloper(game->getId(), developer->getId());
-                        
-                        sqlite = Database::getInstance()->acquire();
-                        gameDeveloper->save(sqlite);
-                        Database::getInstance()->release();
+                        GameDeveloper *gameDeveloper = new GameDeveloper(game->getId(), developer->getId());                        
+                        gameDeveloper->save();
                         
                         delete gameDeveloper;
                         delete developer;
@@ -619,10 +577,7 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
         game->setTimestamp(Utils::getInstance()->nowIsoDateTime());
         game->setName(gameName);
         game->setFileName(parseDirectoryGame->getFileName());
-
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        game->save(sqlite);
-        Database::getInstance()->release();
+        game->save();
     }
     
     
@@ -632,9 +587,7 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
     {
         parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getBoxFrontImagesDirectory(), GameImage::TYPE_BOX_FRONT);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        list<GameImage *> *boxFrontGameImages = GameImage::getItems(sqlite, game->getId(), GameImage::TYPE_BOX_FRONT);                
-        Database::getInstance()->release();
+        list<GameImage *> *boxFrontGameImages = GameImage::getItems(game->getId(), GameImage::TYPE_BOX_FRONT);
 
         areBoxFrontImages = boxFrontGameImages->size() > 0;
         GameImage::releaseItems(boxFrontGameImages);
@@ -645,9 +598,7 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
     {
         parseDirectoryProcess->getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectoryProcess->parseDirectory->getBoxBackImagesDirectory(), GameImage::TYPE_BOX_BACK);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        list<GameImage *> *boxFrontGameImages = GameImage::getItems(sqlite, game->getId(), GameImage::TYPE_BOX_BACK);                
-        Database::getInstance()->release();
+        list<GameImage *> *boxFrontGameImages = GameImage::getItems(game->getId(), GameImage::TYPE_BOX_BACK);                
 
         areBoxBackImages = boxFrontGameImages->size() > 0;
         GameImage::releaseItems(boxFrontGameImages);
@@ -690,15 +641,10 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
                         gameImage->setUrl(apiGameImage->getOriginal());
 
                         // Saves before to generate the id
-                        sqlite3 *sqlite = Database::getInstance()->acquire();
-                        gameImage->save(sqlite);
-                        Database::getInstance()->release();
-
+                        gameImage->save();
+                        
                         gameImage->setFileName(game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId()));
-
-                        sqlite = Database::getInstance()->acquire();
-                        gameImage->save(sqlite);
-                        Database::getInstance()->release();
+                        gameImage->save();
 
                         delete gameImage;
                     }
@@ -717,15 +663,10 @@ void ParseDirectoryProcess::callbackElasticsearchGames(CallbackResult *callbackR
                         gameImage->setUrl(apiGameImage->getOriginal());
 
                         // Saves before to generate the id
-                        sqlite3 *sqlite = Database::getInstance()->acquire();
-                        gameImage->save(sqlite);
-                        Database::getInstance()->release();
+                        gameImage->save();
 
                         gameImage->setFileName(game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId()));
-
-                        sqlite = Database::getInstance()->acquire();
-                        gameImage->save(sqlite);
-                        Database::getInstance()->release();
+                        gameImage->save();
 
                         delete gameImage;
                     }

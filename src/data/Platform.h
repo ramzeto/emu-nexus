@@ -25,7 +25,6 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -72,9 +71,9 @@ public:
 	int64_t getApiItemId();
 	void setApiItemId(int64_t apiItemId);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
-        int remove(sqlite3 *sqlite);
+	int load();
+	int save();
+        int remove();
         
         /**
          * 
@@ -84,7 +83,7 @@ public:
 
 	json_t *toJson();
 
-	static list<Platform *> *getItems(sqlite3 *sqlite);
+	static list<Platform *> *getItems();
 	static Platform *getItem(list<Platform *> *items, unsigned int index);
 	static void releaseItems(list<Platform *> *items);
 	static json_t *toJsonArray(list<Platform *> *items);

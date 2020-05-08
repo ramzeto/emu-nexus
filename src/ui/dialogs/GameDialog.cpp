@@ -28,7 +28,6 @@
 #include "UiUtils.h"
 #include "Platform.h"
 #include "MessageDialog.h"
-#include "Database.h"
 #include "DevelopersSelectDialog.h"
 #include "PublishersSelectDialog.h"
 #include "GenresSelectDialog.h"
@@ -51,57 +50,50 @@ const int GameDialog::IMAGE_HEIGHT = 400;
 GameDialog::GameDialog(GtkWindow *parent, int64_t platformId, int64_t gameId) : Dialog(parent, "GameDialog.ui", "gameDialog")
 {
     saved = 0;
-    
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    
+        
     game = new Game(gameId);    
-    game->load(sqlite);
+    game->load();
     game->setPlatformId(platformId);
     
-    esrbRatings = EsrbRating::getItems(sqlite);
-    gameImages = GameImage::getItems(sqlite, game->getId());
-    gameDocuments = GameDocument::getItems(sqlite, game->getId());
+    esrbRatings = EsrbRating::getItems();
+    gameImages = GameImage::getItems(game->getId());
+    gameDocuments = GameDocument::getItems(game->getId());
     
     developers = new list<Developer *>;
-    list<GameDeveloper *> *gameDevelopers = GameDeveloper::getItems(sqlite, game->getId());
+    list<GameDeveloper *> *gameDevelopers = GameDeveloper::getItems(game->getId());
     for(unsigned int c = 0; c < gameDevelopers->size(); c++)
     {
         GameDeveloper *gameDeveloper = GameDeveloper::getItem(gameDevelopers, c);
         
         Developer *developer = new Developer(gameDeveloper->getDeveloperId());
-        developer->load(sqlite);
+        developer->load();
         developers->push_back(developer);
     }
     GameDeveloper::releaseItems(gameDevelopers);
     
     publishers = new list<Publisher *>;
-    list<GamePublisher *> *gamePublishers = GamePublisher::getItems(sqlite, game->getId());
+    list<GamePublisher *> *gamePublishers = GamePublisher::getItems(game->getId());
     for(unsigned int c = 0; c < gamePublishers->size(); c++)
     {
         GamePublisher *gamePublisher = GamePublisher::getItem(gamePublishers, c);
         
         Publisher *publisher = new Publisher(gamePublisher->getPublisherId());
-        publisher->load(sqlite);
+        publisher->load();
         publishers->push_back(publisher);
     }
     GamePublisher::releaseItems(gamePublishers);
     
     genres = new list<Genre *>;
-    list<GameGenre *> *gameGenres = GameGenre::getItems(sqlite, game->getId());
+    list<GameGenre *> *gameGenres = GameGenre::getItems(game->getId());
     for(unsigned int c = 0; c < gameGenres->size(); c++)
     {
         GameGenre *gameGenre = GameGenre::getItem(gameGenres, c);
         
         Genre *genre = new Genre(gameGenre->getGenreId());
-        genre->load(sqlite);
+        genre->load();
         genres->push_back(genre);
     }
     GameGenre::releaseItems(gameGenres);
-      
-    Database::getInstance()->release();
-    
-    
-    
     
     if(game->getId() > 0)
     {
@@ -493,10 +485,8 @@ void GameDialog::selectFileName()
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
         gtk_entry_set_text(fileNameEntry, cFileName);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->save();
         
         g_free(cFileName);
     }
@@ -649,10 +639,8 @@ void GameDialog::addGameImage()
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
         string imageFileName = string(cFileName);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(imageFileName));
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->save();
         
         g_free (cFileName);
                 
@@ -806,23 +794,19 @@ void GameDialog::saveNewGameImage(GameImage* gameImage)
 {             
     // When the image is new, copies the file to the media directory and creates the thumbnail.
     if(Utils::getInstance()->fileExists(gameImage->getFileName()))
-    {
-        // Saves before to generate the id
-        sqlite3 *sqlite = Database::getInstance()->acquire();
+    {        
         gameImage->setGameId(game->getId());
-        gameImage->save(sqlite);
-        Database::getInstance()->release();
+        
+        // Saves before to generate the id
+        gameImage->save();
 
         string imageFileName = game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId());
         if(!Utils::getInstance()->copyFile(gameImage->getFileName(), imageFileName))
         {
             gameImage->setFileName(imageFileName);
 
-            Utils::getInstance()->scaleImage(gameImage->getFileName(), GameImage::THUMBNAIL_WIDTH, GameImage::THUMBNAIL_HEIGHT, gameImage->getThumbnailFileName());
-            
-            sqlite = Database::getInstance()->acquire();
-            gameImage->save(sqlite);
-            Database::getInstance()->release();
+            Utils::getInstance()->scaleImage(gameImage->getFileName(), GameImage::THUMBNAIL_WIDTH, GameImage::THUMBNAIL_HEIGHT, gameImage->getThumbnailFileName());            
+            gameImage->save();
         }
     }    
 }
@@ -955,10 +939,8 @@ void GameDialog::addGameDocument()
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
         string fileName = string(cFileName);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(fileName));
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->save();
         
         g_free (cFileName);
                 
@@ -1081,9 +1063,7 @@ void GameDialog::search()
     }
     
     Platform *platform = new Platform(game->getPlatformId());
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    platform->load(sqlite);
-    Database::getInstance()->release();
+    platform->load();
     
     GameSearchDialog *gameSearchDialog = new GameSearchDialog(GTK_WINDOW(dialog), platform->getApiItemId(), query);
     if(gameSearchDialog->execute() == GTK_RESPONSE_ACCEPT)
@@ -1115,13 +1095,11 @@ void GameDialog::search()
             for(unsigned int c = 0; c < apiGame->getGameDevelopers()->size(); c++)
             {                
                 TheGamesDB::GameDeveloper *apiGameDeveloper = TheGamesDB::GameDeveloper::getItem(apiGame->getGameDevelopers(), c);
-                sqlite3 *sqlite = Database::getInstance()->acquire();
-                Developer *developer = Developer::getDeveloper(sqlite, TheGamesDB::API_ID, apiGameDeveloper->getDeveloperId());
+                Developer *developer = Developer::getDeveloper(TheGamesDB::API_ID, apiGameDeveloper->getDeveloperId());
                 if(developer)
                 {
                     developers->push_back(developer);
                 }
-                Database::getInstance()->release();                    
             }
             loadDevelopers();
             
@@ -1131,13 +1109,11 @@ void GameDialog::search()
             for(unsigned int c = 0; c < apiGame->getGamePublishers()->size(); c++)
             {                
                 TheGamesDB::GamePublisher *apiGamePublisher = TheGamesDB::GamePublisher::getItem(apiGame->getGamePublishers(), c);
-                sqlite3 *sqlite = Database::getInstance()->acquire();
-                Publisher *publisher = Publisher::getPublisher(sqlite, TheGamesDB::API_ID, apiGamePublisher->getPublisherId());
+                Publisher *publisher = Publisher::getPublisher(TheGamesDB::API_ID, apiGamePublisher->getPublisherId());
                 if(publisher)
                 {
                     publishers->push_back(publisher);
                 }
-                Database::getInstance()->release();                    
             }
             loadPublishers();
             
@@ -1147,13 +1123,11 @@ void GameDialog::search()
             for(unsigned int c = 0; c < apiGame->getGameGenres()->size(); c++)
             {                
                 TheGamesDB::GameGenre *apiGameGenre = TheGamesDB::GameGenre::getItem(apiGame->getGameGenres(), c);
-                sqlite3 *sqlite = Database::getInstance()->acquire();
-                Genre *genre = Genre::getGenre(sqlite, TheGamesDB::API_ID, apiGameGenre->getGenreId());
+                Genre *genre = Genre::getGenre(TheGamesDB::API_ID, apiGameGenre->getGenreId());
                 if(genre)
                 {
                     genres->push_back(genre);
                 }
-                Database::getInstance()->release();                    
             }
             loadGenres();
             
@@ -1282,39 +1256,37 @@ void GameDialog::save()
     gtk_text_buffer_get_bounds(gtk_text_view_get_buffer(notesTextView), &start, &end);    
     game->setNotes(string(gtk_text_buffer_get_text (gtk_text_view_get_buffer(notesTextView), &start, &end, FALSE)));
     
-    game->setTimestamp(Utils::getInstance()->nowIsoDateTime());
-    
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    game->save(sqlite);
+    game->setTimestamp(Utils::getInstance()->nowIsoDateTime());    
+    game->save();
     
     
-    GameDeveloper::remove(sqlite, game->getId());
+    GameDeveloper::remove(game->getId());
     for(unsigned int c = 0; c < developers->size(); c++)
     {
         Developer *developer = Developer::getItem(developers, c);
         
         GameDeveloper *gameDeveloper = new GameDeveloper(game->getId(), developer->getId());
-        gameDeveloper->save(sqlite);
+        gameDeveloper->save();
         delete gameDeveloper;
     }
     
-    GamePublisher::remove(sqlite, game->getId());
+    GamePublisher::remove(game->getId());
     for(unsigned int c = 0; c < publishers->size(); c++)
     {
         Publisher *publisher = Publisher::getItem(publishers, c);
         
         GamePublisher *gamePublisher = new GamePublisher(game->getId(), publisher->getId());
-        gamePublisher->save(sqlite);
+        gamePublisher->save();
         delete gamePublisher;
     }
     
-    GameGenre::remove(sqlite, game->getId());
+    GameGenre::remove(game->getId());
     for(unsigned int c = 0; c < genres->size(); c++)
     {
         Genre *genre = Genre::getItem(genres, c);
         
         GameGenre *gameGenre = new GameGenre(game->getId(), genre->getId());
-        gameGenre->save(sqlite);
+        gameGenre->save();
         delete gameGenre;
     }
     
@@ -1322,7 +1294,7 @@ void GameDialog::save()
     for(unsigned int c = 0; c < gameDocumentsToRemove->size(); c++)
     {
         GameDocument *gameDocument = GameDocument::getItem(gameDocumentsToRemove, c);
-        gameDocument->remove(sqlite);
+        gameDocument->remove();
     }
     for(unsigned int c = 0; c < gameDocuments->size(); c++)
     {
@@ -1332,7 +1304,7 @@ void GameDialog::save()
         if(!gameDocument->getId())
         {
             gameDocument->setGameId(game->getId());
-            gameDocument->save(sqlite);
+            gameDocument->save();
 
             string imageFileName = game->getMediaDirectory() + GameDocument::FILE_PREFIX + to_string(gameDocument->getId());
             if(!Utils::getInstance()->copyFile(gameDocument->getFileName(), imageFileName))
@@ -1343,12 +1315,12 @@ void GameDialog::save()
                 gameDocument->setPreviewImageFileName("");
                 Utils::getInstance()->copyFile(tempPreviewImageFileName, gameDocument->getPreviewImageFileName());
                 
-                gameDocument->save(sqlite);
+                gameDocument->save();
             }
         }
         else
         {
-            gameDocument->save(sqlite);
+            gameDocument->save();
         }
     }
 
@@ -1356,9 +1328,8 @@ void GameDialog::save()
     for(unsigned int c = 0; c < gameImagesToRemove->size(); c++)
     {
         GameImage *gameImage = GameImage::getItem(gameImagesToRemove, c);
-        gameImage->remove(sqlite);
+        gameImage->remove();
     }    
-    Database::getInstance()->release();
     
         
     for(unsigned int c = 0; c < gameImages->size(); c++)
@@ -1386,9 +1357,7 @@ void GameDialog::save()
         }
         else
         {
-            sqlite3 *sqlite = Database::getInstance()->acquire();
-            gameImage->save(sqlite);
-            Database::getInstance()->release();
+            gameImage->save();
         }
     }
             

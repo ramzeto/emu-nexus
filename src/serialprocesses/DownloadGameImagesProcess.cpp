@@ -24,7 +24,6 @@
 
 #include "DownloadGameImagesProcess.h"
 #include "GameImage.h"
-#include "Database.h"
 #include "HttpConnector.h"
 #include "Utils.h"
 #include "NotificationManager.h"
@@ -46,18 +45,14 @@ int DownloadGameImagesProcess::execute()
 {
     status = STATUS_RUNNING;
     
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    list<GameImage *> *gameImages = GameImage::getPendingToDownloadItems(sqlite);
-    Database::getInstance()->release();        
+    list<GameImage *> *gameImages = GameImage::getPendingToDownloadItems();
     
     for(unsigned int index = 0; index < gameImages->size(); index++)
     {
         GameImage *gameImage = GameImage::getItem(gameImages, index);
         
         Game *game = new Game(gameImage->getGameId());
-        sqlite = Database::getInstance()->acquire();
-        game->load(sqlite);
-        Database::getInstance()->release();
+        game->load();
 
         int progress = ((double)index / (double)gameImages->size()) * 100.0;
         postStatus("Downloading images", game->getName(), progress);
@@ -72,9 +67,7 @@ int DownloadGameImagesProcess::execute()
             
             Utils::getInstance()->scaleImage(gameImage->getFileName(), GameImage::THUMBNAIL_WIDTH, GameImage::THUMBNAIL_HEIGHT, gameImage->getThumbnailFileName());
             
-            sqlite = Database::getInstance()->acquire();
-            gameImage->save(sqlite);
-            Database::getInstance()->release();
+            gameImage->save();
             
             if(gameImage->getType() == GameImage::TYPE_BOX_FRONT)
             {

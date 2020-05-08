@@ -29,6 +29,7 @@
 #include "Game.h"
 #include "GameImage.h"
 #include "GameDocument.h"
+#include "UiThreadBridge.h"
 
 #include <list>
 #include <map>
@@ -42,9 +43,7 @@ public:
     GameDetailDialog(GtkWindow *parent, int64_t gameId);
     virtual ~GameDetailDialog();
 
-    void setStatus(int running, string message, int progress);
-    string selectFileName(list<string> fileNames);
-    
+    void launch();    
 private:
     static const int THUMBNAIL_IMAGE_WIDTH;
     static const int THUMBNAIL_IMAGE_HEIGHT;
@@ -87,6 +86,8 @@ private:
     GtkSpinner *spinner;
     GtkLabel *messageLabel;
     GtkProgressBar *progressBar;
+    
+    UiThreadBridge *launcherUiThreadBridge;
 
     
     void updateInformation();
@@ -99,7 +100,11 @@ private:
     void updateGameDocumentsGrid();
     void selectGameDocument(GameDocument *gameDocument);
     void viewGameDocument(GameDocument *gameDocument);
-    void saveGameDocument(GameDocument *gameDocument);    
+    void saveGameDocument(GameDocument *gameDocument);
+    
+    void setLaunchStatus(int running, string message, int progress);
+    string selectLaunchFileName(list<string> fileNames);
+
     
     /**
      * 
@@ -157,9 +162,29 @@ private:
      */
     static void signalDocumentMenuSaveActivate(GtkMenuItem *menuitem, gpointer gameDetailDialog);
     
-    
+    /**
+     * 
+     * @param window
+     * @param event
+     * @param gameDetailDialog
+     * @return 
+     */
     static gboolean signalDeleteEvent(GtkWidget *window, GdkEvent *event, gpointer gameDetailDialog);
+    
+    /**
+     * 
+     * @param entry
+     * @param event
+     * @param gameDetailDialog
+     * @return 
+     */
     static gboolean signalKeyPressedEvent(GtkEntry *entry, GdkEvent *event, gpointer gameDetailDialog);
+    
+    /**
+     * 
+     * @param callbackResult
+     */
+    static void callbackGameLauncher(CallbackResult *callbackResult);
 };
 
 #endif /* GAMEDETAILDIALOG_H */

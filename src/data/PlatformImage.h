@@ -25,7 +25,6 @@
 #ifndef PLATFORMIMAGE_H
 #define PLATFORMIMAGE_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -85,15 +84,15 @@ public:
 	int64_t getDownloaded();
 	void setDownloaded(int64_t downloaded);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
-        int remove(sqlite3 *sqlite);
+	int load();
+	int save();
+        int remove();
         
         string getThumbnailFileName();
 	json_t *toJson();
 
-        static PlatformImage *getPrimaryImage(sqlite3 *sqlite, int64_t platformId);
-	static list<PlatformImage *> *getItems(sqlite3 *sqlite, int64_t platformId);
+        static PlatformImage *getPrimaryImage(int64_t platformId);
+	static list<PlatformImage *> *getItems(int64_t platformId);
 	static PlatformImage *getItem(list<PlatformImage *> *items, unsigned int index);
 	static void releaseItems(list<PlatformImage *> *items);
 	static json_t *toJsonArray(list<PlatformImage *> *items);

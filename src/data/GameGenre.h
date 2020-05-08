@@ -25,7 +25,6 @@
 #ifndef GAMEGENRE_H
 #define GAMEGENRE_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -52,15 +51,15 @@ public:
         void setGameId(int64_t gameId);
 	int64_t getGenreId();
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
+	int load();
+	int save();
 
 	json_t *toJson();
 
-	static list<GameGenre *> *getItems(sqlite3 *sqlite, int64_t gameId);
+	static list<GameGenre *> *getItems(int64_t gameId);
 	static GameGenre *getItem(list<GameGenre *> *items, unsigned int index);
 	static void releaseItems(list<GameGenre *> *items);
-        static int remove(sqlite3 *sqlite, int64_t gameId);
+        static int remove(int64_t gameId);
 	static json_t *toJsonArray(list<GameGenre *> *items);
 };
 

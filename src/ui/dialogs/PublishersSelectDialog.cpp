@@ -23,11 +23,8 @@
  */
 
 #include "PublishersSelectDialog.h"
-#include "Database.h"
 #include "UiUtils.h"
 #include "Directory.h"
-
-#include <iostream>
 
 PublishersSelectDialog::PublishersSelectDialog(GtkWindow *parent, list<Publisher *> *selectedItems) : Dialog(parent, "SearchableMultiChoiceListDialog.ui", "searchableMultiChoiceListDialog")
 {
@@ -76,9 +73,7 @@ void PublishersSelectDialog::updateItems()
         Publisher::releaseItems(items);
     }
     
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    items = Publisher::getItems(sqlite, string(gtk_entry_get_text(GTK_ENTRY(searchEntry))));
-    Database::getInstance()->release();
+    items = Publisher::getItems(string(gtk_entry_get_text(GTK_ENTRY(searchEntry))));
     
     page = 0;
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(listBox), 1);
@@ -126,9 +121,7 @@ void PublishersSelectDialog::setItemActive(int64_t itemId, int active)
     if(active)
     {
         Publisher *item = new Publisher(itemId);
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        item->load(sqlite);
-        Database::getInstance()->release();
+        item->load();
         
         selectedItems->push_back(item);
     }

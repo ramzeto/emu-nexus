@@ -16,17 +16,16 @@
  */
 
 /* 
- * File:   CacheGame.h
+ * File:   GameCache.h
  * Author: ram
  *
  * Created on July 19, 2019, 1:06 AM
  */
 
 
-#ifndef CACHEGAME_H
-#define CACHEGAME_H
+#ifndef GAMECACHE_H
+#define GAMECACHE_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -34,7 +33,7 @@
 
 using namespace std;
 
-class CacheGame
+class GameCache
 {
 private:
     static const string DIRECTORY_PREFIX;
@@ -43,13 +42,13 @@ private:
 	int64_t gameId;
 	string timestamp;
 
-	CacheGame();        
+	GameCache();        
 public:
-	CacheGame(int64_t id);
-	CacheGame(const CacheGame &orig);
-	CacheGame(json_t *json);
+	GameCache(int64_t id);
+	GameCache(const GameCache &orig);
+	GameCache(json_t *json);
 
-	~CacheGame();
+	~GameCache();
 
 	int64_t getId();
 	int64_t getGameId();
@@ -57,22 +56,22 @@ public:
 	string getTimestamp();
 	void setTimestamp(string timestamp);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
-        int remove(sqlite3 *sqlite);
+	int load();
+	int save();
+        int remove();
 
         string getDirectory();
         size_t getSize();
         
 	json_t *toJson();
 
-	static list<CacheGame *> *getItems(sqlite3 *sqlite);
-        static list<CacheGame *> *getItems(sqlite3 *sqlite, int64_t platformId);
-	static CacheGame *getItem(list<CacheGame *> *items, unsigned int index);
-	static void releaseItems(list<CacheGame *> *items);
-	static json_t *toJsonArray(list<CacheGame *> *items);        
-        static CacheGame *getCacheGame(sqlite3 *sqlite, int64_t gameId);
+	static list<GameCache *> *getItems();
+        static list<GameCache *> *getItems(int64_t platformId);
+	static GameCache *getItem(list<GameCache *> *items, unsigned int index);
+	static void releaseItems(list<GameCache *> *items);
+	static json_t *toJsonArray(list<GameCache *> *items);        
+        static GameCache *getGameCache(int64_t gameId);
 };
 
-#endif /* CACHEGAME_H */
+#endif /* GAMECACHE_H */
 

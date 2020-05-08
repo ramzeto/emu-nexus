@@ -23,7 +23,9 @@
  */
 
 #include "ParseDirectoryGame.h"
-#include <iostream>
+#include "Database.h"
+#include "Logger.h"
+
 
 ParseDirectoryGame::ParseDirectoryGame()
 {
@@ -160,12 +162,13 @@ void ParseDirectoryGame::setProcessed(int64_t processed)
 	this->processed = processed;
 }
 
-int ParseDirectoryGame::load(sqlite3 *sqlite)
+int ParseDirectoryGame::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
 	string query = "select id, parseDirectoryId, timestamp, fileName, name, mameName, processed from ParseDirectoryGame where  id = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
 		if (sqlite3_step(statement) == SQLITE_ROW)
@@ -182,21 +185,24 @@ int ParseDirectoryGame::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "ParseDirectoryGame::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("ParseDirectoryGame", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int ParseDirectoryGame::save(sqlite3 *sqlite)
+int ParseDirectoryGame::save()
 {
 	int result = 1;
+        
+        sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
 		string insert = "insert into ParseDirectoryGame (parseDirectoryId, timestamp, fileName, name, mameName, processed) values(?, ?, ?, ?, ?, ?)";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)parseDirectoryId);
 			sqlite3_bind_text(statement, 2, timestamp.c_str(), timestamp.length(), NULL);
@@ -207,12 +213,12 @@ int ParseDirectoryGame::save(sqlite3 *sqlite)
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
-				id = sqlite3_last_insert_rowid(sqlite);
+				id = sqlite3_last_insert_rowid(db);
 			}
 		}
 		else
 		{
-			cerr << "ParseDirectoryGame::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("ParseDirectoryGame", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 		}
 
 		sqlite3_finalize(statement);
@@ -221,7 +227,7 @@ int ParseDirectoryGame::save(sqlite3 *sqlite)
 	{
 		string update = "update ParseDirectoryGame set parseDirectoryId = ?, timestamp = ?, fileName = ?, name = ?, mameName = ?, processed = ? where id = ?";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)parseDirectoryId);
 			sqlite3_bind_text(statement, 2, timestamp.c_str(), timestamp.length(), NULL);
@@ -235,11 +241,13 @@ int ParseDirectoryGame::save(sqlite3 *sqlite)
 		}
 		else
 		{
-			cerr << "ParseDirectoryGame::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("ParseDirectoryGame", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
 		}
 
 		sqlite3_finalize(statement);
 	}
+        Database::getInstance()->release();
+        
 	return result;
 }
 
@@ -271,12 +279,13 @@ json_t *ParseDirectoryGame::toJson()
 	return json;
 }
 
-ParseDirectoryGame* ParseDirectoryGame::getItem(sqlite3 *sqlite, int64_t parseDirectoryId, string fileName)
+ParseDirectoryGame* ParseDirectoryGame::getItem(int64_t parseDirectoryId, string fileName)
 {
+    sqlite3 *db = Database::getInstance()->acquire();
     ParseDirectoryGame *item = NULL;
     string query = "select id, parseDirectoryId, timestamp, fileName, name, mameName, processed from ParseDirectoryGame where parseDirectoryId = ? and fileName = ? limit 1";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)parseDirectoryId);
         sqlite3_bind_text(statement, 2, fileName.c_str(), fileName.length(), NULL);
@@ -295,19 +304,21 @@ ParseDirectoryGame* ParseDirectoryGame::getItem(sqlite3 *sqlite, int64_t parseDi
     }
     else
     {
-            cerr << "ParseDirectoryGame::getItem " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("ParseDirectoryGame", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
     }
     sqlite3_finalize(statement);
+    Database::getInstance()->release();
     
     return item;
 }
 
-list<ParseDirectoryGame*>* ParseDirectoryGame::getPendingItems(sqlite3 *sqlite, int64_t parseDirectoryId)
+list<ParseDirectoryGame*>* ParseDirectoryGame::getPendingItems(int64_t parseDirectoryId)
 {
+    sqlite3 *db = Database::getInstance()->acquire();
     list<ParseDirectoryGame *> *items = new list<ParseDirectoryGame *>;
     string query = "select id, parseDirectoryId, timestamp, fileName, name, mameName, processed from ParseDirectoryGame where parseDirectoryId = ? and processed = 0";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)parseDirectoryId);
         
@@ -327,19 +338,21 @@ list<ParseDirectoryGame*>* ParseDirectoryGame::getPendingItems(sqlite3 *sqlite, 
     }
     else
     {
-            cerr << "ParseDirectoryGame::getPendingItems " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("ParseDirectoryGame", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
     }
-
     sqlite3_finalize(statement);
+    Database::getInstance()->release();
+    
     return items;
 }
 
-list<ParseDirectoryGame *> *ParseDirectoryGame::getItems(sqlite3 *sqlite)
+list<ParseDirectoryGame *> *ParseDirectoryGame::getItems()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<ParseDirectoryGame *> *items = new list<ParseDirectoryGame *>;
 	string query = "select id, parseDirectoryId, timestamp, fileName, name, mameName, processed from ParseDirectoryGame";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		while (sqlite3_step(statement) == SQLITE_ROW)
 		{
@@ -357,10 +370,11 @@ list<ParseDirectoryGame *> *ParseDirectoryGame::getItems(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "ParseDirectoryGame::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("ParseDirectoryGame", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return items;
 }
 

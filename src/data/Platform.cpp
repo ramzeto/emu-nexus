@@ -23,12 +23,13 @@
 */
 
 #include "Platform.h"
+#include "Database.h"
+#include "Logger.h"
 #include "Utils.h"
 #include "PlatformImage.h"
 #include "Directory.h"
-#include "CacheGame.h"
+#include "GameCache.h"
 
-#include <iostream>
 
 const string Platform::DIRECTORY_PREFIX = "platform_";
 
@@ -191,13 +192,13 @@ void Platform::setApiItemId(int64_t apiItemId)
 	this->apiItemId = apiItemId;
 }
 
-int Platform::load(sqlite3 *sqlite)
+int Platform::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
-
 	string query = "select id, name, description, command, deflate, deflateFileExtensions, apiId, apiItemId from Platform where  id = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
 		if (sqlite3_step(statement) == SQLITE_ROW)
@@ -215,23 +216,24 @@ int Platform::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "Platform::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return result;
 }
 
-int Platform::save(sqlite3 *sqlite)
+int Platform::save()
 {
 	int result = 1;
 
+        sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
 		string insert = "insert into Platform (name, description, command, deflate, deflateFileExtensions, apiId, apiItemId) values(?, ?, ?, ?, ?, ?, ?)";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
 			sqlite3_bind_text(statement, 2, description.c_str(), description.length(), NULL);
@@ -243,12 +245,12 @@ int Platform::save(sqlite3 *sqlite)
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
-				id = sqlite3_last_insert_rowid(sqlite);
+				id = sqlite3_last_insert_rowid(db);
 			}
 		}
 		else
 		{
-			cerr << "Platform::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 		}
 
 		sqlite3_finalize(statement);                
@@ -257,7 +259,7 @@ int Platform::save(sqlite3 *sqlite)
 	{
 		string update = "update Platform set name = ?, description = ?, command = ?, deflate = ?, deflateFileExtensions = ?, apiId = ?, apiItemId = ? where id = ?";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
 			sqlite3_bind_text(statement, 2, description.c_str(), description.length(), NULL);
@@ -272,33 +274,35 @@ int Platform::save(sqlite3 *sqlite)
 		}
 		else
 		{
-			cerr << "Platform::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
 		}
 
 		sqlite3_finalize(statement);
 	}
-
+        Database::getInstance()->release();
+        
         // Creates the media directory where images will be stored
         Utils::getInstance()->makeDirectory(getMediaDirectory());
         
 	return result;
 }
 
-int Platform::remove(sqlite3 *sqlite)
+int Platform::remove()
 {        
     int result = 1;
- 
+    sqlite3 *db = Database::getInstance()->acquire();
+    
     // Removes GameDeveloper records
     string command = "delete from GameDeveloper where gameId in (select Game.id from GameDeveloper join Game on Game.id = GameDeveloper.gameId join Platform on Platform.id = Game.platformId where Platform.id = ?)";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
         result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
     }
     else
     {
-        cerr << "Platform::remove " << sqlite3_errmsg(sqlite) << endl;
+        Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
     }
     sqlite3_finalize(statement);
     
@@ -306,14 +310,14 @@ int Platform::remove(sqlite3 *sqlite)
     {
         // Removes GamePublisher records
         command = "delete from GamePublisher where gameId in (select Game.id from GamePublisher join Game on Game.id = GamePublisher.gameId join Platform on Platform.id = Game.platformId where Platform.id = ?)";
-        if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+        if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
             result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
         }
         else
         {
-            cerr << "Platform::remove " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
         }
         sqlite3_finalize(statement);        
     }
@@ -322,14 +326,14 @@ int Platform::remove(sqlite3 *sqlite)
     {
         // Removes GameGenre records
         command = "delete from GameGenre where gameId in (select Game.id from GameGenre join Game on Game.id = GameGenre.gameId join Platform on Platform.id = Game.platformId where Platform.id = ?)";
-        if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+        if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
             result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
         }
         else
         {
-            cerr << "Platform::remove " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
         }
         sqlite3_finalize(statement);        
     }    
@@ -338,55 +342,62 @@ int Platform::remove(sqlite3 *sqlite)
     {
         // Removes GameImage records
         command = "delete from GameImage where gameId in (select Game.id from GameImage join Game on Game.id = GameImage.gameId join Platform on Platform.id = Game.platformId where Platform.id = ?)";
-        if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+        if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
             result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
         }
         else
         {
-            cerr << "Platform::remove " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
         }
         sqlite3_finalize(statement);        
     }
     
     if(!result)
     {
-        // Removes RecentGame records
-        command = "delete from RecentGame where gameId in (select Game.id from RecentGame join Game on Game.id = RecentGame.gameId join Platform on Platform.id = Game.platformId where Platform.id = ?)";
-        if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+        // Removes GameActivity records
+        command = "delete from GameActivity where gameId in (select Game.id from GameActivity join Game on Game.id = GameActivity.gameId join Platform on Platform.id = Game.platformId where Platform.id = ?)";
+        if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
             result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
         }
         else
         {
-            cerr << "Platform::remove " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
         }
         sqlite3_finalize(statement);
     }
     
-    // Removes CacheGame records
-    list<CacheGame *> *cacheGames = CacheGame::getItems(sqlite, id);
-    for(unsigned int index = 0; index < cacheGames->size(); index++)
+    if(!result)
     {
-        CacheGame *cacheGame = CacheGame::getItem(cacheGames, index);
-        cacheGame->remove(sqlite);
+        // Removes GameFavorite records
+        command = "delete from GameFavorite where gameId in (select Game.id from GameFavorite join Game on Game.id = GameFavorite.gameId join Platform on Platform.id = Game.platformId where Platform.id = ?)";
+        if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+        {
+            sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
+            result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
+        }
+        else
+        {
+            Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
+        }
+        sqlite3_finalize(statement);
     }
-    CacheGame::releaseItems(cacheGames);
     
     if(!result)
     {
         // Removes Game records
         command = "delete from Game where platformId = ?";
-        if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+        if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
             result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
         }
         else
         {
-            cerr << "Platform::remove " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
         }
         sqlite3_finalize(statement);        
     }
@@ -395,31 +406,33 @@ int Platform::remove(sqlite3 *sqlite)
     {
         // Removes Platform record
         command = "delete from Platform where id = ?";
-        if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+        if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
             result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
         }
         else
         {
-            cerr << "Platform::remove " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
         }
         sqlite3_finalize(statement);        
     }
+    Database::getInstance()->release();
     
     if(!result)
     {
         // Removes PlatformImage records
-        list<PlatformImage *> *platformImages = PlatformImage::getItems(sqlite, id);
+        list<PlatformImage *> *platformImages = PlatformImage::getItems(id);
         for(unsigned int c = 0; c < platformImages->size(); c++)
         {
             PlatformImage *platformImage = PlatformImage::getItem(platformImages, c);
-            platformImage->remove(sqlite);
+            platformImage->remove();
         }
         PlatformImage::releaseItems(platformImages);
         
         Utils::getInstance()->removeDirectory(getMediaDirectory());
     }
+    
     
     return result;
 }
@@ -461,13 +474,13 @@ json_t *Platform::toJson()
 	return json;
 }
 
-list<Platform *> *Platform::getItems(sqlite3 *sqlite)
+list<Platform *> *Platform::getItems()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<Platform *> *items = new list<Platform *>;
-
 	string query = "select id, name, description, command, deflate, deflateFileExtensions, apiId, apiItemId from Platform order by name";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		while (sqlite3_step(statement) == SQLITE_ROW)
 		{
@@ -486,10 +499,10 @@ list<Platform *> *Platform::getItems(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "Platform::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("Platform", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return items;
 }

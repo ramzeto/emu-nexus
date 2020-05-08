@@ -16,38 +16,38 @@
  */
 
 /* 
- * File:   CacheGame.cpp
+ * File:   GameCache.cpp
  * Author: ram
  * 
  * Created on July 19, 2019, 1:06 AM
  */
 
 
-#include "CacheGame.h"
+#include "GameCache.h"
+#include "Database.h"
+#include "Logger.h"
 #include "Utils.h"
 #include "Directory.h"
 
-#include <iostream>
+const string GameCache::DIRECTORY_PREFIX = "game_cache_";
 
-const string CacheGame::DIRECTORY_PREFIX = "cache_game_";
-
-CacheGame::CacheGame()
+GameCache::GameCache()
 {
 }
 
-CacheGame::CacheGame(int64_t id)
+GameCache::GameCache(int64_t id)
 {
 	this->id = id;
 }
 
-CacheGame::CacheGame(const CacheGame &orig)
+GameCache::GameCache(const GameCache &orig)
 {
 	this->id = orig.id;
 	this->gameId = orig.gameId;
 	this->timestamp = orig.timestamp;
 }
 
-CacheGame::CacheGame(json_t *json)
+GameCache::GameCache(json_t *json)
 {
 	json_t *idJson = json_object_get(json, "id");
 	if(idJson)
@@ -69,41 +69,42 @@ CacheGame::CacheGame(json_t *json)
 
 }
 
-CacheGame::~CacheGame()
+GameCache::~GameCache()
 {
 }
 
-int64_t CacheGame::getId()
+int64_t GameCache::getId()
 {
 	return id;
 }
 
-int64_t CacheGame::getGameId()
+int64_t GameCache::getGameId()
 {
 	return gameId;
 }
 
-void CacheGame::setGameId(int64_t gameId)
+void GameCache::setGameId(int64_t gameId)
 {
 	this->gameId = gameId;
 }
 
-string CacheGame::getTimestamp()
+string GameCache::getTimestamp()
 {
 	return timestamp;
 }
 
-void CacheGame::setTimestamp(string timestamp)
+void GameCache::setTimestamp(string timestamp)
 {
 	this->timestamp = timestamp;
 }
 
-int CacheGame::load(sqlite3 *sqlite)
+int GameCache::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
-	string query = "select id, gameId, timestamp from CacheGame where  id = ?";
+	string query = "select id, gameId, timestamp from GameCache where  id = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
 		if (sqlite3_step(statement) == SQLITE_ROW)
@@ -116,42 +117,44 @@ int CacheGame::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "CacheGame::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameCache", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int CacheGame::save(sqlite3 *sqlite)
+int GameCache::save()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 1;
 	if(id == 0)
 	{
-		string insert = "insert into CacheGame (gameId, timestamp) values(?, ?)";
+		string insert = "insert into GameCache (gameId, timestamp) values(?, ?)";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 			sqlite3_bind_text(statement, 2, timestamp.c_str(), timestamp.length(), NULL);
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
-				id = sqlite3_last_insert_rowid(sqlite);
+				id = sqlite3_last_insert_rowid(db);
 			}
 		}
 		else
 		{
-			cerr << "CacheGame::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("GameCache", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 		}
 
 		sqlite3_finalize(statement);
 	}
 	else
 	{
-		string update = "update CacheGame set gameId = ?, timestamp = ? where id = ?";
+		string update = "update GameCache set gameId = ?, timestamp = ? where id = ?";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
 			sqlite3_bind_text(statement, 2, timestamp.c_str(), timestamp.length(), NULL);
@@ -161,50 +164,53 @@ int CacheGame::save(sqlite3 *sqlite)
 		}
 		else
 		{
-			cerr << "CacheGame::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("GameCache", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
 		}
 
 		sqlite3_finalize(statement);
 	}
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int CacheGame::remove(sqlite3* sqlite)
+int GameCache::remove()
 {
-    int result = 1;
-    
-    string command = "delete from CacheGame where id = ?";
+    sqlite3 *db = Database::getInstance()->acquire();
+    int result = 1;    
+    string command = "delete from GameCache where id = ?";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
         result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
     }
     else
     {
-        cerr << "CacheGame::remove " << sqlite3_errmsg(sqlite) << endl;
+        Logger::getInstance()->error("GameCache", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
     }
     sqlite3_finalize(statement);
-    
+    Database::getInstance()->release();
     
     Utils::getInstance()->removeDirectory(getDirectory());
+    
     
     return result;
 }
 
 
-string CacheGame::getDirectory()
+string GameCache::getDirectory()
 {
     return Directory::getInstance()->getCacheDirectory() + DIRECTORY_PREFIX + to_string(id) + "/";
 }
 
-size_t CacheGame::getSize()
+size_t GameCache::getSize()
 {
     return Utils::getInstance()->getDirectorySize(getDirectory());
 }
 
 
-json_t *CacheGame::toJson()
+json_t *GameCache::toJson()
 {
 	json_t *json = json_object();
 
@@ -220,16 +226,17 @@ json_t *CacheGame::toJson()
 	return json;
 }
 
-list<CacheGame *> *CacheGame::getItems(sqlite3 *sqlite)
+list<GameCache *> *GameCache::getItems()
 {
-	list<CacheGame *> *items = new list<CacheGame *>;
-	string query = "select id, gameId, timestamp from CacheGame order by timestamp";
+        sqlite3 *db = Database::getInstance()->acquire();
+	list<GameCache *> *items = new list<GameCache *>;
+	string query = "select id, gameId, timestamp from GameCache order by timestamp";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		while (sqlite3_step(statement) == SQLITE_ROW)
 		{
-			CacheGame *item = new CacheGame();
+			GameCache *item = new GameCache();
 			item->id = (int64_t)sqlite3_column_int64(statement, 0);
 			item->gameId = (int64_t)sqlite3_column_int64(statement, 1);
 			item->timestamp = string((const char*) sqlite3_column_text(statement, 2));
@@ -239,24 +246,26 @@ list<CacheGame *> *CacheGame::getItems(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "CacheGame::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameCache", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return items;
 }
 
-list<CacheGame*>* CacheGame::getItems(sqlite3* sqlite, int64_t platformId)
+list<GameCache*>* GameCache::getItems(int64_t platformId)
 {
-	list<CacheGame *> *items = new list<CacheGame *>;
-	string query = "select CacheGame.id, CacheGame.gameId, CacheGame.timestamp from CacheGame join Game on CacheGame.gameId = Game.id where Game.platformId = ? order by CacheGame.timestamp";
+        sqlite3 *db = Database::getInstance()->acquire();
+	list<GameCache *> *items = new list<GameCache *>;
+	string query = "select GameCache.id, GameCache.gameId, GameCache.timestamp from GameCache join Game on GameCache.gameId = Game.id where Game.platformId = ? order by GameCache.timestamp";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
 		while (sqlite3_step(statement) == SQLITE_ROW)
 		{
-			CacheGame *item = new CacheGame();
+			GameCache *item = new GameCache();
 			item->id = (int64_t)sqlite3_column_int64(statement, 0);
 			item->gameId = (int64_t)sqlite3_column_int64(statement, 1);
 			item->timestamp = string((const char*) sqlite3_column_text(statement, 2));
@@ -266,30 +275,31 @@ list<CacheGame*>* CacheGame::getItems(sqlite3* sqlite, int64_t platformId)
 	}
 	else
 	{
-		cerr << "CacheGame::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("GameCache", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return items;
 }
 
 
-CacheGame *CacheGame::getItem(list<CacheGame *> *items, unsigned int index)
+GameCache *GameCache::getItem(list<GameCache *> *items, unsigned int index)
 {
 	if(index >= items->size())
 	{	
 		return NULL;
 	}
 
-	list<CacheGame *>::iterator item = items->begin();
+	list<GameCache *>::iterator item = items->begin();
 	advance(item, index);
 
 	return (*item);
 }
 
-void CacheGame::releaseItems(list<CacheGame *> *items)
+void GameCache::releaseItems(list<GameCache *> *items)
 {
-	for(list<CacheGame *>::iterator item = items->begin(); item != items->end(); item++)
+	for(list<GameCache *>::iterator item = items->begin(); item != items->end(); item++)
 	{
 		delete (*item);
 	}
@@ -298,10 +308,10 @@ void CacheGame::releaseItems(list<CacheGame *> *items)
 	delete items;
 }
 
-json_t *CacheGame::toJsonArray(list<CacheGame *> *items)
+json_t *GameCache::toJsonArray(list<GameCache *> *items)
 {
 	json_t *jsonArray = json_array();
-	for(list<CacheGame *>::iterator item = items->begin(); item != items->end(); item++)
+	for(list<GameCache *>::iterator item = items->begin(); item != items->end(); item++)
 	{
 		json_array_append_new(jsonArray, (*item)->toJson());
 	}
@@ -309,27 +319,29 @@ json_t *CacheGame::toJsonArray(list<CacheGame *> *items)
 	return jsonArray;
 }
 
-CacheGame* CacheGame::getCacheGame(sqlite3 *sqlite,  int64_t gameId)
+GameCache* GameCache::getGameCache(int64_t gameId)
 {
-    CacheGame *cacheGame = NULL;
-    string query = "select id, gameId, timestamp from CacheGame where gameId = ?";
+    sqlite3 *db = Database::getInstance()->acquire();
+    GameCache *gameCache = NULL;
+    string query = "select id, gameId, timestamp from GameCache where gameId = ?";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)gameId);
         if (sqlite3_step(statement) == SQLITE_ROW)
         {
-            cacheGame = new CacheGame();
-            cacheGame->id = (int64_t)sqlite3_column_int64(statement, 0);
-            cacheGame->gameId = (int64_t)sqlite3_column_int64(statement, 1);
-            cacheGame->timestamp = string((const char*) sqlite3_column_text(statement, 2));
+            gameCache = new GameCache();
+            gameCache->id = (int64_t)sqlite3_column_int64(statement, 0);
+            gameCache->gameId = (int64_t)sqlite3_column_int64(statement, 1);
+            gameCache->timestamp = string((const char*) sqlite3_column_text(statement, 2));
         }
     }
     else
     {
-        cerr << "CacheGame::load " << sqlite3_errmsg(sqlite) << endl;
+        Logger::getInstance()->error("GameCache", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
     }
-
     sqlite3_finalize(statement);
-    return cacheGame;
+    Database::getInstance()->release();
+    
+    return gameCache;
 }

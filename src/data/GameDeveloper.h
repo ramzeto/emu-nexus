@@ -25,7 +25,6 @@
 #ifndef GAMEDEVELOPER_H
 #define GAMEDEVELOPER_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -53,15 +52,15 @@ public:
         
 	int64_t getDeveloperId();        
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
+	int load();
+	int save();
 
 	json_t *toJson();
 
-	static list<GameDeveloper *> *getItems(sqlite3 *sqlite, int64_t gameId);
+	static list<GameDeveloper *> *getItems(int64_t gameId);
 	static GameDeveloper *getItem(list<GameDeveloper *> *items, unsigned int index);
 	static void releaseItems(list<GameDeveloper *> *items);
-        static int remove(sqlite3 *sqlite, int64_t gameId);
+        static int remove(int64_t gameId);
 	static json_t *toJsonArray(list<GameDeveloper *> *items);
 };
 

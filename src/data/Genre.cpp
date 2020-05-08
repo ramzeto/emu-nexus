@@ -23,7 +23,9 @@
 */
 
 #include "Genre.h"
-#include <iostream>
+#include "Database.h"
+#include "Logger.h"
+
 
 const unsigned int Genre::BULK_INSERT_BATCH_SIZE = 100;
 
@@ -111,12 +113,13 @@ void Genre::setApiItemId(int64_t apiItemId)
 	this->apiItemId = apiItemId;
 }
 
-int Genre::load(sqlite3 *sqlite)
+int Genre::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
 	string query = "select id, name, apiId, apiItemId from Genre where  id = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
 		if (sqlite3_step(statement) == SQLITE_ROW)
@@ -130,21 +133,24 @@ int Genre::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "Genre::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("Genre", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int Genre::save(sqlite3 *sqlite)
+int Genre::save()
 {
 	int result = 1;
+        
+        sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
 		string insert = "insert into Genre (name, apiId, apiItemId) values(?, ?, ?)";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)apiId);
@@ -152,12 +158,12 @@ int Genre::save(sqlite3 *sqlite)
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
-				id = sqlite3_last_insert_rowid(sqlite);
+				id = sqlite3_last_insert_rowid(db);
 			}
 		}
 		else
 		{
-			cerr << "Genre::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("Genre", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 		}
 
 		sqlite3_finalize(statement);
@@ -166,7 +172,7 @@ int Genre::save(sqlite3 *sqlite)
 	{
 		string update = "update Genre set name = ?, apiId = ?, apiItemId = ? where id = ?";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)apiId);
@@ -177,11 +183,13 @@ int Genre::save(sqlite3 *sqlite)
 		}
 		else
 		{
-			cerr << "Genre::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("Genre", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
 		}
 
 		sqlite3_finalize(statement);
 	}
+        Database::getInstance()->release();
+        
 	return result;
 }
 
@@ -204,14 +212,15 @@ json_t *Genre::toJson()
 	return json;
 }
 
-list<Genre *> *Genre::getItems(sqlite3 *sqlite, string name)
+list<Genre *> *Genre::getItems(string name)
 {
     name = "%" + name + "%";
     
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<Genre *> *items = new list<Genre *>;
 	string query = "select id, name, apiId, apiItemId from Genre where name like ? order by name";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
             sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
             
@@ -228,10 +237,11 @@ list<Genre *> *Genre::getItems(sqlite3 *sqlite, string name)
 	}
 	else
 	{
-		cerr << "Genre::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("Genre", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return items;
 }
 
@@ -270,12 +280,13 @@ json_t *Genre::toJsonArray(list<Genre *> *items)
 	return jsonArray;
 }
 
-Genre* Genre::getGenre(sqlite3* sqlite, int64_t apiId, int64_t apiItemId)
+Genre* Genre::getGenre(int64_t apiId, int64_t apiItemId)
 {
+    sqlite3 *db = Database::getInstance()->acquire();
     Genre *genre = NULL;
     string query = "select id, name, apiId, apiItemId from Genre where  apiId = ? and apiItemId = ?";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {        
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)apiId);
         sqlite3_bind_int64(statement, 2, (sqlite3_int64)apiItemId);
@@ -290,10 +301,11 @@ Genre* Genre::getGenre(sqlite3* sqlite, int64_t apiId, int64_t apiItemId)
     }
     else
     {
-        cerr << "Genre::getGenre " << sqlite3_errmsg(sqlite) << endl;
+        Logger::getInstance()->error("Genre", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
     }
-
     sqlite3_finalize(statement);
+    Database::getInstance()->release();
+    
     return genre;
 }
 
@@ -356,7 +368,7 @@ int Genre::bulkInsert(sqlite3 *sqlite, list<Genre*>* items)
         }
         else
         {
-            cerr << "Genre::" << __FUNCTION__ << " sqlite3_errmsg: " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("Genre", __FUNCTION__, string(sqlite3_errmsg(sqlite)));
         }
 
         sqlite3_finalize(statement);

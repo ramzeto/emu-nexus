@@ -31,6 +31,7 @@ const string Asset::ASSET_IMAGE_LOGO = "logo.png";
 const string Asset::ASSET_IMAGE_HOME = ASSET_IMAGE_LOGO;
 const string Asset::ASSET_IMAGE_DOWNLOADING = ASSET_IMAGE_LOGO;
 const string Asset::ASSET_IMAGE_DOCUMENT = ASSET_IMAGE_LOGO;
+const string Asset::ASSET_IMAGE_FAVORITE = "favorite.png";
 const string Asset::ASSET_HOME_PML = "home.pml";
 
 Asset *Asset::instance = NULL;
@@ -61,6 +62,11 @@ string Asset::getImageDownloading()
 string Asset::getImageDocument()
 {
     return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_DOCUMENT;
+}
+
+string Asset::getImageFavorite()
+{
+    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_FAVORITE;
 }
 
 string Asset::getHomePml()

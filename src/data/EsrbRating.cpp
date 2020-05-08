@@ -23,7 +23,9 @@
 */
 
 #include "EsrbRating.h"
-#include <iostream>
+#include "Database.h"
+#include "Logger.h"
+
 
 const unsigned int EsrbRating::BULK_INSERT_BATCH_SIZE = 100;
 
@@ -111,12 +113,13 @@ void EsrbRating::setApiItemId(int64_t apiItemId)
 	this->apiItemId = apiItemId;
 }
 
-int EsrbRating::load(sqlite3 *sqlite)
+int EsrbRating::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
 	string query = "select id, name, apiId, apiItemId from EsrbRating where  id = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
 		if (sqlite3_step(statement) == SQLITE_ROW)
@@ -130,21 +133,24 @@ int EsrbRating::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "EsrbRating::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("EsrbRating", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int EsrbRating::save(sqlite3 *sqlite)
+int EsrbRating::save()
 {
 	int result = 1;
+        
+        sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
 		string insert = "insert into EsrbRating (name, apiId, apiItemId) values(?, ?, ?)";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)apiId);
@@ -152,12 +158,12 @@ int EsrbRating::save(sqlite3 *sqlite)
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
-				id = sqlite3_last_insert_rowid(sqlite);
+				id = sqlite3_last_insert_rowid(db);
 			}
 		}
 		else
 		{
-			cerr << "EsrbRating::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("EsrbRating", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 		}
 
 		sqlite3_finalize(statement);
@@ -166,7 +172,7 @@ int EsrbRating::save(sqlite3 *sqlite)
 	{
 		string update = "update EsrbRating set name = ?, apiId = ?, apiItemId = ? where id = ?";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)apiId);
@@ -177,11 +183,13 @@ int EsrbRating::save(sqlite3 *sqlite)
 		}
 		else
 		{
-			cerr << "EsrbRating::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("EsrbRating", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
 		}
 
 		sqlite3_finalize(statement);
 	}
+        Database::getInstance()->release();
+        
 	return result;
 }
 
@@ -204,12 +212,13 @@ json_t *EsrbRating::toJson()
 	return json;
 }
 
-list<EsrbRating *> *EsrbRating::getItems(sqlite3 *sqlite)
+list<EsrbRating *> *EsrbRating::getItems()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<EsrbRating *> *items = new list<EsrbRating *>;
 	string query = "select id, name, apiId, apiItemId from EsrbRating";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		while (sqlite3_step(statement) == SQLITE_ROW)
 		{
@@ -224,10 +233,11 @@ list<EsrbRating *> *EsrbRating::getItems(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "EsrbRating::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("EsrbRating", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return items;
 }
 
@@ -325,7 +335,7 @@ int EsrbRating::bulkInsert(sqlite3 *sqlite, list<EsrbRating*>* items)
         }
         else
         {
-            cerr << "EsrbRating::" << __FUNCTION__ << " sqlite3_errmsg: " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("EsrbRating", __FUNCTION__, string(sqlite3_errmsg(sqlite)));
         }
 
         sqlite3_finalize(statement);

@@ -23,7 +23,8 @@
 */
 
 #include "Publisher.h"
-#include <iostream>
+#include "Database.h"
+#include "Logger.h"
 
 const unsigned int Publisher::BULK_INSERT_BATCH_SIZE = 100;
 
@@ -111,12 +112,13 @@ void Publisher::setApiItemId(int64_t apiItemId)
 	this->apiItemId = apiItemId;
 }
 
-int Publisher::load(sqlite3 *sqlite)
+int Publisher::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
 	string query = "select id, name, apiId, apiItemId from Publisher where  id = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
 		if (sqlite3_step(statement) == SQLITE_ROW)
@@ -130,21 +132,24 @@ int Publisher::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "Publisher::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("Publisher", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int Publisher::save(sqlite3 *sqlite)
+int Publisher::save()
 {
 	int result = 1;
+
+        sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
 		string insert = "insert into Publisher (name, apiId, apiItemId) values(?, ?, ?)";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)apiId);
@@ -152,12 +157,12 @@ int Publisher::save(sqlite3 *sqlite)
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
-				id = sqlite3_last_insert_rowid(sqlite);
+				id = sqlite3_last_insert_rowid(db);
 			}
 		}
 		else
 		{
-			cerr << "Publisher::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("Publisher", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 		}
 
 		sqlite3_finalize(statement);
@@ -166,7 +171,7 @@ int Publisher::save(sqlite3 *sqlite)
 	{
 		string update = "update Publisher set name = ?, apiId = ?, apiItemId = ? where id = ?";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)apiId);
@@ -177,11 +182,13 @@ int Publisher::save(sqlite3 *sqlite)
 		}
 		else
 		{
-			cerr << "Publisher::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("Publisher", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
 		}
 
 		sqlite3_finalize(statement);
 	}
+        Database::getInstance()->release();
+        
 	return result;
 }
 
@@ -204,14 +211,15 @@ json_t *Publisher::toJson()
 	return json;
 }
 
-list<Publisher *> *Publisher::getItems(sqlite3 *sqlite, string name)
+list<Publisher *> *Publisher::getItems(string name)
 {
-    name = "%" + name + "%";
+        name = "%" + name + "%";
     
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<Publisher *> *items = new list<Publisher *>;
 	string query = "select id, name, apiId, apiItemId from Publisher where name like ? order by name";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
             sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
             
@@ -228,10 +236,12 @@ list<Publisher *> *Publisher::getItems(sqlite3 *sqlite, string name)
 	}
 	else
 	{
-		cerr << "Publisher::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("Publisher", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
 
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return items;
 }
 
@@ -270,12 +280,13 @@ json_t *Publisher::toJsonArray(list<Publisher *> *items)
 	return jsonArray;
 }
 
-Publisher* Publisher::getPublisher(sqlite3* sqlite, int64_t apiId, int64_t apiItemId)
+Publisher* Publisher::getPublisher(int64_t apiId, int64_t apiItemId)
 {
+    sqlite3 *db = Database::getInstance()->acquire();
     Publisher *publisher = NULL;
     string query = "select id, name, apiId, apiItemId from Publisher where  apiId = ? and apiItemId = ?";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {        
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)apiId);
         sqlite3_bind_int64(statement, 2, (sqlite3_int64)apiItemId);
@@ -290,10 +301,11 @@ Publisher* Publisher::getPublisher(sqlite3* sqlite, int64_t apiId, int64_t apiIt
     }
     else
     {
-        cerr << "Publisher::getPublisher " << sqlite3_errmsg(sqlite) << endl;
+        Logger::getInstance()->error("Publisher", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
     }
-
     sqlite3_finalize(statement);
+    Database::getInstance()->release();
+    
     return publisher;
 }
 
@@ -357,7 +369,7 @@ int Publisher::bulkInsert(sqlite3 *sqlite, list<Publisher*>* items)
         }
         else
         {
-            cerr << "Publisher::" << __FUNCTION__ << " sqlite3_errmsg: " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("Publisher", __FUNCTION__, string(sqlite3_errmsg(sqlite)));
         }
 
         sqlite3_finalize(statement);

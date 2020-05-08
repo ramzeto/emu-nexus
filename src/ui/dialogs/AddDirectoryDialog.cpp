@@ -25,7 +25,6 @@
 
 #include "AddDirectoryDialog.h"
 #include "Preferences.h"
-#include "Database.h"
 #include "Utils.h"
 #include "ParseDirectory.h"
 #include "MessageDialog.h"
@@ -102,10 +101,8 @@ void AddDirectoryDialog::selectDirectory()
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
         gtk_entry_set_text(directoryEntry, cFileName);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->save();
         
         g_free(cFileName);
     }
@@ -128,10 +125,8 @@ void AddDirectoryDialog::selectMame()
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
         gtk_entry_set_text(mameExecutableEntry, cFileName);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->save();
         
         g_free(cFileName);
     }
@@ -148,10 +143,8 @@ void AddDirectoryDialog::selectBoxFrontImagesDirectory()
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
         gtk_entry_set_text(boxFrontImagesEntry, cFileName);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->save();
         
         g_free(cFileName);
     }
@@ -168,10 +161,8 @@ void AddDirectoryDialog::selectBoxBackImagesDirectory()
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
         gtk_entry_set_text(boxBackImagesEntry, cFileName);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->save();
         
         g_free(cFileName);
     }
@@ -188,10 +179,8 @@ void AddDirectoryDialog::selectScreenshotImagesDirectory()
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
         gtk_entry_set_text(screenshotImagesEntry, cFileName);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->save();
         
         g_free(cFileName);
     }
@@ -208,10 +197,8 @@ void AddDirectoryDialog::selectLogoImagesDirectory()
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
         gtk_entry_set_text(logoImagesEntry, cFileName);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->save();
         
         g_free(cFileName);
     }
@@ -228,10 +215,8 @@ void AddDirectoryDialog::selectBannerImagesDirectory()
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
         gtk_entry_set_text(bannerImagesEntry, cFileName);
 
-        sqlite3 *sqlite = Database::getInstance()->acquire();
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->save();
         
         g_free(cFileName);
     }
@@ -290,17 +275,14 @@ void AddDirectoryDialog::accept()
     parseDirectory->setBoxBackImagesDirectory(Utils::getInstance()->trim(string(gtk_entry_get_text(boxBackImagesEntry))));
     parseDirectory->setScreenshotImagesDirectory(Utils::getInstance()->trim(string(gtk_entry_get_text(screenshotImagesEntry))));
     parseDirectory->setLogoImagesDirectory(Utils::getInstance()->trim(string(gtk_entry_get_text(logoImagesEntry))));
-    parseDirectory->setBannerImagesDirectory(Utils::getInstance()->trim(string(gtk_entry_get_text(bannerImagesEntry))));
+    parseDirectory->setBannerImagesDirectory(Utils::getInstance()->trim(string(gtk_entry_get_text(bannerImagesEntry))));        
+    parseDirectory->save();
     
-    
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    parseDirectory->save(sqlite);    
     if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(mameCheckButton)))
     {
         Preferences::getInstance()->setMameExecutable(mame);
-        Preferences::getInstance()->save(sqlite);
-    }    
-    Database::getInstance()->release();
+        Preferences::getInstance()->save();
+    }
 
     CallbackResult *callbackResult = new CallbackResult(NULL);
     callbackResult->setType(NOTIFICATION_ADD_DIRECTORY);

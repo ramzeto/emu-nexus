@@ -200,6 +200,7 @@
               <object class="GtkProgressBar" id="processProgressBar">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="margin_top">10</property>
                 <property name="pulse_step">0</property>
               </object>
               <packing>

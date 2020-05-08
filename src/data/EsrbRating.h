@@ -60,12 +60,12 @@ public:
 	int64_t getApiItemId();
 	void setApiItemId(int64_t apiItemId);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
+	int load();
+	int save();
 
 	json_t *toJson();
 
-	static list<EsrbRating *> *getItems(sqlite3 *sqlite);
+	static list<EsrbRating *> *getItems();
 	static EsrbRating *getItem(list<EsrbRating *> *items, unsigned int index);
 	static void releaseItems(list<EsrbRating *> *items);
 	static json_t *toJsonArray(list<EsrbRating *> *items);

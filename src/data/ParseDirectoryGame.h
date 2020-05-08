@@ -25,7 +25,6 @@
 #ifndef PARSEDIRECTORYGAME_H
 #define PARSEDIRECTORYGAME_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -67,14 +66,14 @@ public:
 	int64_t getProcessed();
 	void setProcessed(int64_t processed);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
+	int load();
+	int save();
 
 	json_t *toJson();
 
-        static ParseDirectoryGame *getItem(sqlite3 *sqlite, int64_t parseDirectoryId, string fileName);
-        static list<ParseDirectoryGame *> *getPendingItems(sqlite3 *sqlite, int64_t parseDirectoryId);
-	static list<ParseDirectoryGame *> *getItems(sqlite3 *sqlite);
+        static ParseDirectoryGame *getItem(int64_t parseDirectoryId, string fileName);
+        static list<ParseDirectoryGame *> *getPendingItems(int64_t parseDirectoryId);
+	static list<ParseDirectoryGame *> *getItems();
 	static ParseDirectoryGame *getItem(list<ParseDirectoryGame *> *items, unsigned int index);
 	static void releaseItems(list<ParseDirectoryGame *> *items);
 	static json_t *toJsonArray(list<ParseDirectoryGame *> *items);

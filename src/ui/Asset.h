@@ -35,11 +35,18 @@ using namespace std;
 class Asset {
 
 public:
+    static const string ASSET_IMAGE_LOGO;
     static const string ASSET_IMAGE_HOME;
     static const string ASSET_IMAGE_DOWNLOADING;
     static const string ASSET_IMAGE_DOCUMENT;
-    static const string ASSET_IMAGE_LOGO;
+    static const string ASSET_IMAGE_FAVORITE;    
     static const string ASSET_HOME_PML;
+    
+    /**
+     * 
+     * @return Logo image filename.
+     */
+    string getImageLogo();
     
     /**
      * 
@@ -61,9 +68,9 @@ public:
     
     /**
      * 
-     * @return Logo image filename.
+     * @return Favorite image filename.
      */
-    string getImageLogo();
+    string getImageFavorite();    
     
     /**
      * 

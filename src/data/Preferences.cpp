@@ -23,10 +23,10 @@
 */
 
 #include "Preferences.h"
-
+#include "Database.h"
+#include "Logger.h"
 #include "Database.h"
 #include "Directory.h"
-#include <iostream>
 
 Preferences *Preferences::instance = NULL;
 
@@ -120,13 +120,13 @@ void Preferences::setElasticsearchPort(int64_t elasticsearchPort)
     this->elasticsearchPort = elasticsearchPort;
 }
 
-int Preferences::load(sqlite3 *sqlite)
+int Preferences::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
-
 	string query = "select maximized, windowWidth, windowHeight, lastPath, cacheSize, mameExecutable, elasticsearchPort from Preferences";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		if (sqlite3_step(statement) == SQLITE_ROW)
 		{
@@ -143,22 +143,22 @@ int Preferences::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "Preferences::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("Preferences", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return result;
 }
 
-int Preferences::save(sqlite3 *sqlite)
+int Preferences::save()
 {
+    sqlite3 *db = Database::getInstance()->acquire();
     int result = 1;
-
     int exists = 0;
     string query = "select maximized from Preferences";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {
         if (sqlite3_step(statement) == SQLITE_ROW)
         {
@@ -167,7 +167,7 @@ int Preferences::save(sqlite3 *sqlite)
     }
     else
     {
-        cerr << "Preferences::" << __FUNCTION__ << " " << sqlite3_errmsg(sqlite) << endl;
+        Logger::getInstance()->error("Preferences", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
     }
     sqlite3_finalize(statement);
 
@@ -182,7 +182,7 @@ int Preferences::save(sqlite3 *sqlite)
         insertOrUpdate = "insert into Preferences (maximized, windowWidth, windowHeight, lastPath, cacheSize, mameExecutable, elasticsearchPort) values(?, ?, ?, ?, ?, ?, ?)";
     }
 
-    if (sqlite3_prepare_v2(sqlite, insertOrUpdate.c_str(), insertOrUpdate.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, insertOrUpdate.c_str(), insertOrUpdate.length(), &statement, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int64(statement, 1, (sqlite3_int64) maximized);
         sqlite3_bind_int64(statement, 2, (sqlite3_int64) windowWidth);
@@ -196,10 +196,10 @@ int Preferences::save(sqlite3 *sqlite)
     }
     else
     {
-        cerr << "Preferences::" << __FUNCTION__ << " " << sqlite3_errmsg(sqlite) << endl;
+        Logger::getInstance()->error("Preferences", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insertOrUpdate);
     }
-
-    sqlite3_finalize(statement);   
+    sqlite3_finalize(statement);
+    Database::getInstance()->release();
                 
     return result;
 }
@@ -214,11 +214,8 @@ Preferences* Preferences::getInstance()
 {
     if(!instance)
     {
-        instance = new Preferences();
-        
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        instance->load(sqlite);
-        Database::getInstance()->release();
+        instance = new Preferences();        
+        instance->load();
     }
     
     return instance;

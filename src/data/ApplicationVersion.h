@@ -25,7 +25,6 @@
 #ifndef APPLICATIONVERSION_H
 #define APPLICATIONVERSION_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -52,16 +51,16 @@ public:
 	string getTimestamp();
 	void setTimestamp(string timestamp);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
+	int load();
+	int save();
 
 	json_t *toJson();
 
-	static list<ApplicationVersion *> *getItems(sqlite3 *sqlite);
+	static list<ApplicationVersion *> *getItems();
 	static ApplicationVersion *getItem(list<ApplicationVersion *> *items, unsigned int index);
 	static void releaseItems(list<ApplicationVersion *> *items);
 	static json_t *toJsonArray(list<ApplicationVersion *> *items);
-        static ApplicationVersion* getCurrentVersion(sqlite3 *sqlite);
+        static ApplicationVersion* getCurrentVersion();
 };
 
 #endif

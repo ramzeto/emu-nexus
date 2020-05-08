@@ -33,11 +33,12 @@
 #include "Genre.h"
 #include "Utils.h"
 #include "Preferences.h"
-#include "Database.h"
 #include "Asset.h"
 #include "Directory.h"
 #include "EsrbRating.h"
 #include "SelectFromListDialog.h"
+#include "GameLauncher.h"
+#include "GameActivity.h"
 
 #include <unistd.h>
 #include <cstdlib>
@@ -70,16 +71,14 @@ GameDetailDialog::GameDetailDialog(GtkWindow *parent, int64_t gameId) : Dialog(p
     progressBar = (GtkProgressBar *)gtk_builder_get_object(builder, "progressBar");
     gtk_widget_hide(GTK_WIDGET(launchBox));
     
-    sqlite3 *sqlite = Database::getInstance()->acquire();
     game = new Game(gameId);
-    game->load(sqlite);
+    game->load();
     
-    gameImages = GameImage::getItems(sqlite, game->getId());
-    gameDocuments = GameDocument::getItems(sqlite, game->getId());
+    gameImages = GameImage::getItems(game->getId());
+    gameDocuments = GameDocument::getItems(game->getId());
     
     Platform *platform = new Platform(game->getPlatformId());        
-    platform->load(sqlite);
-    Database::getInstance()->release();
+    platform->load();
     
     gameImageBoxes = new map<GameImage *, GtkWidget *>;
     selectedGameImage = NULL;
@@ -101,7 +100,7 @@ GameDetailDialog::GameDetailDialog(GtkWindow *parent, int64_t gameId) : Dialog(p
     gtk_label_set_text(imageTypeLabel, "");
     
     gtk_label_set_text(platformLabel, platform->getName().c_str());
-    delete platform;        
+    delete platform;
     
     gtk_image_clear(image);
     
@@ -109,12 +108,16 @@ GameDetailDialog::GameDetailDialog(GtkWindow *parent, int64_t gameId) : Dialog(p
     updateGameImagesGrid();
     updateGameDocumentsGrid();
     
+    launcherUiThreadBridge = UiThreadBridge::registerBridge(this, callbackGameLauncher);
+    
     g_signal_connect(dialog, "delete-event", G_CALLBACK(signalDeleteEvent), this);
-    g_signal_connect(dialog, "key-press-event", G_CALLBACK (signalKeyPressedEvent), this);
+    g_signal_connect(dialog, "key-press-event", G_CALLBACK (signalKeyPressedEvent), this);        
 }
 
 GameDetailDialog::~GameDetailDialog()
 {
+    UiThreadBridge::unregisterBridge(launcherUiThreadBridge);
+    
     delete game;
     
     GameImage::releaseItems(gameImages);
@@ -124,7 +127,13 @@ GameDetailDialog::~GameDetailDialog()
     delete gameDocumentBoxes;
 }
 
-void GameDetailDialog::setStatus(int running, string message, int progress)
+void GameDetailDialog::launch()
+{
+    GameLauncher::getInstance()->launch(game->getId(), launcherUiThreadBridge, UiThreadBridge::callback);
+    execute();
+}
+
+void GameDetailDialog::setLaunchStatus(int running, string message, int progress)
 {
     this->running = running;
     gtk_widget_show_all(GTK_WIDGET(launchBox));
@@ -153,7 +162,7 @@ void GameDetailDialog::setStatus(int running, string message, int progress)
     gtk_label_set_text(messageLabel, message.c_str());    
 }
 
-string GameDetailDialog::selectFileName(list<string> fileNames)
+string GameDetailDialog::selectLaunchFileName(list<string> fileNames)
 {
     string fileName = "";
     list<string> baseFileNames;
@@ -179,8 +188,58 @@ void GameDetailDialog::updateInformation()
 {
     string html = "";
     
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    list<GameDeveloper *> *gameDevelopers = GameDeveloper::getItems(sqlite, game->getId());
+    list<GameActivity *> *gameActivities = GameActivity::getItems(-1, game->getId());
+    if(gameActivities->size() > 0)
+    {
+        html += "<b>Last played</b>\n";
+        html += gameActivities->back()->getTimestamp();        
+        html += "\n\n";
+        
+        int64_t duration = 0; 
+        for(unsigned int c = 0; c < gameActivities->size(); c++)
+        {
+            GameActivity *gameActivity = GameActivity::getItem(gameActivities, c);
+            duration += gameActivity->getDuration();
+        }
+        
+        int64_t hours = (duration / 3600);
+        int64_t minutes = (duration % 3600) / 60;
+        int64_t seconds = (duration % 3600) % 60;
+        
+        html += "<b>Play time</b>\n";
+        if(hours > 0)
+        {
+            html += to_string(hours);
+            if(hours == 1)
+            {
+                html += " hour ";
+            }
+            else
+            {
+                html += " hours ";
+            }
+        }
+        if(minutes > 0)
+        {
+            html += to_string(minutes);
+            if(minutes == 1)
+            {
+                html += " minute ";
+            }
+            else
+            {
+                html += " minutes ";
+            }
+        }
+        if(seconds > 0)
+        {
+            html += to_string(seconds) + " seconds";
+        }                
+        html += "\n\n";
+    }
+    GameActivity::releaseItems(gameActivities);
+    
+    list<GameDeveloper *> *gameDevelopers = GameDeveloper::getItems(game->getId());
     if(gameDevelopers->size() > 0)
     {
         html += "<b>Developed by</b>\n";
@@ -194,7 +253,7 @@ void GameDetailDialog::updateInformation()
             GameDeveloper *gameDeveloper = GameDeveloper::getItem(gameDevelopers, c);
             
             Developer *developer = new Developer(gameDeveloper->getDeveloperId());
-            developer->load(sqlite);
+            developer->load();
             
             html += Utils::getInstance()->htmlEntities(developer->getName());
             
@@ -204,7 +263,7 @@ void GameDetailDialog::updateInformation()
     }
     GameDeveloper::releaseItems(gameDevelopers);
     
-    list<GamePublisher *> *gamePublishers = GamePublisher::getItems(sqlite, game->getId());
+    list<GamePublisher *> *gamePublishers = GamePublisher::getItems(game->getId());
     if(gamePublishers->size() > 0)
     {
         html += "<b>Published by</b>\n";
@@ -218,7 +277,7 @@ void GameDetailDialog::updateInformation()
             GamePublisher *gamePublisher = GamePublisher::getItem(gamePublishers, c);
             
             Publisher *publisher = new Publisher(gamePublisher->getPublisherId());
-            publisher->load(sqlite);
+            publisher->load();
             
             html += Utils::getInstance()->htmlEntities(publisher->getName());
             
@@ -229,7 +288,7 @@ void GameDetailDialog::updateInformation()
     GamePublisher::releaseItems(gamePublishers);
     
     
-    list<GameGenre *> *gameGenres = GameGenre::getItems(sqlite, game->getId());
+    list<GameGenre *> *gameGenres = GameGenre::getItems(game->getId());
     if(gameGenres->size() > 0)
     {
         if(gameGenres->size() == 1)
@@ -250,7 +309,7 @@ void GameDetailDialog::updateInformation()
             GameGenre *gameGenre = GameGenre::getItem(gameGenres, c);
             
             Genre *genre = new Genre(gameGenre->getGenreId());
-            genre->load(sqlite);
+            genre->load();
             
             html += Utils::getInstance()->htmlEntities(genre->getName());
             
@@ -270,7 +329,7 @@ void GameDetailDialog::updateInformation()
     if(game->getEsrbRatingId() > 0)
     {
         EsrbRating *esrbRating = new EsrbRating(game->getEsrbRatingId());
-        if(esrbRating->load(sqlite))
+        if(esrbRating->load())
         {
             html += "<b>ESRB rating</b>\n";
             html += Utils::getInstance()->htmlEntities(esrbRating->getName());
@@ -278,7 +337,6 @@ void GameDetailDialog::updateInformation()
         }
         delete esrbRating;
     }        
-    Database::getInstance()->release();
     
     if(game->getDescription().length() > 0)
     {
@@ -493,10 +551,7 @@ void GameDetailDialog::saveGameImage(GameImage* gameImage)
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
 
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));
-
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->save();
 
         Utils::getInstance()->copyFile(gameImage->getFileName(), string(cFileName));
 
@@ -620,11 +675,8 @@ void GameDetailDialog::saveGameDocument(GameDocument *gameDocument)
     {
         char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
 
-        Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));
-        
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        Preferences::getInstance()->save(sqlite);
-        Database::getInstance()->release();
+        Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));        
+        Preferences::getInstance()->save();
 
         Utils::getInstance()->copyFile(gameDocument->getFileName(), string(cFileName));
         
@@ -774,4 +826,81 @@ gboolean GameDetailDialog::signalDeleteEvent(GtkWidget* window, GdkEvent* event,
 gboolean GameDetailDialog::signalKeyPressedEvent(GtkEntry* entry, GdkEvent* event, gpointer gameDetailDialog)
 {
     return ((GameDetailDialog *)gameDetailDialog)->running;
+}
+
+void GameDetailDialog::callbackGameLauncher(CallbackResult *callbackResult)
+{
+    GameDetailDialog *gameDetailDialog = (GameDetailDialog *)callbackResult->getRequester();
+    
+    string message = "";
+    int running = 0;
+    if(callbackResult->getError())
+    {
+        if(callbackResult->getError() == GameLauncher::ERROR_BUSY)
+        {
+            message = "There is another process running";
+        }
+        else if(callbackResult->getError() == GameLauncher::ERROR_FILE_NOT_FOUND)
+        {
+            message = "File not found";
+        }
+        else if(callbackResult->getError() == GameLauncher::ERROR_INFLATE)
+        {
+            message = "Decompressing/Unpacking failed";
+        }
+        else if(callbackResult->getError() == GameLauncher::ERROR_INFLATE_NOT_SUPPORTED)
+        {
+            message = "Compressed/Packed file format not supported";
+        }
+        else if(callbackResult->getError() == GameLauncher::ERROR_OTHER)
+        {
+            message = "An unknown error happened";
+        }
+        
+        running = 0;
+    }
+    else
+    {
+        if(callbackResult->getStatus() == GameLauncher::STATE_IDLE)
+        {
+            running = 1;
+            message = "Preparing...";
+        }
+        else if(callbackResult->getStatus() == GameLauncher::STATE_INFLATING)
+        {
+            running = 1;
+            message = "Decompressing/Unpacking...";
+        }
+        else if(callbackResult->getStatus() == GameLauncher::STATE_SELECTING_FILE)
+        {
+            running = 1;
+            message = "Selecting file...";
+        }
+        else if(callbackResult->getStatus() == GameLauncher::STATE_FOUND_MULTIPLE_FILES)
+        {            
+            string fileName = gameDetailDialog->selectLaunchFileName(GameLauncher::getInstance()->getFileNames());
+            if(fileName.length() > 0)
+            {
+                running = 1;
+                GameLauncher::getInstance()->selectFileName(fileName);
+            }
+            else
+            {
+                running = 0;
+                message = "Execution canceled";
+                GameLauncher::getInstance()->cancel();
+            }
+        }        
+        else if(callbackResult->getStatus() == GameLauncher::STATE_RUNNING)
+        {
+            running = 1;
+            message = "Running...";
+        }
+        else if(callbackResult->getStatus() == GameLauncher::STATE_FINISHED)
+        {
+            running = 0;
+            message = "Execution finished";
+        }
+    }
+    gameDetailDialog->setLaunchStatus(running, message, callbackResult->getProgress());
 }

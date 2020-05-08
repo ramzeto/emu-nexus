@@ -23,7 +23,9 @@
  */
 
 #include "ParseDirectory.h"
-#include <iostream>
+#include "Database.h"
+#include "Logger.h"
+
 
 ParseDirectory::ParseDirectory()
 {
@@ -282,12 +284,13 @@ void ParseDirectory::setBannerImagesDirectory(string bannerImagesDirectory)
 	this->bannerImagesDirectory = bannerImagesDirectory;
 }
 
-int ParseDirectory::load(sqlite3 *sqlite)
+int ParseDirectory::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
 	string query = "select id, platformId, timestamp, start, end, directory, fileExtensions, useMame, mame, boxFrontImagesDirectory, boxBackImagesDirectory, screenshotImagesDirectory, logoImagesDirectory, bannerImagesDirectory from ParseDirectory where  id = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
 		if (sqlite3_step(statement) == SQLITE_ROW)
@@ -311,21 +314,24 @@ int ParseDirectory::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "ParseDirectory::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("ParseDirectory", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int ParseDirectory::save(sqlite3 *sqlite)
+int ParseDirectory::save()
 {
 	int result = 1;
+        
+        sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
 		string insert = "insert into ParseDirectory (platformId, timestamp, start, end, directory, fileExtensions, useMame, mame, boxFrontImagesDirectory, boxBackImagesDirectory, screenshotImagesDirectory, logoImagesDirectory, bannerImagesDirectory) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
 			sqlite3_bind_text(statement, 2, timestamp.c_str(), timestamp.length(), NULL);
@@ -343,12 +349,12 @@ int ParseDirectory::save(sqlite3 *sqlite)
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
-				id = sqlite3_last_insert_rowid(sqlite);
+				id = sqlite3_last_insert_rowid(db);
 			}
 		}
 		else
 		{
-			cerr << "ParseProcess::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("ParseDirectory", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 		}
 
 		sqlite3_finalize(statement);
@@ -357,7 +363,7 @@ int ParseDirectory::save(sqlite3 *sqlite)
 	{
 		string update = "update ParseDirectory set platformId = ?, timestamp = ?, start = ?, end = ?, directory = ?, fileExtensions = ?, useMame = ?, mame = ?, boxFrontImagesDirectory = ?, boxBackImagesDirectory = ?, screenshotImagesDirectory = ?, logoImagesDirectory = ?, bannerImagesDirectory = ? where id = ?";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
 			sqlite3_bind_text(statement, 2, timestamp.c_str(), timestamp.length(), NULL);
@@ -378,11 +384,13 @@ int ParseDirectory::save(sqlite3 *sqlite)
 		}
 		else
 		{
-			cerr << "ParseProcess::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("ParseDirectory", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
 		}
 
 		sqlite3_finalize(statement);
 	}
+        Database::getInstance()->release();
+        
 	return result;
 }
 
@@ -435,12 +443,13 @@ json_t *ParseDirectory::toJson()
 	return json;
 }
 
-ParseDirectory* ParseDirectory::getPengingItem(sqlite3* sqlite)
+ParseDirectory* ParseDirectory::getPengingItem()
 {
+    sqlite3 *db = Database::getInstance()->acquire();
     ParseDirectory *item = NULL;
     string query = "select id, platformId, timestamp, start, end, directory, fileExtensions, useMame, mame, boxFrontImagesDirectory, boxBackImagesDirectory, screenshotImagesDirectory, logoImagesDirectory, bannerImagesDirectory from ParseDirectory where end = '' order by timestamp limit 1";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {
             while (sqlite3_step(statement) == SQLITE_ROW)
             {
@@ -463,20 +472,21 @@ ParseDirectory* ParseDirectory::getPengingItem(sqlite3* sqlite)
     }
     else
     {
-            cerr << "ParseDirectory::getPengingItem " << sqlite3_errmsg(sqlite) << endl;
+        Logger::getInstance()->error("ParseDirectory", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
     }
     sqlite3_finalize(statement);
-
+    Database::getInstance()->release();
         
     return item;
 }
 
-list<ParseDirectory *> *ParseDirectory::getItems(sqlite3 *sqlite)
+list<ParseDirectory *> *ParseDirectory::getItems()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<ParseDirectory *> *items = new list<ParseDirectory *>;
 	string query = "select id, platformId, timestamp, start, end, directory, fileExtensions, useMame, mame, boxFrontImagesDirectory, boxBackImagesDirectory, screenshotImagesDirectory, logoImagesDirectory, bannerImagesDirectory from ParseDirectory";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		while (sqlite3_step(statement) == SQLITE_ROW)
 		{
@@ -501,10 +511,11 @@ list<ParseDirectory *> *ParseDirectory::getItems(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "ParseDirectory::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("ParseDirectory", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return items;
 }
 

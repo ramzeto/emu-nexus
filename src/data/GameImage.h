@@ -25,7 +25,6 @@
 #ifndef GAMEIMAGE_H
 #define GAMEIMAGE_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -84,18 +83,18 @@ public:
 	int64_t getDownloaded();
 	void setDownloaded(int64_t downloaded);
         
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
-        int remove(sqlite3 *sqlite);
+	int load();
+	int save();
+        int remove();
 
         string getThumbnailFileName();
 	json_t *toJson();
 
-        static GameImage *getPrimaryImage(sqlite3 *sqlite, int64_t gameId);
+        static GameImage *getPrimaryImage(int64_t gameId);
         
-	static list<GameImage *> *getItems(sqlite3 *sqlite, int64_t gameId);
-        static list<GameImage *> *getItems(sqlite3 *sqlite, int64_t gameId, int64_t type);
-        static list<GameImage *> *getPendingToDownloadItems(sqlite3 *sqlite);
+	static list<GameImage *> *getItems(int64_t gameId);
+        static list<GameImage *> *getItems(int64_t gameId, int64_t type);
+        static list<GameImage *> *getPendingToDownloadItems();
 	static GameImage *getItem(list<GameImage *> *items, unsigned int index);
 	static void releaseItems(list<GameImage *> *items);
 	static json_t *toJsonArray(list<GameImage *> *items);

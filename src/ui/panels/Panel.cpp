@@ -24,7 +24,6 @@
 
 #include "Panel.h"
 #include "Directory.h"
-#include <iostream>
 
 using namespace std;
 

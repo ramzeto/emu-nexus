@@ -25,7 +25,6 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include <sqlite3.h>
 #include <string>
 #include <list>
 #include <jansson.h>
@@ -90,9 +89,9 @@ public:
 	int64_t getApiItemId();
 	void setApiItemId(int64_t apiItemId);
 
-	int load(sqlite3 *sqlite);
-	int save(sqlite3 *sqlite);
-        int remove(sqlite3 *sqlite);
+	int load();
+	int save();
+        int remove();
        
         /**
          * 
@@ -102,8 +101,8 @@ public:
 
 	json_t *toJson();
 
-        static Game* getGameWithFileName(sqlite3 *sqlite, int64_t platformId, string fileName);
-	static list<Game *> *getItems(sqlite3 *sqlite, int64_t platformId, string query);
+        static Game* getGameWithFileName(int64_t platformId, string fileName);
+	static list<Game *> *getItems(int64_t platformId, string query);
 	static Game *getItem(list<Game *> *items, unsigned int index);
 	static void releaseItems(list<Game *> *items);
 	static json_t *toJsonArray(list<Game *> *items);

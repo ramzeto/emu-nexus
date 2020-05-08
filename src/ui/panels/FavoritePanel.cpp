@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 ram
+ * Copyright (C) 2020 ram
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,13 +16,14 @@
  */
 
 /* 
- * File:   PlatformPanel.cpp
+ * File:   FavoritePanel.cpp
  * Author: ram
  * 
- * Created on February 8, 2019, 10:04 PM
+ * Created on May 8, 2020, 2:05 PM
  */
 
-#include "PlatformPanel.h"
+#include "FavoritePanel.h"
+#include "Notifications.h"
 #include "UiUtils.h"
 #include "GameDialog.h"
 #include "MessageDialog.h"
@@ -35,32 +36,29 @@
 #include "Asset.h"
 #include "Utils.h"
 #include "GameDetailDialog.h"
-#include "GameFavorite.h"
-    
-PlatformPanel::PlatformPanel(GtkWindow *parentWindow, int platformId)  : Panel(parentWindow, "PlatformPanel.ui", "platformBox")
+
+FavoritePanel::FavoritePanel(GtkWindow *parentWindow)  : Panel(parentWindow, "FavoritePanel.ui", "favoriteBox")
 {
-    this->platformId = platformId;
-    
     gameGridScrolledWindow = (GtkScrolledWindow *)gtk_builder_get_object (builder, "gameGridScrolledWindow");
     gameGridListBox = (GtkListBox *)gtk_builder_get_object (builder, "gameGridListBox");
-    
+
     isShown = 0;
     panelWidth = 0;
     panelHeight = 0;
     gameGridItemIndex = 0;
     selectedGameId = 0;
     gameGridItems = new map<int64_t, GameGridItemWidget *>;
-    games = NULL;
-    searchQuery = "";
+    gameFavorites = NULL;
     
     g_signal_connect (getPanelBox(), "show", G_CALLBACK(signalShow), this);    
     g_signal_connect (getPanelBox(), "size-allocate", G_CALLBACK(signalGameGridSizeAllocate), this);    
     g_signal_connect (gameGridScrolledWindow, "edge-reached", G_CALLBACK(signalGameGridScrolledWindowEdgeReached), this);
+        
     
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_UPDATED, this, callbackNotification, 1);
 }
 
-PlatformPanel::~PlatformPanel()
+FavoritePanel::~FavoritePanel()
 {
     NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_UPDATED, this);
     
@@ -71,69 +69,14 @@ PlatformPanel::~PlatformPanel()
     gameGridItems->clear();
     delete gameGridItems;
     
-    if(games)
+    if(gameFavorites)
     {
-        Game::releaseItems(games);
+        GameFavorite::releaseItems(gameFavorites);
     }
 }
 
-void PlatformPanel::showGameDialog(int64_t gameId)
-{
-    GameDialog *gameDialog = new GameDialog(GTK_WINDOW(parentWindow), platformId, gameId);   
-    if(gameDialog->execute() == GTK_RESPONSE_ACCEPT)
-    {
-        // New game
-        if(!gameId)
-        {
-            // Notifies of the new game to any object listening for platform changes
-            CallbackResult *callbackResult = new CallbackResult(NULL);
-            callbackResult->setType(NOTIFICATION_PLATFORM_UPDATED);
-            callbackResult->setData(new Platform(platformId));
-            NotificationManager::getInstance()->postNotification(callbackResult);                
 
-
-            gameGridItemIndex = 0;
-            loadGridPage();
-        }
-        // Update game
-        else
-        {
-            updateGame(gameId);
-            selectGame(gameId);
-        }        
-    }
-    GameDialog::deleteWhenReady(gameDialog);
-}
-
-void PlatformPanel::updateGames(string searchQuery)
-{
-    this->searchQuery  = searchQuery;
-    
-    gameGridItemIndex = 0;
-    loadGridPage();
-}
-
-void PlatformPanel::showAddDirectoryDialog()
-{
-    AddDirectoryDialog *addDirectoryDialog = new AddDirectoryDialog(GTK_WINDOW(parentWindow), platformId);   
-    if(addDirectoryDialog->execute() == GTK_RESPONSE_ACCEPT)
-    {
-        
-    }
-    delete addDirectoryDialog;
-}
-
-void PlatformPanel::loadGames()
-{    
-    if(games)
-    {
-        Game::releaseItems(games);
-    }
-    
-    games = Game::getItems(platformId, searchQuery);
-}
-
-void PlatformPanel::loadGridPage()
+void FavoritePanel::loadGridPage()
 {
     if(!isShown)
     {
@@ -152,7 +95,11 @@ void PlatformPanel::loadGridPage()
             UiUtils::getInstance()->clearContainer(GTK_CONTAINER(gameGridListBox), 1);
         }
         
-        loadGames();
+        if(gameFavorites)
+        {
+            GameFavorite::releaseItems(gameFavorites);
+        }
+        gameFavorites = GameFavorite::getItems();
     }
 
     int width = gtk_widget_get_allocated_width(GTK_WIDGET(gameGridScrolledWindow));
@@ -172,7 +119,7 @@ void PlatformPanel::loadGridPage()
 
     for(int row = 0; row < rows; row++)
     {
-        if(gameGridItemIndex >= games->size())
+        if(gameGridItemIndex >= gameFavorites->size())
         {
             break;
         }
@@ -181,18 +128,19 @@ void PlatformPanel::loadGridPage()
         
         for(int column = 0; column < columns; column++)
         {
-            if(gameGridItemIndex < games->size())
+            if(gameGridItemIndex < gameFavorites->size())
             {
-                Game *game = Game::getItem(games, gameGridItemIndex);
-                
+                GameFavorite *gameFavorite = GameFavorite::getItem(gameFavorites, gameGridItemIndex);
+                Game *game = new Game(gameFavorite->getGameId());            
+                game->load();
+                                
                 GameGridItemWidget *gameGridItemWidget = new GameGridItemWidget(this, game);
                 gameGridItemWidget->setCallbackSelect(onGameGridItemWidgetSelect);
                 gameGridItemWidget->setCallbackActivate(onGameGridItemWidgetActive);
                 gameGridItemWidget->setCallbackContextMenuFavorite(onGameGridItemWidgetMenuFavoriteSelect);
                 gameGridItemWidget->setCallbackContextMenuDetail(onGameGridItemWidgetMenuDetailSelect);
                 gameGridItemWidget->setCallbackContextMenuEdit(onGameGridItemWidgetMenuEditSelect);
-                gameGridItemWidget->setCallbackContextMenuRemove(onGameGridItemWidgetMenuRemoveSelect);
-                                
+                
                 gtk_box_pack_start(rowBox, gameGridItemWidget->getWidget(), 1, 1, 0);
                 
                 if(selectedGameId == game->getId())
@@ -202,6 +150,8 @@ void PlatformPanel::loadGridPage()
                 gameGridItems->insert(pair<int64_t, GameGridItemWidget *>(game->getId(), gameGridItemWidget));
                 
                 gameGridItemIndex++;
+                
+                delete game;
             }
             else
             {
@@ -222,33 +172,54 @@ void PlatformPanel::loadGridPage()
     gtk_widget_show_all(GTK_WIDGET(getPanelBox()));
 }
 
-void PlatformPanel::updateGame(int64_t gameId)
+void FavoritePanel::showGameDialog(int64_t gameId)
 {
-    if(games == NULL)
-    {
-        return;
-    }
+    Game *game = new Game(gameId);
+    game->load();
     
-    Game *game = NULL;
-    for(unsigned int c = 0; c < games->size(); c++)
+    GameDialog *gameDialog = new GameDialog(GTK_WINDOW(parentWindow), game->getPlatformId(), game->getId());   
+    if(gameDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
-        game = Game::getItem(games, c);                
-        if(game->getId() == gameId)
+        // New game
+        if(!gameId)
         {
-            game->load();
+            // Notifies of the new game to any object listening for platform changes
+            CallbackResult *callbackResult = new CallbackResult(NULL);
+            callbackResult->setType(NOTIFICATION_PLATFORM_UPDATED);
+            callbackResult->setData(new Platform(game->getPlatformId()));
+            NotificationManager::getInstance()->postNotification(callbackResult);                
 
-            break;
+
+            gameGridItemIndex = 0;
+            loadGridPage();
         }
+        // Update game
+        else
+        {
+            updateGame(gameId);
+            selectGame(gameId);
+        }        
     }
-
-    if(gameGridItems->find(gameId) != gameGridItems->end())
-    {
-        GameGridItemWidget *gameGridItemWidget = gameGridItems->at(gameId);
-        gameGridItemWidget->setGame(game);
-    }            
+    GameDialog::deleteWhenReady(gameDialog);
+    
+    delete game;
 }
 
-void PlatformPanel::selectGame(int64_t gameId)
+void FavoritePanel::updateGame(int64_t gameId)
+{
+    if(gameGridItems->find(gameId) != gameGridItems->end())
+    {
+        Game *game = new Game(gameId);            
+        game->load();
+            
+        GameGridItemWidget *gameGridItemWidget = gameGridItems->at(gameId);
+        gameGridItemWidget->setGame(game);
+        
+        delete game;
+    }          
+}
+
+void FavoritePanel::selectGame(int64_t gameId)
 {    
     if(selectedGameId)
     {
@@ -270,44 +241,14 @@ void PlatformPanel::selectGame(int64_t gameId)
     }
 }
 
-void PlatformPanel::removeGame(int64_t gameId)
-{
-    Game *game = new Game(gameId);
-    game->load();
-    
-    MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(parentWindow), "Sure you want to remove \"" + game->getName() + "\"?", "Remove", "Cancel");   
-    if(messageDialog->execute() == GTK_RESPONSE_YES)
-    {
-        game->remove();
-        
-        selectGame(0);
-        gameGridItemIndex = 0;
-        loadGridPage();
-        
-        // Notifies of the removed game to any object listening for platform changes
-        CallbackResult *callbackResult1 = new CallbackResult(NULL);
-        callbackResult1->setType(NOTIFICATION_PLATFORM_UPDATED);
-        callbackResult1->setData(new Platform(platformId));
-        NotificationManager::getInstance()->postNotification(callbackResult1);
-        
-        // If the game is favorite, notifies the change
-        CallbackResult *callbackResult2 = new CallbackResult(NULL);
-        callbackResult2->setType(NOTIFICATION_FAVORITES_UPDATED);
-        callbackResult2->setData(new Game(gameId));
-        NotificationManager::getInstance()->postNotification(callbackResult2);
-    }
-    delete messageDialog;
-    delete game;
-}
-
-void PlatformPanel::launchGame(int64_t gameId)
+void FavoritePanel::launchGame(int64_t gameId)
 {    
     GameDetailDialog *gameDetailDialog = new GameDetailDialog(GTK_WINDOW(parentWindow), gameId);
     gameDetailDialog->launch();
     delete gameDetailDialog;    
 }
 
-void PlatformPanel::showGameDetail(int64_t gameId)
+void FavoritePanel::showGameDetail(int64_t gameId)
 {
     GameDetailDialog *gameDetailDialog = new GameDetailDialog(GTK_WINDOW(parentWindow), gameId);   
     gameDetailDialog->execute();
@@ -315,56 +256,51 @@ void PlatformPanel::showGameDetail(int64_t gameId)
 }
 
 
-void PlatformPanel::onGameGridItemWidgetSelect(GameGridItemWidget *gameGridItemWidget)
+void FavoritePanel::onGameGridItemWidgetSelect(GameGridItemWidget *gameGridItemWidget)
 {
-    ((PlatformPanel *)gameGridItemWidget->getOwner())->selectGame(gameGridItemWidget->getGame()->getId());
+    ((FavoritePanel *)gameGridItemWidget->getOwner())->selectGame(gameGridItemWidget->getGame()->getId());
 }
 
-void PlatformPanel::onGameGridItemWidgetActive(GameGridItemWidget *gameGridItemWidget)
+void FavoritePanel::onGameGridItemWidgetActive(GameGridItemWidget *gameGridItemWidget)
 {
-    ((PlatformPanel *)gameGridItemWidget->getOwner())->launchGame(gameGridItemWidget->getGame()->getId());
+    ((FavoritePanel *)gameGridItemWidget->getOwner())->launchGame(gameGridItemWidget->getGame()->getId());
 }
 
-void PlatformPanel::onGameGridItemWidgetMenuFavoriteSelect(GameGridItemWidget *gameGridItemWidget)
+void FavoritePanel::onGameGridItemWidgetMenuFavoriteSelect(GameGridItemWidget *gameGridItemWidget)
 {
     
 }
 
-void PlatformPanel::onGameGridItemWidgetMenuDetailSelect(GameGridItemWidget *gameGridItemWidget)
+void FavoritePanel::onGameGridItemWidgetMenuDetailSelect(GameGridItemWidget *gameGridItemWidget)
 {
-    ((PlatformPanel *)gameGridItemWidget->getOwner())->showGameDetail(gameGridItemWidget->getGame()->getId());
+    ((FavoritePanel *)gameGridItemWidget->getOwner())->showGameDetail(gameGridItemWidget->getGame()->getId());
 }
 
-void PlatformPanel::onGameGridItemWidgetMenuEditSelect(GameGridItemWidget *gameGridItemWidget)
+void FavoritePanel::onGameGridItemWidgetMenuEditSelect(GameGridItemWidget *gameGridItemWidget)
 {
-    ((PlatformPanel *)gameGridItemWidget->getOwner())->showGameDialog(gameGridItemWidget->getGame()->getId());
-}
-
-void PlatformPanel::onGameGridItemWidgetMenuRemoveSelect(GameGridItemWidget *gameGridItemWidget)
-{
-    ((PlatformPanel *)gameGridItemWidget->getOwner())->removeGame(gameGridItemWidget->getGame()->getId());
+    ((FavoritePanel *)gameGridItemWidget->getOwner())->showGameDialog(gameGridItemWidget->getGame()->getId());
 }
 
 
 
-void PlatformPanel::signalGameGridSizeAllocate(GtkWidget* widget, GtkAllocation* allocation, gpointer platformPanel)
+void FavoritePanel::signalGameGridSizeAllocate(GtkWidget* widget, GtkAllocation* allocation, gpointer favoritePanel)
 {    
-    if(((PlatformPanel *)platformPanel)->isDestroyed())
+    if(((FavoritePanel *)favoritePanel)->isDestroyed())
     {
         return;
     }
     
-    if(((PlatformPanel *)platformPanel)->panelWidth != allocation->width || ((PlatformPanel *)platformPanel)->panelHeight != allocation->height)
+    if(((FavoritePanel *)favoritePanel)->panelWidth != allocation->width || ((FavoritePanel *)favoritePanel)->panelHeight != allocation->height)
     {        
-        ((PlatformPanel *)platformPanel)->panelWidth = allocation->width;
-        ((PlatformPanel *)platformPanel)->panelHeight = allocation->height;
+        ((FavoritePanel *)favoritePanel)->panelWidth = allocation->width;
+        ((FavoritePanel *)favoritePanel)->panelHeight = allocation->height;
         
-        ((PlatformPanel *)platformPanel)->gameGridItemIndex = 0;
-        ((PlatformPanel *)platformPanel)->loadGridPage();
+        ((FavoritePanel *)favoritePanel)->gameGridItemIndex = 0;
+        ((FavoritePanel *)favoritePanel)->loadGridPage();
     }
 }
 
-void PlatformPanel::signalGameGridScrolledWindowEdgeReached(GtkScrolledWindow* scrolledWindow, GtkPositionType positionType, gpointer platformPanel)
+void FavoritePanel::signalGameGridScrolledWindowEdgeReached(GtkScrolledWindow* scrolledWindow, GtkPositionType positionType, gpointer favoritePanel)
 {        
     if(positionType == GTK_POS_TOP)
     {
@@ -372,32 +308,33 @@ void PlatformPanel::signalGameGridScrolledWindowEdgeReached(GtkScrolledWindow* s
     }
     else if(positionType == GTK_POS_BOTTOM)
     {
-        ((PlatformPanel *)platformPanel)->loadGridPage();
+        ((FavoritePanel *)favoritePanel)->loadGridPage();
     }
 }
 
-void PlatformPanel::signalShow(GtkWidget* widget, gpointer platformPanel)
+void FavoritePanel::signalShow(GtkWidget* widget, gpointer favoritePanel)
 {
-    if(!((PlatformPanel *)platformPanel)->isShown)
+    if(!((FavoritePanel *)favoritePanel)->isShown)
     {
         // @TODO .- Change this horrible solution to force the list to show the first time.
-        g_timeout_add(50, callbackFirstShowHackyTimeout, platformPanel);
+        g_timeout_add(50, callbackFirstShowHackyTimeout, favoritePanel);
     }
 }
 
-gint PlatformPanel::callbackFirstShowHackyTimeout(gpointer platformPanel)
+gint FavoritePanel::callbackFirstShowHackyTimeout(gpointer favoritePanel)
 {    
-    ((PlatformPanel *)platformPanel)->isShown = 1;
-    ((PlatformPanel *)platformPanel)->loadGridPage();
+    ((FavoritePanel *)favoritePanel)->isShown = 1;
+    ((FavoritePanel *)favoritePanel)->loadGridPage();
     return 0;
 }
 
-void PlatformPanel::callbackNotification(CallbackResult *callbackResult)
+
+void FavoritePanel::callbackNotification(CallbackResult *callbackResult)
 {
     try
     {
-        PlatformPanel *platformPanel = (PlatformPanel *)callbackResult->getRequester();        
-        if(platformPanel->isDestroyed())
+        FavoritePanel *favoritePanel = (FavoritePanel *)callbackResult->getRequester();        
+        if(favoritePanel->isDestroyed())
         {
             return;
         }
@@ -405,7 +342,7 @@ void PlatformPanel::callbackNotification(CallbackResult *callbackResult)
         if(callbackResult->getType().compare(NOTIFICATION_GAME_UPDATED) == 0)
         {
             Game *game = (Game *)callbackResult->getData();
-            ((PlatformPanel *)platformPanel)->updateGame(game->getId());
+            ((FavoritePanel *)favoritePanel)->updateGame(game->getId());
         }
     }
     catch(exception ex)
@@ -413,5 +350,3 @@ void PlatformPanel::callbackNotification(CallbackResult *callbackResult)
         
     }
 }
-
-

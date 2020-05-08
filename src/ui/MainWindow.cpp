@@ -31,7 +31,6 @@
 #include "PlatformImage.h"
 #include "FirstSetupPanel.h"
 #include "Build.h"
-#include "Database.h"
 #include "Preferences.h"
 #include "Genre.h"
 #include "Game.h"
@@ -47,6 +46,7 @@
 #include "DownloadGameImagesProcess.h"
 #include "Utils.h"
 #include "UiThreadBridge.h"
+#include "panels/FavoritePanel.h"
 
 
 #include <string>
@@ -122,6 +122,7 @@ MainWindow::MainWindow()
     
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_PLATFORM_UPDATED, this, callbackNotification, 1);
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_ADD_DIRECTORY, this, callbackNotification, 1);
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_FAVORITES_UPDATED, this, callbackNotification, 1);
     
     startGui();
 }
@@ -147,9 +148,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::startGui()
 {
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    list<Genre *> *genres = Genre::getItems(sqlite, "");    
-    Database::getInstance()->release();
+    list<Genre *> *genres = Genre::getItems("");    
             
     // If genres exists, means that TheGamesDB preloaded data is present.
     if(genres->size() > 0)
@@ -210,6 +209,16 @@ void MainWindow::showHome()
     showPanel(new HomePanel(GTK_WINDOW(mainWindow)));    
 }
 
+void MainWindow::showFavorites()
+{
+    selectedPlatformId = 0;
+    gtk_widget_hide(GTK_WIDGET(addGameButton));
+    gtk_widget_hide(GTK_WIDGET(addDirectoryButton));
+    gtk_widget_hide(GTK_WIDGET(gameSearchEntry));
+    
+    showPanel(new FavoritePanel(GTK_WINDOW(mainWindow)));    
+}
+
 void MainWindow::showPlatformDialog(int64_t platformId)
 {
     PlatformDialog *platformDialog = new PlatformDialog(GTK_WINDOW(mainWindow), platformId);
@@ -237,10 +246,8 @@ void MainWindow::loadPlatformList()
 
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(platformListBox), 0);
 
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    platforms = Platform::getItems(sqlite);
-    Database::getInstance()->release();
-    for(unsigned int c = 0; c < platforms->size() + 1; c++)
+    platforms = Platform::getItems();
+    for(unsigned int index = 0; index < platforms->size() + 2; index++)
     {
         GtkBuilder *rowBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "PlatformRowBox.ui").c_str());
         GtkWidget *platformRowBox = (GtkWidget *)gtk_builder_get_object (rowBuilder, "platformRowBox");
@@ -249,7 +256,7 @@ void MainWindow::loadPlatformList()
         GtkLabel *gamesLabel = (GtkLabel *)gtk_builder_get_object (rowBuilder, "gamesLabel");
         
         // Home
-        if(c == 0)
+        if(index == 0)
         {
             gtk_label_set_text(nameLabel, "EMU-nexus");
             gtk_label_set_text(gamesLabel, "Home");
@@ -257,21 +264,30 @@ void MainWindow::loadPlatformList()
             
             gtk_widget_set_name(platformRowBox, to_string(0).c_str());
         }
+        // Favorites
+        else if(index == 1)
+        {
+            list<GameFavorite *> *gameFavorites = GameFavorite::getItems();
+            
+            gtk_label_set_text(nameLabel, "Favorites");
+            UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageFavorite(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
+            
+            gtk_label_set_text(gamesLabel, string(to_string(gameFavorites->size()) + " items").c_str());
+            
+            GameFavorite::releaseItems(gameFavorites);
+        }
         // Platform
         else
         {
-            Platform *platform = Platform::getItem(platforms, c - 1);
-            
-            sqlite3 *sqlite = Database::getInstance()->acquire();
-            list<Game *> *games = Game::getItems(sqlite, platform->getId(), "");
-            Database::getInstance()->release();
+            Platform *platform = Platform::getItem(platforms, index - 2);            
+            list<Game *> *games = Game::getItems(platform->getId(), "");
             
             gtk_label_set_text(nameLabel, platform->getName().c_str());
             gtk_label_set_text(gamesLabel, string(to_string(games->size()) + " items").c_str());
             
             Game::releaseItems(games);
 
-            PlatformImage *platformImage = PlatformImage::getPrimaryImage(sqlite, platform->getId());        
+            PlatformImage *platformImage = PlatformImage::getPrimaryImage(platform->getId());        
             if(platformImage)
             {
                 if(Utils::getInstance()->fileExists(platformImage->getThumbnailFileName()))
@@ -308,38 +324,36 @@ void MainWindow::loadPlatformList()
     }
 }
 
+void MainWindow::updateFavorites()
+{
+    list<GameFavorite *> *gameFavorites = GameFavorite::getItems();            
+    GtkLabel *gamesLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, 1)), "gamesLabel");
+    gtk_label_set_text(gamesLabel, string(to_string(gameFavorites->size()) + " items").c_str());            
+    GameFavorite::releaseItems(gameFavorites);            
+}
+
 void MainWindow::updatePlatform(int64_t platformId)
 {
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    Platform *updatedPlatform = new Platform(platformId);
-    updatedPlatform->load(sqlite);
-    Database::getInstance()->release();
-            
-    for(unsigned int c = 1; c < platforms->size() + 1; c++)
+    for(unsigned int index = 2; index < platforms->size() + 2; index++)
     {
-        Platform *platform = Platform::getItem(platforms, c - 1);
+        Platform *platform = Platform::getItem(platforms, index - 2);
         
         if(platform->getId() == platformId)
         {
-            list<Platform *>::iterator iterator = platforms->begin();
-            advance(iterator, c);
-            platforms->remove(platform);
-            platforms->insert(iterator, updatedPlatform);
+            platform->load();
             
-            GtkImage *image = (GtkImage *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, c)), "image");
-            GtkLabel *nameLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, c)), "nameLabel");
-            GtkLabel *gamesLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, c)), "gamesLabel");
+            GtkImage *image = (GtkImage *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, index)), "image");
+            GtkLabel *nameLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, index)), "nameLabel");
+            GtkLabel *gamesLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, index)), "gamesLabel");
             
-            sqlite3 *sqlite = Database::getInstance()->acquire();
-            list<Game *> *games = Game::getItems(sqlite, updatedPlatform->getId(), "");
-            Database::getInstance()->release();
+            list<Game *> *games = Game::getItems(platform->getId(), "");
             
-            gtk_label_set_text(nameLabel, updatedPlatform->getName().c_str());
+            gtk_label_set_text(nameLabel, platform->getName().c_str());
             gtk_label_set_text(gamesLabel, string(to_string(games->size()) + " items").c_str());
             
             Game::releaseItems(games);
 
-            PlatformImage *platformImage = PlatformImage::getPrimaryImage(sqlite, updatedPlatform->getId());        
+            PlatformImage *platformImage = PlatformImage::getPrimaryImage(platform->getId());        
             if(platformImage)
             {
                 if(Utils::getInstance()->fileExists(platformImage->getThumbnailFileName()))
@@ -359,10 +373,7 @@ void MainWindow::updatePlatform(int64_t platformId)
             else
             {
                 UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageLogo(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
-            }
-            
-            delete platform;
-            
+            }                        
             break;
         }
     }        
@@ -370,16 +381,16 @@ void MainWindow::updatePlatform(int64_t platformId)
 
 void MainWindow::selectPlatform(int64_t platformId)
 {
-    for(unsigned int c = 1; c < platforms->size() + 1; c++)
+    for(unsigned int index = 2; index < platforms->size() + 2; index++)
     {
-        Platform *platform = Platform::getItem(platforms, c - 1);
+        Platform *platform = Platform::getItem(platforms, index - 2);
         
         if(platform->getId() == platformId)
         {
             // Prevents recursion
-            if(gtk_list_box_get_selected_row(platformListBox) != gtk_list_box_get_row_at_index(platformListBox, c))
+            if(gtk_list_box_get_selected_row(platformListBox) != gtk_list_box_get_row_at_index(platformListBox, index))
             {
-                gtk_list_box_select_row(platformListBox, gtk_list_box_get_row_at_index(platformListBox, c));
+                gtk_list_box_select_row(platformListBox, gtk_list_box_get_row_at_index(platformListBox, index));
             }
             break;
         }
@@ -397,18 +408,14 @@ void MainWindow::selectPlatform(int64_t platformId)
 void MainWindow::removePlatform(int64_t platformId)
 {
     Platform *platform = new Platform(platformId);
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    platform->load(sqlite);
-    Database::getInstance()->release();
+    platform->load();
     
     MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(mainWindow), "Sure you want to remove \"" + platform->getName() + "\"?", "Remove", "Cancel");   
     if(messageDialog->execute() == GTK_RESPONSE_YES)
     {
         showHome();
         
-        sqlite3 *sqlite = Database::getInstance()->acquire();
-        platform->remove(sqlite);
-        Database::getInstance()->release();
+        platform->remove();
         
         loadPlatformList();                
     }
@@ -436,9 +443,7 @@ void MainWindow::signalMainWindowConfigureEvent(GtkWindow* window, GdkEvent* eve
         Preferences::getInstance()->setWindowHeight(event->configure.height);
     }
             
-    sqlite3 *sqlite = Database::getInstance()->acquire();
-    Preferences::getInstance()->save(sqlite);
-    Database::getInstance()->release();
+    Preferences::getInstance()->save();
 }
 
 void MainWindow::signalPlatformListRowSelected(GtkListBox* listBox, GtkWidget* row, gpointer mainWindow)
@@ -456,8 +461,14 @@ void MainWindow::signalPlatformListRowSelected(GtkListBox* listBox, GtkWidget* r
         ((MainWindow *)mainWindow)->showHome();
         return;
     }
+    // Favorite
+    if(position == 1)
+    {
+        ((MainWindow *)mainWindow)->showFavorites();
+        return;
+    }
     
-    Platform *platform = Platform::getItem(((MainWindow *)mainWindow)->platforms, position - 1);
+    Platform *platform = Platform::getItem(((MainWindow *)mainWindow)->platforms, position - 2);
     ((MainWindow *)mainWindow)->selectPlatform(platform->getId());
 }
 
@@ -468,7 +479,7 @@ gboolean MainWindow::signalPlatformListRowPressedEvent(GtkWidget* widget, GdkEve
     {
         int64_t platformId = atol(gtk_widget_get_name(widget));
         
-        // Home
+        // Home of Favorites
         if(!platformId)
         {
             return FALSE;
@@ -587,6 +598,10 @@ void MainWindow::callbackNotification(CallbackResult *callbackResult)
         {
             ((PlatformPanel *)mainWindow->currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(mainWindow->gameSearchEntry))));
         }
+    }
+    else if(callbackResult->getType().compare(NOTIFICATION_FAVORITES_UPDATED) == 0)
+    {
+        mainWindow->updateFavorites();
     }
     else if(callbackResult->getType().compare(NOTIFICATION_ADD_DIRECTORY) == 0)
     {

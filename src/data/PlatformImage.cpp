@@ -23,8 +23,9 @@
 */
 
 #include "PlatformImage.h"
+#include "Database.h"
+#include "Logger.h"
 
-#include <iostream>
 #include <unistd.h>
 
 const string PlatformImage::FILE_PREFIX = "platform_image_";
@@ -208,12 +209,13 @@ void PlatformImage::setDownloaded(int64_t downloaded)
 	this->downloaded = downloaded;
 }
 
-int PlatformImage::load(sqlite3 *sqlite)
+int PlatformImage::load()
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
 	string query = "select id, platformId, type, fileName, external, apiId, apiItemId, url, downloaded from PlatformImage where  id = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
 		sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
 		if (sqlite3_step(statement) == SQLITE_ROW)
@@ -232,21 +234,24 @@ int PlatformImage::load(sqlite3 *sqlite)
 	}
 	else
 	{
-		cerr << "PlatformImage::load " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int PlatformImage::save(sqlite3 *sqlite)
+int PlatformImage::save()
 {
 	int result = 1;
+        
+        sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
 		string insert = "insert into PlatformImage (platformId, type, fileName, external, apiId, apiItemId, url, downloaded) values(?, ?, ?, ?, ?, ?, ?, ?)";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
@@ -259,12 +264,12 @@ int PlatformImage::save(sqlite3 *sqlite)
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
-				id = sqlite3_last_insert_rowid(sqlite);
+				id = sqlite3_last_insert_rowid(db);
 			}
 		}
 		else
 		{
-			cerr << "PlatformImage::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
 		}
 
 		sqlite3_finalize(statement);
@@ -273,7 +278,7 @@ int PlatformImage::save(sqlite3 *sqlite)
 	{
 		string update = "update PlatformImage set platformId = ?, type = ?, fileName = ?, external = ?, apiId = ?, apiItemId = ?, url = ?, downloaded = ? where id = ?";
 		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(sqlite, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
+		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
@@ -289,15 +294,17 @@ int PlatformImage::save(sqlite3 *sqlite)
 		}
 		else
 		{
-			cerr << "PlatformImage::save " << sqlite3_errmsg(sqlite) << endl;
+			Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
 		}
 
 		sqlite3_finalize(statement);
 	}
+        Database::getInstance()->release();
+        
 	return result;
 }
 
-int PlatformImage::remove(sqlite3 *sqlite)
+int PlatformImage::remove()
 {
     if(id == 0)
     {
@@ -305,19 +312,20 @@ int PlatformImage::remove(sqlite3 *sqlite)
     }
     
     int result = 1;
-    
+    sqlite3 *db = Database::getInstance()->acquire();
     string command = "delete from PlatformImage where id = ?";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, command.c_str(), command.length(), &statement, NULL) == SQLITE_OK)
     {
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)id);
             result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
     }
     else
     {
-            cerr << "PlatformImage::remove " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + command);
     }
     sqlite3_finalize(statement);
+    Database::getInstance()->release();
         
     if(!external)
     {
@@ -367,13 +375,13 @@ json_t *PlatformImage::toJson()
 	return json;
 }
 
-PlatformImage* PlatformImage::getPrimaryImage(sqlite3 *sqlite, int64_t platformId)
+PlatformImage* PlatformImage::getPrimaryImage(int64_t platformId)
 {
+    sqlite3 *db = Database::getInstance()->acquire();
     PlatformImage *item = NULL;
-
     string query = "select id, platformId, type, fileName, external, apiId, apiItemId, url, downloaded from PlatformImage where platformId = ? and type = ? limit 1";
     sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+    if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
         sqlite3_bind_int64(statement, 2, (sqlite3_int64)TYPE_BOXART);
@@ -394,7 +402,7 @@ PlatformImage* PlatformImage::getPrimaryImage(sqlite3 *sqlite, int64_t platformI
     }
     else
     {
-            cerr << "PlatformImage::getPrimaryImage " << sqlite3_errmsg(sqlite) << endl;
+            Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
     }
     sqlite3_finalize(statement);
     
@@ -402,7 +410,7 @@ PlatformImage* PlatformImage::getPrimaryImage(sqlite3 *sqlite, int64_t platformI
     {
         string query = "select id, platformId, type, fileName, external, apiId, apiItemId, url, downloaded from PlatformImage where platformId = ? limit 1";
         sqlite3_stmt *statement;
-        if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+        if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
         {
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
 
@@ -422,22 +430,23 @@ PlatformImage* PlatformImage::getPrimaryImage(sqlite3 *sqlite, int64_t platformI
         }
         else
         {
-                cerr << "PlatformImage::getPrimaryImage " << sqlite3_errmsg(sqlite) << endl;
+                Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
         }
         sqlite3_finalize(statement);
     }
+    Database::getInstance()->release();
     
     return item;
 }
 
 
-list<PlatformImage *> *PlatformImage::getItems(sqlite3 *sqlite, int64_t platformId)
+list<PlatformImage *> *PlatformImage::getItems(int64_t platformId)
 {
+        sqlite3 *db = Database::getInstance()->acquire();
 	list<PlatformImage *> *items = new list<PlatformImage *>;
-
 	string query = "select id, platformId, type, fileName, external, apiId, apiItemId, url, downloaded from PlatformImage where platformId = ?";
 	sqlite3_stmt *statement;
-	if (sqlite3_prepare_v2(sqlite, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
             sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
             
@@ -459,10 +468,10 @@ list<PlatformImage *> *PlatformImage::getItems(sqlite3 *sqlite, int64_t platform
 	}
 	else
 	{
-		cerr << "PlatformImage::getItems " << sqlite3_errmsg(sqlite) << endl;
+		Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
 	}
-
 	sqlite3_finalize(statement);
+        Database::getInstance()->release();
 
 	return items;
 }
