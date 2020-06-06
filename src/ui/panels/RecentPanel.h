@@ -16,34 +16,33 @@
  */
 
 /* 
- * File:   FavoritePanel.h
+ * File:   RecentPanel.h
  * Author: ram
  *
- * Created on May 8, 2020, 2:05 PM
+ * Created on June 5, 2020, 10:20 PM
  */
 
-#ifndef FAVORITEPANEL_H
-#define FAVORITEPANEL_H
+#ifndef RECENTPANEL_H
+#define RECENTPANEL_H
 
 #include "Panel.h"
 #include "GameGridItemWidget.h"
-#include "GameFavorite.h"
+#include "GameActivity.h"
 #include "CallbackResult.h"
 
 #include <map>
 #include <list>
 
-
-class FavoritePanel : public Panel
+class RecentPanel : public Panel
 {
 public:
-    FavoritePanel(GtkWindow *parentWindow);    
-    
+    RecentPanel(GtkWindow *parentWindow); 
+
 private:
     GtkScrolledWindow *gameGridScrolledWindow;
     GtkListBox *gameGridListBox;
 
-    list<GameFavorite *> *gameFavorites;
+    list<GameActivity *> *gameActivities;
     map<int64_t, GameGridItemWidget *> *gameGridItems;
     int isShown;
     int panelWidth;
@@ -51,7 +50,7 @@ private:
     unsigned int gameGridItemIndex;
     int64_t selectedGameId;
 
-    virtual ~FavoritePanel();
+    virtual ~RecentPanel();
     
     
     /**
@@ -123,32 +122,32 @@ private:
      * Signal triggered when the gameGridListBox "size-allocate" event happens.
      * @param widget
      * @param allocation
-     * @param favoritePanel
+     * @param recentPanel
      */
-    static void signalGameGridSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer favoritePanel);
+    static void signalGameGridSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer recentPanel);
         
     /**
      * Signal triggered when the gameGridScrolledWindow "edge-reached" event happens.
      * @param scrolledWindow
      * @param positionType
-     * @param favoritePanel
+     * @param recentPanel
      */
-    static void signalGameGridScrolledWindowEdgeReached(GtkScrolledWindow *scrolledWindow, GtkPositionType positionType, gpointer favoritePanel);        
+    static void signalGameGridScrolledWindowEdgeReached(GtkScrolledWindow *scrolledWindow, GtkPositionType positionType, gpointer recentPanel);        
     
     /**
      * 
      * @param widget
-     * @param favoritePanel
+     * @param recentPanel
      */
-    static void signalShow(GtkWidget *widget, gpointer favoritePanel);
+    static void signalShow(GtkWidget *widget, gpointer recentPanel);
     
     
     /**
      * Callback that gets fired when the horrible hacky timer triggers to force the first draw of the grid.
-     * @param favoritePanel
+     * @param recentPanel
      * @return 
      */
-    static gint callbackFirstShowHackyTimeout(gpointer favoritePanel);
+    static gint callbackFirstShowHackyTimeout(gpointer recentPanel);
     
     /**
      * 
@@ -157,5 +156,5 @@ private:
     static void callbackNotification(CallbackResult *callbackResult);
 };
 
-#endif /* FAVORITEPANEL_H */
+#endif /* RECENTPANEL_H */
 

@@ -120,6 +120,7 @@ void GameGridItemWidget::setGame(Game *game)
     else
     {
         gtk_image_clear(favoriteImage);
+        gtk_widget_set_size_request(GTK_WIDGET(favoriteImage), 0, 0);
     }
     delete gameFavorite;
 
@@ -264,11 +265,9 @@ void GameGridItemWidget::signalMenuFavoriteActivate(GtkMenuItem *menuitem, gpoin
     
     ((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuFavorite((GameGridItemWidget *)gameGridItemWidget);
     
-    CallbackResult *callbackResult = new CallbackResult(NULL);
-    callbackResult->setType(NOTIFICATION_FAVORITES_UPDATED);
-    callbackResult->setData(new Game(((GameGridItemWidget *)gameGridItemWidget)->game->getId()));
-    NotificationManager::getInstance()->postNotification(callbackResult);        
+    NotificationManager::getInstance()->postNotification(NOTIFICATION_FAVORITES_UPDATED, new Game(((GameGridItemWidget *)gameGridItemWidget)->game->getId()));        
 }
+
 void GameGridItemWidget::signalMenuDetailActivate(GtkMenuItem* menuitem, gpointer gameGridItemWidget)
 {
     ((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuDetail((GameGridItemWidget *)gameGridItemWidget);

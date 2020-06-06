@@ -53,7 +53,7 @@ public:
      * Shows the game dialog for adding or editing.
      * @param gameId 0 is for a new game.
      */
-    void showGameDialog(int64_t gameId);
+    void showGameEditDialog(int64_t gameId);
     
     /**
      * Updates the game grid
@@ -119,10 +119,10 @@ private:
     void launchGame(int64_t gameId);
     
     /**
-     * Shows a game detail.
+     * Shows the game detail dialog.
      * @param gameId
      */
-    void showGameDetail(int64_t gameId);    
+    void showGameDetailDialog(int64_t gameId);    
     
     /**
      * 

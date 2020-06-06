@@ -6,8 +6,8 @@ HttpConnector.o\
 NotificationManager.o\
 SerialProcessExecutor.o SerialProcess.o ElasticsearchProcess.o ParseDirectoryProcess.o DownloadGameImagesProcess.o\
 Asset.o MainWindow.o UiThreadBridge.o UiUtils.o\
-Dialog.o MessageDialog.o PlatformDialog.o GameDialog.o DevelopersSelectDialog.o PublishersSelectDialog.o GenresSelectDialog.o GameSearchDialog.o AddDirectoryDialog.o GameDetailDialog.o SelectFromListDialog.o\
-Panel.o HomePanel.o PlatformPanel.o FavoritePanel.o FirstSetupPanel.o\
+Dialog.o MessageDialog.o PlatformEditDialog.o GameEditDialog.o DevelopersSelectDialog.o PublishersSelectDialog.o GenresSelectDialog.o GameSearchDialog.o AddDirectoryDialog.o GameDialog.o SelectFromListDialog.o\
+Panel.o HomePanel.o PlatformPanel.o RecentPanel.o FavoritePanel.o FirstSetupPanel.o\
 Widget.o GameGridItemWidget.o\
 FileExtractor.o\
 
@@ -24,7 +24,7 @@ ASSETSDIR=assets
 INSTALLBINDIR=/usr/bin
 INSTALLASSETSDIR=/usr/share/$(BIN)
 BUILDH=Build.h
-VERSION=1.0
+VERSION=1.1
 
 $(BIN) : $(OBJS)	
 	$(CC) $(OBJS) $(LFLAGS) $(GTKFLAGS) -o $(BIN)

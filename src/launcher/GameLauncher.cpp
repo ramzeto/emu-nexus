@@ -30,6 +30,8 @@
 #include "Utils.h"
 #include "Preferences.h"
 #include "Logger.h"
+#include "NotificationManager.h"
+#include "Notifications.h"
 
 #include <dirent.h>
 #include <cstdlib>
@@ -372,6 +374,8 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
             
             instance->state = STATE_FINISHED;
             instance->error = 0;
+            
+            NotificationManager::getInstance()->postNotification(NOTIFICATION_GAME_ACTIVITY_UPDATED, new Game(*game));
         }
         else
         {

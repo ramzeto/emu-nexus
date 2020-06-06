@@ -45,7 +45,7 @@ public:
      * Registers a listener to a notification
      * @param notification Notification to register.
      * @param listener Pointer to the object that listens to the notification.
-     * @param callback Pointer to the function that will be called when the notification gets posted. Receives a pointer to a CallbackResult object (CallbackResult->getType() is the notification's name).
+     * @param callback Pointer to the function that will be called when the notification gets posted. Receives a pointer to a CallbackResult object (CallbackResult->getType() is the notification name).
      * @param mainThread States that the notification should be delivered in the main thread.
      */
     void registerToNotification(string notification, void *listener, void (*callback)(CallbackResult *), int mainThread);
@@ -59,9 +59,10 @@ public:
     
     /**
      * Posts a notification to the registered listeners. If notification listener mainThread = 0, the notification will be posted in the same thread from which this method is called.
-     * @param callbackResult containing data sent by the poster. The CallbackResult->type attribute should be the notification's name. CallbackResult->requester will be overridden and assigned the pointer to the notification listener object. Every listener will receive this object and it will be freed automatically after that.
+     * @param notification Notification to post
+     * @param data Data to be sent to the notification listeners (It will be automatically freed).
      */
-    void postNotification(CallbackResult *callbackResult);
+    void postNotification(string notification, void *data);
             
     
     /**

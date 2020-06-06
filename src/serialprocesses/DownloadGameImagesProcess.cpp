@@ -87,9 +87,6 @@ int DownloadGameImagesProcess::execute()
 
 void DownloadGameImagesProcess::postGameChangedNotification(Game* game)
 {
-    CallbackResult *callbackResult = new CallbackResult(NULL);
-    callbackResult->setType(NOTIFICATION_GAME_UPDATED);
-    callbackResult->setData(new Game(*game));
-    NotificationManager::getInstance()->postNotification(callbackResult);
+    NotificationManager::getInstance()->postNotification(NOTIFICATION_GAME_UPDATED, new Game(*game));
 }
 

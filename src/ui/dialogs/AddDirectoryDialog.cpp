@@ -284,9 +284,7 @@ void AddDirectoryDialog::accept()
         Preferences::getInstance()->save();
     }
 
-    CallbackResult *callbackResult = new CallbackResult(NULL);
-    callbackResult->setType(NOTIFICATION_ADD_DIRECTORY);
-    NotificationManager::getInstance()->postNotification(callbackResult);
+    NotificationManager::getInstance()->postNotification(NOTIFICATION_DIRECTORY_ADDED, NULL);
     
     gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 }

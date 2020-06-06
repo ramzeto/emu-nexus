@@ -25,7 +25,7 @@
 #include "FavoritePanel.h"
 #include "Notifications.h"
 #include "UiUtils.h"
-#include "GameDialog.h"
+#include "GameEditDialog.h"
 #include "MessageDialog.h"
 #include "NotificationManager.h"
 #include "Notifications.h"
@@ -35,7 +35,7 @@
 #include "Directory.h"
 #include "Asset.h"
 #include "Utils.h"
-#include "GameDetailDialog.h"
+#include "GameDialog.h"
 
 FavoritePanel::FavoritePanel(GtkWindow *parentWindow)  : Panel(parentWindow, "FavoritePanel.ui", "favoriteBox")
 {
@@ -172,24 +172,17 @@ void FavoritePanel::loadGridPage()
     gtk_widget_show_all(GTK_WIDGET(getPanelBox()));
 }
 
-void FavoritePanel::showGameDialog(int64_t gameId)
+void FavoritePanel::showGameEditDialog(int64_t gameId)
 {
     Game *game = new Game(gameId);
     game->load();
     
-    GameDialog *gameDialog = new GameDialog(GTK_WINDOW(parentWindow), game->getPlatformId(), game->getId());   
-    if(gameDialog->execute() == GTK_RESPONSE_ACCEPT)
+    GameEditDialog *gameEditDialog = new GameEditDialog(GTK_WINDOW(parentWindow), game->getPlatformId(), game->getId());   
+    if(gameEditDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
         // New game
         if(!gameId)
-        {
-            // Notifies of the new game to any object listening for platform changes
-            CallbackResult *callbackResult = new CallbackResult(NULL);
-            callbackResult->setType(NOTIFICATION_PLATFORM_UPDATED);
-            callbackResult->setData(new Platform(game->getPlatformId()));
-            NotificationManager::getInstance()->postNotification(callbackResult);                
-
-
+        {                           
             gameGridItemIndex = 0;
             loadGridPage();
         }
@@ -200,7 +193,7 @@ void FavoritePanel::showGameDialog(int64_t gameId)
             selectGame(gameId);
         }        
     }
-    GameDialog::deleteWhenReady(gameDialog);
+    GameEditDialog::deleteWhenReady(gameEditDialog);
     
     delete game;
 }
@@ -243,16 +236,16 @@ void FavoritePanel::selectGame(int64_t gameId)
 
 void FavoritePanel::launchGame(int64_t gameId)
 {    
-    GameDetailDialog *gameDetailDialog = new GameDetailDialog(GTK_WINDOW(parentWindow), gameId);
-    gameDetailDialog->launch();
-    delete gameDetailDialog;    
+    GameDialog *gameDialog = new GameDialog(GTK_WINDOW(parentWindow), gameId);
+    gameDialog->launch();
+    delete gameDialog;    
 }
 
-void FavoritePanel::showGameDetail(int64_t gameId)
+void FavoritePanel::showGameDetailDialog(int64_t gameId)
 {
-    GameDetailDialog *gameDetailDialog = new GameDetailDialog(GTK_WINDOW(parentWindow), gameId);   
-    gameDetailDialog->execute();
-    delete gameDetailDialog;    
+    GameDialog *gameDialog = new GameDialog(GTK_WINDOW(parentWindow), gameId);   
+    gameDialog->execute();
+    delete gameDialog;    
 }
 
 
@@ -273,12 +266,12 @@ void FavoritePanel::onGameGridItemWidgetMenuFavoriteSelect(GameGridItemWidget *g
 
 void FavoritePanel::onGameGridItemWidgetMenuDetailSelect(GameGridItemWidget *gameGridItemWidget)
 {
-    ((FavoritePanel *)gameGridItemWidget->getOwner())->showGameDetail(gameGridItemWidget->getGame()->getId());
+    ((FavoritePanel *)gameGridItemWidget->getOwner())->showGameDetailDialog(gameGridItemWidget->getGame()->getId());
 }
 
 void FavoritePanel::onGameGridItemWidgetMenuEditSelect(GameGridItemWidget *gameGridItemWidget)
 {
-    ((FavoritePanel *)gameGridItemWidget->getOwner())->showGameDialog(gameGridItemWidget->getGame()->getId());
+    ((FavoritePanel *)gameGridItemWidget->getOwner())->showGameEditDialog(gameGridItemWidget->getGame()->getId());
 }
 
 
@@ -295,8 +288,10 @@ void FavoritePanel::signalGameGridSizeAllocate(GtkWidget* widget, GtkAllocation*
         ((FavoritePanel *)favoritePanel)->panelWidth = allocation->width;
         ((FavoritePanel *)favoritePanel)->panelHeight = allocation->height;
         
-        ((FavoritePanel *)favoritePanel)->gameGridItemIndex = 0;
-        ((FavoritePanel *)favoritePanel)->loadGridPage();
+        ((FavoritePanel *)favoritePanel)->isShown = 0;
+        signalShow(widget, favoritePanel);        
+        //((FavoritePanel *)favoritePanel)->gameGridItemIndex = 0;
+        //((FavoritePanel *)favoritePanel)->loadGridPage();
     }
 }
 
@@ -317,13 +312,14 @@ void FavoritePanel::signalShow(GtkWidget* widget, gpointer favoritePanel)
     if(!((FavoritePanel *)favoritePanel)->isShown)
     {
         // @TODO .- Change this horrible solution to force the list to show the first time.
-        g_timeout_add(50, callbackFirstShowHackyTimeout, favoritePanel);
+        g_timeout_add(10, callbackFirstShowHackyTimeout, favoritePanel);
     }
 }
 
 gint FavoritePanel::callbackFirstShowHackyTimeout(gpointer favoritePanel)
 {    
     ((FavoritePanel *)favoritePanel)->isShown = 1;
+    ((FavoritePanel *)favoritePanel)->gameGridItemIndex = 0;
     ((FavoritePanel *)favoritePanel)->loadGridPage();
     return 0;
 }

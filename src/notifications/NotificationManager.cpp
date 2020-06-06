@@ -89,8 +89,12 @@ void NotificationManager::unregisterToNotification(string notification, void* li
     pthread_mutex_unlock(&notificationRefsMutex);
 }
 
-void NotificationManager::postNotification(CallbackResult *callbackResult)
+void NotificationManager::postNotification(string notification, void *data)
 {
+    CallbackResult *callbackResult = new CallbackResult(NULL);
+    callbackResult->setType(notification);
+    callbackResult->setData(data);
+    
     list<NotificationRef_t *> *uiThreadNotificationRefs = new list<NotificationRef_t *>;
     
     pthread_mutex_lock(&notificationRefsMutex);

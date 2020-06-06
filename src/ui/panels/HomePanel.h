@@ -43,97 +43,9 @@ public:
     virtual ~HomePanel();
     
 private:            
-    GtkBox *recentsBox;
-    GtkBox *recentsGridBox;
     GtkImage *logoImage;
     GtkLabel *versionLabel;
     GtkLabel *informationLabel;
-    
-    int isShown;
-    int panelWidth;
-    int panelHeight;
-    int64_t selectedGameId;
-    time_t selectGameTimestamp;
-    time_t launchGameTimestamp;
-    map<int64_t, GameGridItemWidget *> *gameGridItems;
-    list<GameActivity *> *gameActivities;
-        
-    void loadRecentsGrid();
-    void launchGame(int64_t gameId);
-    void updateGame(int64_t gameId);
-    void selectGame(int64_t gameId);
-    
-    /**
-     * Shows the game dialog for editing.
-     * @param gameId.
-     */
-    void showGameDialog(int64_t gameId);    
-    
-    /**
-     * Shows a game detail.
-     * @param gameId
-     */
-    void showGameDetail(int64_t gameId); 
-        
-
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetSelect(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetActive(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetMenuFavoriteSelect(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetMenuDetailSelect(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetMenuEditSelect(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * Signal triggered when the recentsGridBox "size-allocate" event happens.
-     * @param widget
-     * @param allocation
-     * @param pHomePanel
-     */
-    static void signalRecentsGridSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer homePanel);
-    
-    /**
-     * 
-     * @param widget
-     * @param pHomePanel
-     */
-    static void signalShow(GtkWidget *widget, gpointer homePanel);
-
-    
-    /**
-     * Callback that gets fired when the horrible hacky timer triggers to force the first draw of the recents grid.
-     * @param pHomePanel
-     * @return 
-     */
-    static gint callbackFirstShowHackyTimeout(gpointer homePanel);  
-        
-    /**
-     * 
-     * @param callbackResult
-     */
-    static void callbackGameLauncher(CallbackResult *callbackResult);
 };
 
 #endif /* HOMEPANEL_H */

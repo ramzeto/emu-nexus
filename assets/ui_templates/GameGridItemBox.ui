@@ -45,12 +45,13 @@
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="margin_top">5</property>
+            <property name="orientation">vertical</property>
             <property name="baseline_position">top</property>
             <child>
               <object class="GtkImage" id="favoriteImage">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="valign">start</property>
+                <property name="valign">center</property>
                 <property name="stock">gtk-missing-image</property>
               </object>
               <packing>
@@ -69,9 +70,9 @@
                 <property name="label" translatable="yes">label</property>
                 <property name="justify">center</property>
                 <property name="wrap">True</property>
-                <property name="wrap_mode">char</property>
                 <property name="ellipsize">end</property>
-                <property name="lines">3</property>
+                <property name="max_width_chars">12</property>
+                <property name="lines">4</property>
               </object>
               <packing>
                 <property name="expand">True</property>

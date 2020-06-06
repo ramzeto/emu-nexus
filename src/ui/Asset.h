@@ -39,7 +39,8 @@ public:
     static const string ASSET_IMAGE_HOME;
     static const string ASSET_IMAGE_DOWNLOADING;
     static const string ASSET_IMAGE_DOCUMENT;
-    static const string ASSET_IMAGE_FAVORITE;    
+    static const string ASSET_IMAGE_FAVORITE;
+    static const string ASSET_IMAGE_RECENT;
     static const string ASSET_HOME_PML;
     
     /**
@@ -70,7 +71,13 @@ public:
      * 
      * @return Favorite image filename.
      */
-    string getImageFavorite();    
+    string getImageFavorite();
+    
+    /**
+     * 
+     * @return Recent image filename.
+     */
+    string getImageRecent();     
     
     /**
      * 

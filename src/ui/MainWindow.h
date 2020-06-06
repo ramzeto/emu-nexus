@@ -46,14 +46,20 @@ private:
     static const int PLATFORM_IMAGE_WIDTH;
     static const int PLATFORM_IMAGE_HEIGHT;
     
+    static const int ITEM_HOME_INDEX;
+    static const int ITEM_RECENTS_INDEX;
+    static const int ITEM_FAVORITES_INDEX;
+    static const int ITEM_PLATFORMS_OFFSET;
+    
+    
     GtkBuilder *builder;
     GtkApplicationWindow *mainWindow;
     GtkButton *addPlatformButton;
     GtkSearchEntry *gameSearchEntry;
     GtkButton *addGameButton;
     GtkButton *addDirectoryButton;
-    GtkBox *platformListContainerBox;
-    GtkListBox *platformListBox;
+    GtkBox *itemListContainerBox;
+    GtkListBox *itemListBox;
     GtkBox *contentBox;
     
     GtkBox *processBox;
@@ -89,18 +95,28 @@ private:
     /**
      * 
      */
+    void showRecents();
+    
+    /**
+     * 
+     */
     void showFavorites();
     
     /**
      * 
      * @param platformId
      */
-    void showPlatformDialog(int64_t platformId);
+    void showPlatformEditDialog(int64_t platformId);
     
     /**
-     * Loads the platform list.
+     * Loads the items list.
      */
-    void loadPlatformList();
+    void loadItemsList();
+    
+    /**
+     * 
+     */
+    void updateRecents();
     
     /**
      * 
@@ -108,13 +124,13 @@ private:
     void updateFavorites();
     
     /**
-     * Updates a platform from the list.
+     * Updates an item from the list.
      * @param platformId
      */
-    void updatePlatform(int64_t platformId);
+    void updatePlatform(int64_t platformId);        
     
     /**
-     * Selects a platform.
+     * Selects an item from the list.
      * @param platformId
      */
     void selectPlatform(int64_t platformId);
@@ -123,7 +139,7 @@ private:
      * Removes a platform.
      * @param platformId
      */
-    void removePlatform(int64_t platformId);        
+    void removePlatform(int64_t platformId);
     
     
     /**
@@ -141,12 +157,12 @@ private:
     static void signalMainWindowConfigureEvent(GtkWindow *window, GdkEvent *event, gpointer mainWindow);    
     
     /**
-     * Signal triggered when paltformListBox "row-selected" event happens.
+     * Signal triggered when itemListBox "row-selected" event happens.
      * @param listBox
      * @param row
      * @param mainWindow
      */
-    static void signalPlatformListRowSelected (GtkListBox *listBox, GtkWidget *row, gpointer mainWindow);
+    static void signalItemListRowSelected (GtkListBox *listBox, GtkWidget *row, gpointer mainWindow);
     
     /**
      * Signal triggered when the user presses a mouse button over a platform in the list.

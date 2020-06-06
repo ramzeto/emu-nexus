@@ -363,10 +363,7 @@ void ParseDirectoryProcess::fetchGameInformation()
         parseDirectory->setEnd(Utils::getInstance()->nowIsoDateTime());
         parseDirectory->save();
         
-        CallbackResult *callbackResult = new CallbackResult(NULL);
-        callbackResult->setType(NOTIFICATION_PLATFORM_UPDATED);
-        callbackResult->setData(new Platform(parseDirectory->getPlatformId()));
-        NotificationManager::getInstance()->postNotification(callbackResult);
+        NotificationManager::getInstance()->postNotification(NOTIFICATION_PLATFORM_UPDATED, new Platform(parseDirectory->getPlatformId()));
         
         status = STATUS_SUCCESS;
         SerialProcessExecutor::getInstance()->finish(this);

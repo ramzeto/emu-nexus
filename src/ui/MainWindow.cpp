@@ -27,7 +27,7 @@
 #include "PlatformPanel.h"
 #include "HomePanel.h"
 #include "MessageDialog.h"
-#include "PlatformDialog.h"
+#include "PlatformEditDialog.h"
 #include "PlatformImage.h"
 #include "FirstSetupPanel.h"
 #include "Build.h"
@@ -46,7 +46,10 @@
 #include "DownloadGameImagesProcess.h"
 #include "Utils.h"
 #include "UiThreadBridge.h"
-#include "panels/FavoritePanel.h"
+#include "GameActivity.h"
+#include "FavoritePanel.h"
+#include "RecentPanel.h"
+#include "Logger.h"
 
 
 #include <string>
@@ -58,6 +61,11 @@ using namespace std;
 const int MainWindow::PLATFORM_IMAGE_WIDTH = 100;
 const int MainWindow::PLATFORM_IMAGE_HEIGHT = 100;
 
+const int MainWindow::ITEM_HOME_INDEX = 0;
+const int MainWindow::ITEM_RECENTS_INDEX = 1;
+const int MainWindow::ITEM_FAVORITES_INDEX = 2;
+const int MainWindow::ITEM_PLATFORMS_OFFSET = 3;
+    
 MainWindow::MainWindow()
 {
     currentPanel = NULL;
@@ -94,9 +102,9 @@ MainWindow::MainWindow()
     addDirectoryButton = (GtkButton *)gtk_builder_get_object (builder, "addDirectoryButton");
     g_signal_connect (addDirectoryButton, "clicked", G_CALLBACK (signalAddDirectoryButtonClicked), this);    
     
-    platformListContainerBox = (GtkBox *)gtk_builder_get_object (builder, "platformListContainerBox");
-    platformListBox = (GtkListBox *)gtk_builder_get_object (builder, "platformListBox");
-    g_signal_connect (platformListBox, "row-selected", G_CALLBACK(signalPlatformListRowSelected), this);
+    itemListContainerBox = (GtkBox *)gtk_builder_get_object (builder, "itemListContainerBox");
+    itemListBox = (GtkListBox *)gtk_builder_get_object (builder, "itemListBox");
+    g_signal_connect (itemListBox, "row-selected", G_CALLBACK(signalItemListRowSelected), this);
 
     contentBox = (GtkBox *)gtk_builder_get_object (builder, "contentBox");
     
@@ -121,7 +129,8 @@ MainWindow::MainWindow()
     processUiThreadBridge = UiThreadBridge::registerBridge(this, callbackSerialProcessStatus);
     
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_PLATFORM_UPDATED, this, callbackNotification, 1);
-    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_ADD_DIRECTORY, this, callbackNotification, 1);
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_DIRECTORY_ADDED, this, callbackNotification, 1);
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_ACTIVITY_UPDATED, this, callbackNotification, 1);
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_FAVORITES_UPDATED, this, callbackNotification, 1);
     
     startGui();
@@ -165,15 +174,15 @@ void MainWindow::startGui()
             gtk_widget_show_all(GTK_WIDGET(addPlatformButton));
         }
         
-        gtk_widget_show_all(GTK_WIDGET(platformListContainerBox));
+        gtk_widget_show_all(GTK_WIDGET(itemListContainerBox));
         
-        loadPlatformList();
+        loadItemsList();
         showPanel(new HomePanel(GTK_WINDOW(mainWindow)));
     }
     else
     {
         gtk_widget_hide(GTK_WIDGET(addPlatformButton));
-        gtk_widget_hide(GTK_WIDGET(platformListContainerBox));
+        gtk_widget_hide(GTK_WIDGET(itemListContainerBox));
         
         FirstSetupPanel *firstSetupPanel = new FirstSetupPanel(GTK_WINDOW(mainWindow));
         firstSetupPanel->setOnSetupReadyCallback(onSetupReadyCallback, this);
@@ -209,20 +218,30 @@ void MainWindow::showHome()
     showPanel(new HomePanel(GTK_WINDOW(mainWindow)));    
 }
 
+void MainWindow::showRecents()
+{
+    selectedPlatformId = 0;
+    gtk_widget_hide(GTK_WIDGET(addGameButton));
+    gtk_widget_hide(GTK_WIDGET(addDirectoryButton));
+    gtk_widget_show(GTK_WIDGET(gameSearchEntry));
+    
+    showPanel(new RecentPanel(GTK_WINDOW(mainWindow)));    
+}
+
 void MainWindow::showFavorites()
 {
     selectedPlatformId = 0;
     gtk_widget_hide(GTK_WIDGET(addGameButton));
     gtk_widget_hide(GTK_WIDGET(addDirectoryButton));
-    gtk_widget_hide(GTK_WIDGET(gameSearchEntry));
+    gtk_widget_show(GTK_WIDGET(gameSearchEntry));
     
     showPanel(new FavoritePanel(GTK_WINDOW(mainWindow)));    
 }
 
-void MainWindow::showPlatformDialog(int64_t platformId)
+void MainWindow::showPlatformEditDialog(int64_t platformId)
 {
-    PlatformDialog *platformDialog = new PlatformDialog(GTK_WINDOW(mainWindow), platformId);
-    if(platformDialog->execute() == GTK_RESPONSE_ACCEPT)
+    PlatformEditDialog *platformEditDialog = new PlatformEditDialog(GTK_WINDOW(mainWindow), platformId);
+    if(platformEditDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
         if(platformId)
         {
@@ -230,24 +249,24 @@ void MainWindow::showPlatformDialog(int64_t platformId)
         }   
         else
         {
-            loadPlatformList();
+            loadItemsList();
         }
     }
-    PlatformDialog::deleteWhenReady(platformDialog);
+    PlatformEditDialog::deleteWhenReady(platformEditDialog);
 }
 
 
-void MainWindow::loadPlatformList()
+void MainWindow::loadItemsList()
 {
     if(platforms)
     {
         Platform::releaseItems(platforms);
     }
 
-    UiUtils::getInstance()->clearContainer(GTK_CONTAINER(platformListBox), 0);
+    UiUtils::getInstance()->clearContainer(GTK_CONTAINER(itemListBox), 1);
 
     platforms = Platform::getItems();
-    for(unsigned int index = 0; index < platforms->size() + 2; index++)
+    for(unsigned int index = 0; index < platforms->size() + ITEM_PLATFORMS_OFFSET; index++)
     {
         GtkBuilder *rowBuilder = gtk_builder_new_from_file((Directory::getInstance()->getUiTemplatesDirectory() + "PlatformRowBox.ui").c_str());
         GtkWidget *platformRowBox = (GtkWidget *)gtk_builder_get_object (rowBuilder, "platformRowBox");
@@ -256,7 +275,7 @@ void MainWindow::loadPlatformList()
         GtkLabel *gamesLabel = (GtkLabel *)gtk_builder_get_object (rowBuilder, "gamesLabel");
         
         // Home
-        if(index == 0)
+        if(index == ITEM_HOME_INDEX)
         {
             gtk_label_set_text(nameLabel, "EMU-nexus");
             gtk_label_set_text(gamesLabel, "Home");
@@ -264,8 +283,22 @@ void MainWindow::loadPlatformList()
             
             gtk_widget_set_name(platformRowBox, to_string(0).c_str());
         }
+        // Recents
+        else if(index == ITEM_RECENTS_INDEX)
+        {
+            list<GameActivity *> *recentItems = GameActivity::getRecentItems();
+            
+            gtk_label_set_text(nameLabel, "Recently played");
+            UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageRecent(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
+            
+            gtk_label_set_text(gamesLabel, string(to_string(recentItems->size()) + " items").c_str());
+            
+            GameActivity::releaseItems(recentItems);
+            
+            gtk_widget_set_name(platformRowBox, to_string(0).c_str());
+        }        
         // Favorites
-        else if(index == 1)
+        else if(index == ITEM_FAVORITES_INDEX)
         {
             list<GameFavorite *> *gameFavorites = GameFavorite::getItems();
             
@@ -275,11 +308,13 @@ void MainWindow::loadPlatformList()
             gtk_label_set_text(gamesLabel, string(to_string(gameFavorites->size()) + " items").c_str());
             
             GameFavorite::releaseItems(gameFavorites);
+            
+            gtk_widget_set_name(platformRowBox, to_string(0).c_str());
         }
         // Platform
         else
         {
-            Platform *platform = Platform::getItem(platforms, index - 2);            
+            Platform *platform = Platform::getItem(platforms, index - ITEM_PLATFORMS_OFFSET);            
             list<Game *> *games = Game::getItems(platform->getId(), "");
             
             gtk_label_set_text(nameLabel, platform->getName().c_str());
@@ -309,12 +344,13 @@ void MainWindow::loadPlatformList()
                 UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageLogo(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
             }
             gtk_widget_set_name(platformRowBox, to_string(platform->getId()).c_str());
+            
+            g_signal_connect (platformRowBox, "button-press-event", G_CALLBACK(signalPlatformListRowPressedEvent), this);
         }
-        gtk_widget_set_size_request(GTK_WIDGET(image), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
         
-        g_signal_connect (platformRowBox, "button-press-event", G_CALLBACK(signalPlatformListRowPressedEvent), this);
+        gtk_widget_set_size_request(GTK_WIDGET(image), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);                
 
-        gtk_container_add (GTK_CONTAINER(platformListBox), platformRowBox);
+        gtk_container_add (GTK_CONTAINER(itemListBox), platformRowBox);
         gtk_widget_show_all(platformRowBox);
     }    
     
@@ -324,33 +360,41 @@ void MainWindow::loadPlatformList()
     }
 }
 
+void MainWindow::updateRecents()
+{
+    list<GameActivity *> *recentItems = GameActivity::getRecentItems();
+    GtkLabel *gamesLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(itemListBox, ITEM_RECENTS_INDEX)), "gamesLabel");
+    gtk_label_set_text(gamesLabel, string(to_string(recentItems->size()) + " items").c_str());            
+    GameActivity::releaseItems(recentItems);
+}
+
 void MainWindow::updateFavorites()
 {
     list<GameFavorite *> *gameFavorites = GameFavorite::getItems();            
-    GtkLabel *gamesLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, 1)), "gamesLabel");
+    GtkLabel *gamesLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(itemListBox, ITEM_FAVORITES_INDEX)), "gamesLabel");
     gtk_label_set_text(gamesLabel, string(to_string(gameFavorites->size()) + " items").c_str());            
     GameFavorite::releaseItems(gameFavorites);            
 }
 
 void MainWindow::updatePlatform(int64_t platformId)
 {
-    for(unsigned int index = 2; index < platforms->size() + 2; index++)
+    for(unsigned int index = ITEM_PLATFORMS_OFFSET; index < platforms->size() + ITEM_PLATFORMS_OFFSET; index++)
     {
-        Platform *platform = Platform::getItem(platforms, index - 2);
-        
+        Platform *platform = Platform::getItem(platforms, index - ITEM_PLATFORMS_OFFSET);
+
         if(platform->getId() == platformId)
         {
             platform->load();
-            
-            GtkImage *image = (GtkImage *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, index)), "image");
-            GtkLabel *nameLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, index)), "nameLabel");
-            GtkLabel *gamesLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, index)), "gamesLabel");
-            
+
+            GtkImage *image = (GtkImage *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(itemListBox, index)), "image");
+            GtkLabel *nameLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(itemListBox, index)), "nameLabel");
+            GtkLabel *gamesLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(itemListBox, index)), "gamesLabel");
+
             list<Game *> *games = Game::getItems(platform->getId(), "");
-            
+
             gtk_label_set_text(nameLabel, platform->getName().c_str());
             gtk_label_set_text(gamesLabel, string(to_string(games->size()) + " items").c_str());
-            
+
             Game::releaseItems(games);
 
             PlatformImage *platformImage = PlatformImage::getPrimaryImage(platform->getId());        
@@ -381,16 +425,16 @@ void MainWindow::updatePlatform(int64_t platformId)
 
 void MainWindow::selectPlatform(int64_t platformId)
 {
-    for(unsigned int index = 2; index < platforms->size() + 2; index++)
+    for(unsigned int index = ITEM_PLATFORMS_OFFSET; index < platforms->size() + ITEM_PLATFORMS_OFFSET; index++)
     {
-        Platform *platform = Platform::getItem(platforms, index - 2);
+        Platform *platform = Platform::getItem(platforms, index - ITEM_PLATFORMS_OFFSET);
         
         if(platform->getId() == platformId)
         {
             // Prevents recursion
-            if(gtk_list_box_get_selected_row(platformListBox) != gtk_list_box_get_row_at_index(platformListBox, index))
+            if(gtk_list_box_get_selected_row(itemListBox) != gtk_list_box_get_row_at_index(itemListBox, index))
             {
-                gtk_list_box_select_row(platformListBox, gtk_list_box_get_row_at_index(platformListBox, index));
+                gtk_list_box_select_row(itemListBox, gtk_list_box_get_row_at_index(itemListBox, index));
             }
             break;
         }
@@ -417,7 +461,7 @@ void MainWindow::removePlatform(int64_t platformId)
         
         platform->remove();
         
-        loadPlatformList();                
+        loadItemsList();                
     }
     delete messageDialog;
     delete platform;
@@ -446,29 +490,35 @@ void MainWindow::signalMainWindowConfigureEvent(GtkWindow* window, GdkEvent* eve
     Preferences::getInstance()->save();
 }
 
-void MainWindow::signalPlatformListRowSelected(GtkListBox* listBox, GtkWidget* row, gpointer mainWindow)
+void MainWindow::signalItemListRowSelected(GtkListBox* listBox, GtkWidget* row, gpointer mainWindow)
 {
     if(!mainWindow || !row || !GTK_IS_LIST_BOX_ROW(row))
     {
         return;
     }
-        
+            
     int position = gtk_list_box_row_get_index (GTK_LIST_BOX_ROW(row));
-    
+
     // Home
-    if(position == 0)
+    if(position == ITEM_HOME_INDEX)
     {
         ((MainWindow *)mainWindow)->showHome();
         return;
     }
-    // Favorite
-    if(position == 1)
+    // Recents
+    else if(position == ITEM_RECENTS_INDEX)
+    {
+        ((MainWindow *)mainWindow)->showRecents();
+        return;
+    }
+    // Favorites
+    else if(position == ITEM_FAVORITES_INDEX)
     {
         ((MainWindow *)mainWindow)->showFavorites();
         return;
     }
     
-    Platform *platform = Platform::getItem(((MainWindow *)mainWindow)->platforms, position - 2);
+    Platform *platform = Platform::getItem(((MainWindow *)mainWindow)->platforms, position - ITEM_PLATFORMS_OFFSET);
     ((MainWindow *)mainWindow)->selectPlatform(platform->getId());
 }
 
@@ -478,12 +528,6 @@ gboolean MainWindow::signalPlatformListRowPressedEvent(GtkWidget* widget, GdkEve
     if(event->button.button == 3)
     {
         int64_t platformId = atol(gtk_widget_get_name(widget));
-        
-        // Home of Favorites
-        if(!platformId)
-        {
-            return FALSE;
-        }
         
         ((MainWindow *)mainWindow)->selectPlatform(platformId);
         
@@ -505,7 +549,7 @@ gboolean MainWindow::signalPlatformListRowPressedEvent(GtkWidget* widget, GdkEve
 
 void MainWindow::signalPlatformMenuEditActivate(GtkMenuItem* menuitem, gpointer mainWindow)
 {
-    ((MainWindow *)mainWindow)->showPlatformDialog(((MainWindow *)mainWindow)->selectedPlatformId);
+    ((MainWindow *)mainWindow)->showPlatformEditDialog(((MainWindow *)mainWindow)->selectedPlatformId);
 }
 
 void MainWindow::signalPlatformMenuRemoveActivate(GtkMenuItem* menuitem, gpointer mainWindow)
@@ -515,12 +559,12 @@ void MainWindow::signalPlatformMenuRemoveActivate(GtkMenuItem* menuitem, gpointe
 
 void MainWindow::signalAddPlatformButtonClicked(GtkButton* button, gpointer mainWindow)
 {
-    ((MainWindow *)mainWindow)->showPlatformDialog(0);
+    ((MainWindow *)mainWindow)->showPlatformEditDialog(0);
 }
 
 void MainWindow::signalAddGameButtonClicked(GtkButton* button, gpointer mainWindow)
 {
-    ((PlatformPanel *) ((MainWindow *)mainWindow)->currentPanel)->showGameDialog(0);
+    ((PlatformPanel *) ((MainWindow *)mainWindow)->currentPanel)->showGameEditDialog(0);
 }
 
 void MainWindow::signalAddDirectoryButtonClicked(GtkButton* button, gpointer mainWindow)
@@ -599,11 +643,15 @@ void MainWindow::callbackNotification(CallbackResult *callbackResult)
             ((PlatformPanel *)mainWindow->currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(mainWindow->gameSearchEntry))));
         }
     }
+    else if(callbackResult->getType().compare(NOTIFICATION_GAME_ACTIVITY_UPDATED) == 0)
+    {
+        mainWindow->updateRecents();
+    }    
     else if(callbackResult->getType().compare(NOTIFICATION_FAVORITES_UPDATED) == 0)
     {
         mainWindow->updateFavorites();
-    }
-    else if(callbackResult->getType().compare(NOTIFICATION_ADD_DIRECTORY) == 0)
+    }    
+    else if(callbackResult->getType().compare(NOTIFICATION_DIRECTORY_ADDED) == 0)
     {
         ParseDirectoryProcess *parseDirectoryProcess = new ParseDirectoryProcess(mainWindow->processUiThreadBridge, UiThreadBridge::callback);
         SerialProcessExecutor::getInstance()->schedule(parseDirectoryProcess);

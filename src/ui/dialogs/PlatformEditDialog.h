@@ -16,14 +16,14 @@
  */
 
 /* 
- * File:   PlatformDialog.h
+ * File:   PlatformEditDialog.h
  * Author: ram
  *
  * Created on March 10, 2019, 7:14 PM
  */
 
-#ifndef PLATFORMDIALOG_H
-#define PLATFORMDIALOG_H
+#ifndef PLATFORMEDITDIALOG_H
+#define PLATFORMEDITDIALOG_H
 
 #include "Dialog.h"
 #include "Platform.h"
@@ -42,7 +42,7 @@ using namespace std;
 /**
  * A dialog to configure a Platform. The dialog will call gtk_dialog_response(..., GTK_RESPONSE_ACCEPT) if accepted.
  */
-class PlatformDialog : public Dialog
+class PlatformEditDialog : public Dialog
 {
 public:
     
@@ -51,13 +51,13 @@ public:
      * @param parent Parent GtkWindow.
      * @param platformId Id of the platform to configure. If is 0, a new platform will be created.
      */
-    PlatformDialog(GtkWindow *parent, int64_t platformId);
+    PlatformEditDialog(GtkWindow *parent, int64_t platformId);
     
     /**
      * This method should be called to dismiss the dialog. Explicitely deleting the dialog is forbidden. The dialog downloads the platform images when required and the download process may continue after the dialog is dismissed.
-     * @param platformDialog PlatformDialog to dismiss.
+     * @param platformEditDialog PlatformEditDialog to dismiss.
      */
-    static void deleteWhenReady(PlatformDialog *platformDialog);
+    static void deleteWhenReady(PlatformEditDialog *platformEditDialog);
 
 private:
     static const int THUMBNAIL_IMAGE_WIDTH;
@@ -89,7 +89,7 @@ private:
     
     UiThreadBridge *dataUiThreadBridge;
     
-    virtual ~PlatformDialog();
+    virtual ~PlatformEditDialog();
     
     void loadApiPlatforms();
     void updateApiPlatform();
@@ -105,20 +105,20 @@ private:
     void cancel();
     void save();
     
-    static void signalPlatformComboBoxChanged(GtkComboBox *comboBox, gpointer platformDialog);
-    static void signalImageTypeComboBoxChanged(GtkComboBox *comboBox, gpointer platformDialog);
-    static void signalRemoveImageButtonClicked(GtkButton *button, gpointer platformDialog);
-    static void signalAddImageButtonClicked(GtkButton *button, gpointer platformDialog);
-    static void signalCancelButtonClicked(GtkButton *button, gpointer platformDialog);
-    static void signalSaveButtonClicked(GtkButton *button, gpointer platformDialog);
-    static gboolean signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer platformDialog);
+    static void signalPlatformComboBoxChanged(GtkComboBox *comboBox, gpointer platformEditDialog);
+    static void signalImageTypeComboBoxChanged(GtkComboBox *comboBox, gpointer platformEditDialog);
+    static void signalRemoveImageButtonClicked(GtkButton *button, gpointer platformEditDialog);
+    static void signalAddImageButtonClicked(GtkButton *button, gpointer platformEditDialog);
+    static void signalCancelButtonClicked(GtkButton *button, gpointer platformEditDialog);
+    static void signalSaveButtonClicked(GtkButton *button, gpointer platformEditDialog);
+    static gboolean signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer platformEditDialog);
     static void callbackElasticsearch(CallbackResult *callbackResult);
     
     
 
     typedef struct
     {
-        PlatformDialog *platformDialog;
+        PlatformEditDialog *platformEditDialog;
         PlatformImage *platformImage;
     }DownloadPlatformImageRef_t;
     
@@ -126,12 +126,12 @@ private:
     static pthread_t downloadPlatformImagesThread;
     static pthread_mutex_t downloadPlatformImageRefsMutex;    
     static int downloadingPlatformImages;
-    static void downloadPlatformImage(PlatformDialog *platformDialog, PlatformImage *platformImage);
+    static void downloadPlatformImage(PlatformEditDialog *platformEditDialog, PlatformImage *platformImage);
     static void *downloadPlatformImagesWorker(void *);
     static void callbackDownloadPlatformImage(void *pDownloadPlatformImageRef);
     
     
 };
 
-#endif /* PLATFORMDIALOG_H */
+#endif /* PLATFORMEDITDIALOG_H */
 

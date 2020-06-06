@@ -72,7 +72,7 @@
             <property name="hexpand">True</property>
             <property name="vexpand">True</property>
             <child>
-              <object class="GtkBox" id="platformListContainerBox">
+              <object class="GtkBox" id="itemListContainerBox">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="vexpand">True</property>
@@ -88,7 +88,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <child>
-                          <object class="GtkListBox" id="platformListBox">
+                          <object class="GtkListBox" id="itemListBox">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                           </object>
