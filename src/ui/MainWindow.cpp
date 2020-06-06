@@ -223,7 +223,7 @@ void MainWindow::showRecents()
     selectedPlatformId = 0;
     gtk_widget_hide(GTK_WIDGET(addGameButton));
     gtk_widget_hide(GTK_WIDGET(addDirectoryButton));
-    gtk_widget_show(GTK_WIDGET(gameSearchEntry));
+    gtk_widget_hide(GTK_WIDGET(gameSearchEntry));
     
     showPanel(new RecentPanel(GTK_WINDOW(mainWindow)));    
 }
@@ -233,7 +233,7 @@ void MainWindow::showFavorites()
     selectedPlatformId = 0;
     gtk_widget_hide(GTK_WIDGET(addGameButton));
     gtk_widget_hide(GTK_WIDGET(addDirectoryButton));
-    gtk_widget_show(GTK_WIDGET(gameSearchEntry));
+    gtk_widget_hide(GTK_WIDGET(gameSearchEntry));
     
     showPanel(new FavoritePanel(GTK_WINDOW(mainWindow)));    
 }
