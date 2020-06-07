@@ -2,7 +2,7 @@
 
 EMU-nexus is a front-end designed to launch emulators and to organize ROM collections. It is developed in C++ and it uses GTK3 as graphical user interface. It does not try to compete with any other front-end. It is not designed for an HTPC, it is intended to be used in an everyday not specific purpose PC. It is distributed under the [GPLv3 license](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
-![EMU-nexus](https://www.dropbox.com/s/iocuppdwj9cbdur/emu-nexus_screenshot_2.png?raw=1)
+![EMU-nexus](https://www.dropbox.com/s/2i4os9w8ilagycq/screenshot_1.png?raw=1)
 
 Information and images of the consoles, systems and games comes from [TheGamesDB](https://thegamesdb.net/). To avoid stress on TheGamesDB servers, a concise version of the database is processed in the cloud. This concise version is updated regularly and downloaded automatically.
 
@@ -13,7 +13,7 @@ This database is stored and indexed using [Elasticsearch](https://www.elastic.co
 EMU-nexus scans specific directories and matches files with entries in the database, if a match is found, it pulls the correct name, description, publishers, developers, release date, ESRB rating and images. You can also add ROM collections that use MAME filenames. If you already have sets of images downloaded, EMU-nexus can use those instead of downloading new ones. Optionally, you can add PDF documents, other images and text notes to your games.
 
 
-![EMU-nexus](https://www.dropbox.com/s/oocwel8euup9qdt/emu-nexus_screenshot_3.png?raw=1)
+![EMU-nexus](https://www.dropbox.com/s/b761xbtqx8ag859/screenshot_2.png?raw=1)
 
 
 ROM files could be uncompressed on the go. The uncompressed files are stored in cache so they can be used directly next time. Tar, Tar.gz, Zip and 7zip formats are supported.
