@@ -6,7 +6,7 @@ HttpConnector.o\
 NotificationManager.o\
 SerialProcessExecutor.o SerialProcess.o ElasticsearchProcess.o ParseDirectoryProcess.o DownloadGameImagesProcess.o\
 Asset.o MainWindow.o UiThreadBridge.o UiUtils.o\
-Dialog.o MessageDialog.o PlatformEditDialog.o GameEditDialog.o DevelopersSelectDialog.o PublishersSelectDialog.o GenresSelectDialog.o GameSearchDialog.o AddDirectoryDialog.o GameDialog.o SelectFromListDialog.o\
+Dialog.o MessageDialog.o PlatformEditDialog.o GameEditDialog.o DevelopersSelectDialog.o PublishersSelectDialog.o GenresSelectDialog.o GameSearchDialog.o AddDirectoryDialog.o SelectFromListDialog.o\
 Panel.o HomePanel.o GamesPanel.o PlatformPanel.o RecentsPanel.o FavoritePanel.o FirstSetupPanel.o\
 Widget.o GameGridItemWidget.o MainBannerWidget.o GameBannerWidget.o\
 FileExtractor.o\

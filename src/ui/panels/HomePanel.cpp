@@ -26,7 +26,6 @@
 #include "Utils.h"
 #include "UiUtils.h"
 #include "Game.h"
-#include "GameDialog.h"
 #include "GameEditDialog.h"
 #include "Directory.h"
 #include "Asset.h"
