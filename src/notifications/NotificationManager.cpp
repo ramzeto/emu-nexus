@@ -89,17 +89,20 @@ void NotificationManager::unregisterToNotification(string notification, void* li
     pthread_mutex_unlock(&notificationRefsMutex);
 }
 
-void NotificationManager::postNotification(string notification, void *data)
+void NotificationManager::postNotification(string notification, void *data, int status, int error, int progress)
 {
     CallbackResult *callbackResult = new CallbackResult(NULL);
     callbackResult->setType(notification);
     callbackResult->setData(data);
+    callbackResult->setStatus(status);
+    callbackResult->setError(error);
+    callbackResult->setProgress(progress);
     
     list<NotificationRef_t *> *uiThreadNotificationRefs = new list<NotificationRef_t *>;
     
     pthread_mutex_lock(&notificationRefsMutex);
     if(notificationRefsMap->find(callbackResult->getType()) != notificationRefsMap->end())
-    {        
+    {
         list<NotificationRef_t *> *notificationRefs = notificationRefsMap->at(callbackResult->getType());
         callbackResult->setUsed(notificationRefs->size());
         for(list<NotificationRef_t *>::iterator notificationRef = notificationRefs->begin(); notificationRef != notificationRefs->end(); notificationRef++)
@@ -109,7 +112,6 @@ void NotificationManager::postNotification(string notification, void *data)
                 continue;
             }
             
-            // @TODO .- Free the callbackResult object
             if((*notificationRef)->mainThread)
             {
                 uiThreadNotificationRefs->push_back((*notificationRef));

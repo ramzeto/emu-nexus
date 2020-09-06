@@ -61,8 +61,11 @@ public:
      * Posts a notification to the registered listeners. If notification listener mainThread = 0, the notification will be posted in the same thread from which this method is called.
      * @param notification Notification to post
      * @param data Data to be sent to the notification listeners (It will be automatically freed).
+     * @param status
+     * @param error
+     * @param progress
      */
-    void postNotification(string notification, void *data);
+    void postNotification(string notification, void *data, int status = -1, int error = 0, int progress = 0);
             
     
     /**

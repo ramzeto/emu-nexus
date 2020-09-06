@@ -43,7 +43,8 @@ public:
      * @param panelBoxId Id from the base box of the panel.
      */
     Panel(GtkWindow *parentWindow, string panelFileName, string panelBoxId);
-       
+    
+    virtual ~Panel();
     
     /**
      * 
@@ -56,37 +57,16 @@ public:
      */
     virtual void show();
     
-    /**
-     * Dismisses the panel. It calls gtk_widget_hide_on_delete.
-     */
-    virtual void destroy();   
     
 protected:
     GtkWindow *parentWindow;
     GtkBuilder *builder;
-    GtkBox *panelBox;
-    
-    virtual ~Panel();
+    GtkBox *panelBox;        
     
     int isDestroyed();
     
 private:
     int destroyed;
-
-    
-    /**
-     * Called when the panelBox and its widgets are destroyed.
-     * @param widget
-     * @param panel
-     */
-    static void signalDestroy(GtkWidget *widget, gpointer panel);
-    
-    /**
-     * 
-     * @param panel
-     * @return 
-     */
-    static gint callbackDeleteTimeout(gpointer panel);
 };
 
 #endif	/* PANEL_H */

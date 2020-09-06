@@ -34,6 +34,7 @@
 #include "Preferences.h"
 #include "Genre.h"
 #include "Game.h"
+#include "GameFavorite.h"
 #include "thegamesdb.h"
 #include "ElasticsearchProcess.h"
 #include "SerialProcessExecutor.h"
@@ -44,12 +45,15 @@
 #include "Directory.h"
 #include "ParseDirectoryProcess.h"
 #include "DownloadGameImagesProcess.h"
-#include "Utils.h"
 #include "UiThreadBridge.h"
 #include "GameActivity.h"
 #include "FavoritePanel.h"
-#include "RecentPanel.h"
+#include "RecentsPanel.h"
 #include "Logger.h"
+#include "MainBannerWidget.h"
+#include "Utils.h"
+#include "SelectFromListDialog.h"
+#include "GameLauncher.h"
 
 
 #include <string>
@@ -106,6 +110,7 @@ MainWindow::MainWindow()
     itemListBox = (GtkListBox *)gtk_builder_get_object (builder, "itemListBox");
     g_signal_connect (itemListBox, "row-selected", G_CALLBACK(signalItemListRowSelected), this);
 
+    bannerBox = (GtkBox *)gtk_builder_get_object (builder, "bannerBox");
     contentBox = (GtkBox *)gtk_builder_get_object (builder, "contentBox");
     
     processBox = (GtkBox *)gtk_builder_get_object (builder, "processBox");
@@ -113,6 +118,26 @@ MainWindow::MainWindow()
     processTitleLabel = (GtkLabel *)gtk_builder_get_object (builder, "processTitleLabel");
     processMessageLabel = (GtkLabel *)gtk_builder_get_object (builder, "processMessageLabel");   
     processProgressBar = (GtkProgressBar *)gtk_builder_get_object (builder, "processProgressBar");
+    
+    
+    // Loads the CSS
+    GError *error = NULL;
+    cssProvider = gtk_css_provider_new();
+    gtk_css_provider_load_from_path(cssProvider, (Asset::getInstance()->getCss()).c_str(), &error);
+    if(error)
+    {
+        cerr << __FUNCTION__ << " " << error->message << endl;
+    }
+    else
+    {
+        GdkScreen *screen = gtk_window_get_screen(GTK_WINDOW(mainWindow));
+        gtk_style_context_add_provider_for_screen(screen, GTK_STYLE_PROVIDER(cssProvider), GTK_STYLE_PROVIDER_PRIORITY_USER);
+    }
+    //______________
+    
+    
+    gtk_container_add(GTK_CONTAINER(bannerBox), GTK_WIDGET(MainBannerWidget::getInstance()->getWidget()));
+    
     
     gtk_widget_show_all(GTK_WIDGET(mainWindow));
     
@@ -131,7 +156,8 @@ MainWindow::MainWindow()
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_PLATFORM_UPDATED, this, callbackNotification, 1);
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_DIRECTORY_ADDED, this, callbackNotification, 1);
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_ACTIVITY_UPDATED, this, callbackNotification, 1);
-    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_FAVORITES_UPDATED, this, callbackNotification, 1);
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_FAVORITE_UPDATED, this, callbackNotification, 1);
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_LAUNCHER_STATUS_CHANGED, this, callbackNotification, 1);
     
     startGui();
 }
@@ -194,12 +220,9 @@ void MainWindow::startGui()
 void MainWindow::showPanel(Panel* panel)
 {
     if(currentPanel)
-    {
-        UiUtils::getInstance()->clearContainer(GTK_CONTAINER(contentBox), 0);
-        currentPanel->destroy();
-        
-        // @TODO Fix this memory leak. For some reason the application crashes randomly when the panel is freed.
-        //delete currentPanel;
+    {        
+        delete currentPanel;
+        UiUtils::getInstance()->clearContainer(GTK_CONTAINER(contentBox), 1);
     }
     
     currentPanel = panel;
@@ -225,7 +248,7 @@ void MainWindow::showRecents()
     gtk_widget_hide(GTK_WIDGET(addDirectoryButton));
     gtk_widget_hide(GTK_WIDGET(gameSearchEntry));
     
-    showPanel(new RecentPanel(GTK_WINDOW(mainWindow)));    
+    showPanel(new RecentsPanel(GTK_WINDOW(mainWindow)));
 }
 
 void MainWindow::showFavorites()
@@ -322,7 +345,7 @@ void MainWindow::loadItemsList()
             
             Game::releaseItems(games);
 
-            PlatformImage *platformImage = PlatformImage::getPrimaryImage(platform->getId());        
+            PlatformImage *platformImage = PlatformImage::getPlatformImage(platform->getId(), PlatformImage::TYPE_BOXART);
             if(platformImage)
             {
                 if(Utils::getInstance()->fileExists(platformImage->getThumbnailFileName()))
@@ -397,7 +420,7 @@ void MainWindow::updatePlatform(int64_t platformId)
 
             Game::releaseItems(games);
 
-            PlatformImage *platformImage = PlatformImage::getPrimaryImage(platform->getId());        
+            PlatformImage *platformImage = PlatformImage::getPlatformImage(platform->getId(), PlatformImage::TYPE_BOXART);
             if(platformImage)
             {
                 if(Utils::getInstance()->fileExists(platformImage->getThumbnailFileName()))
@@ -417,7 +440,7 @@ void MainWindow::updatePlatform(int64_t platformId)
             else
             {
                 UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageLogo(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
-            }                        
+            }
             break;
         }
     }        
@@ -542,7 +565,7 @@ gboolean MainWindow::signalPlatformListRowPressedEvent(GtkWidget* widget, GdkEve
         g_signal_connect(removeMenuitem, "activate", G_CALLBACK(signalPlatformMenuRemoveActivate), mainWindow);
         
         gtk_widget_show_all(menu);
-        gtk_menu_popup_at_pointer(GTK_MENU(menu), event);        
+        gtk_menu_popup_at_pointer(GTK_MENU(menu), event);
     }
     return FALSE;
 }
@@ -564,7 +587,8 @@ void MainWindow::signalAddPlatformButtonClicked(GtkButton* button, gpointer main
 
 void MainWindow::signalAddGameButtonClicked(GtkButton* button, gpointer mainWindow)
 {
-    ((PlatformPanel *) ((MainWindow *)mainWindow)->currentPanel)->showGameEditDialog(0);
+    PlatformPanel *platformPanel = (PlatformPanel *)((MainWindow *)mainWindow)->currentPanel;
+    platformPanel->showGameEditDialog(0, platformPanel->getPlatformId());
 }
 
 void MainWindow::signalAddDirectoryButtonClicked(GtkButton* button, gpointer mainWindow)
@@ -647,7 +671,7 @@ void MainWindow::callbackNotification(CallbackResult *callbackResult)
     {
         mainWindow->updateRecents();
     }    
-    else if(callbackResult->getType().compare(NOTIFICATION_FAVORITES_UPDATED) == 0)
+    else if(callbackResult->getType().compare(NOTIFICATION_GAME_FAVORITE_UPDATED) == 0)
     {
         mainWindow->updateFavorites();
     }    
@@ -655,5 +679,69 @@ void MainWindow::callbackNotification(CallbackResult *callbackResult)
     {
         ParseDirectoryProcess *parseDirectoryProcess = new ParseDirectoryProcess(mainWindow->processUiThreadBridge, UiThreadBridge::callback);
         SerialProcessExecutor::getInstance()->schedule(parseDirectoryProcess);
+    }
+    else if(callbackResult->getType().compare(NOTIFICATION_GAME_LAUNCHER_STATUS_CHANGED) == 0)
+    {
+        if(callbackResult->getError())
+        {
+            string message = "";
+            if(callbackResult->getError() == GameLauncher::ERROR_BUSY)
+            {
+                message = "Launcher busy";
+            }
+            else if(callbackResult->getError() == GameLauncher::ERROR_FILE_NOT_FOUND)
+            {
+                message = "File not found";
+            }
+            else if(callbackResult->getError() == GameLauncher::ERROR_INFLATE)
+            {
+                message = "Inflating failed";
+            }
+            else if(callbackResult->getError() == GameLauncher::ERROR_INFLATE_NOT_SUPPORTED)
+            {
+                message = "Compressed format unsupported";
+            }
+            else if(callbackResult->getError() == GameLauncher::ERROR_OTHER)
+            {
+                message = "Other error";
+            }
+            
+            MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(mainWindow->mainWindow), message, "Close", "");
+            if(messageDialog->execute() == GTK_RESPONSE_YES)
+            {
+            }
+            delete messageDialog;
+        }
+        else
+        {
+            if(callbackResult->getStatus() == GameLauncher::STATUS_FOUND_MULTIPLE_FILES)
+            {
+                list<string> fileNames = GameLauncher::getInstance()->getFileNames();
+                string fileName = "";
+                list<string> baseFileNames;
+                for(list<string>::iterator item = fileNames.begin(); item != fileNames.end(); item++)
+                {
+                    baseFileNames.push_back(Utils::getInstance()->getFileBasename(*item));
+                }
+
+                SelectFromListDialog *selectFromListDialog = new SelectFromListDialog(GTK_WINDOW(mainWindow->mainWindow), "Multiple files where found", baseFileNames);
+                if(selectFromListDialog->execute() == GTK_RESPONSE_ACCEPT)
+                {
+                    list<string>::iterator item = fileNames.begin();
+                    advance(item, selectFromListDialog->getSelectedIndex());
+                    fileName = *item;
+                }
+                delete selectFromListDialog;
+                
+                if(fileName.length() > 0)
+                {
+                    GameLauncher::getInstance()->selectFileName(fileName);
+                }
+                else
+                {
+                    GameLauncher::getInstance()->cancel();
+                }
+            }
+        }
     }
 }

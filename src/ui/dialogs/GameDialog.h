@@ -52,7 +52,7 @@ private:
     static const int INFORMATION_WIDTH;
 
 
-    Game *game;    
+    Game *game;
     list<GameImage *> *gameImages;    
     GameImage *selectedGameImage;
     map<GameImage *, GtkWidget *> *gameImageBoxes;

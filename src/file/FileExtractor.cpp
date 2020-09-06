@@ -135,6 +135,10 @@ int FileExtractor::copyData(archive* ar, archive* aw)
             progressBytes += size;
             if(progressListener && progressListenerCallback)
             {
+                if(progressBytes > fileSize * 2)
+                {
+                    progressBytes = fileSize * 2;
+                }
                 progressListenerCallback(progressListener, this, fileSize * 2 /*Uncompressed size aprox.*/, progressBytes);                
             }            
     }

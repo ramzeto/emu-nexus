@@ -375,7 +375,7 @@ json_t *PlatformImage::toJson()
 	return json;
 }
 
-PlatformImage* PlatformImage::getPrimaryImage(int64_t platformId)
+PlatformImage* PlatformImage::getPlatformImage(int64_t platformId, int64_t type)
 {
     sqlite3 *db = Database::getInstance()->acquire();
     PlatformImage *item = NULL;
@@ -384,7 +384,7 @@ PlatformImage* PlatformImage::getPrimaryImage(int64_t platformId)
     if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
-        sqlite3_bind_int64(statement, 2, (sqlite3_int64)TYPE_BOXART);
+        sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
 
             if (sqlite3_step(statement) == SQLITE_ROW)
             {

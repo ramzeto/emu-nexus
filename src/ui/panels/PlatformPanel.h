@@ -25,20 +25,14 @@
 #ifndef PLATFORMPANEL_H
 #define PLATFORMPANEL_H
 
-#include "Panel.h"
-#include "Game.h"
-#include "CallbackResult.h"
-#include "GameGridItemWidget.h"
-
-#include <map>
-#include <list>
+#include "GamesPanel.h"
 
 using namespace std;
 
 /**
  * Panel that handles the games of a platform.
  */
-class PlatformPanel : public Panel
+class PlatformPanel : public GamesPanel
 {
 public:
     
@@ -47,156 +41,34 @@ public:
      * @param parentWindow Parent GtkWindow.
      * @param platformId Id of the platform.
      */
-    PlatformPanel(GtkWindow *parentWindow, int platformId);        
+    PlatformPanel(GtkWindow *parentWindow, int platformId);
     
     /**
-     * Shows the game dialog for adding or editing.
-     * @param gameId 0 is for a new game.
+     * 
+     * @return platformId.
      */
-    void showGameEditDialog(int64_t gameId);
+    int64_t getPlatformId();    
     
     /**
-     * Updates the game grid
-     * @param searchQuery Search query
+     * Updates the game grid.
+     * @param searchQuery Search query.
      */
     void updateGames(string searchQuery);
     
     
     /**
-     * Shows the add directory dialog
+     * Shows the add directory dialog.
      */
-    void showAddDirectoryDialog();
+    void showAddDirectoryDialog();        
     
-private:
-    GtkScrolledWindow *gameGridScrolledWindow;
-    GtkListBox *gameGridListBox;
-        
+protected:
     int64_t platformId;
-    list<Game *> *games;
-    map<int64_t, GameGridItemWidget *> *gameGridItems;
-    int isShown;
-    int panelWidth;
-    int panelHeight;
-    unsigned int gameGridItemIndex;
-    int64_t selectedGameId;
     string searchQuery;
-    
-    
-    virtual ~PlatformPanel();
     
     /**
      * Loads the game list
      */
-    void loadGames();
-    
-    /**
-     * Loads the game grid
-     */
-    void loadGridPage();
-    
-    /**
-     * Updates the game visual representation in the grid
-     * @param gameId
-     */
-    void updateGame(int64_t gameId);
-            
-    /**
-     * Selects a game
-     * @param gameId
-     */
-    void selectGame(int64_t gameId);
-    
-    /**
-     * Removes a game
-     * @param gameId
-     */
-    void removeGame(int64_t gameId);
-    
-    /**
-     * Launches a game
-     * @param gameId
-     */
-    void launchGame(int64_t gameId);
-    
-    /**
-     * Shows the game detail dialog.
-     * @param gameId
-     */
-    void showGameDetailDialog(int64_t gameId);    
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetSelect(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetActive(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetMenuFavoriteSelect(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetMenuDetailSelect(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetMenuEditSelect(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetMenuRemoveSelect(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * Signal triggered when the gameGridListBox "size-allocate" event happens.
-     * @param widget
-     * @param allocation
-     * @param platformPanel
-     */
-    static void signalGameGridSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer platformPanel);
-        
-    /**
-     * Signal triggered when the gameGridScrolledWindow "edge-reached" event happens.
-     * @param scrolledWindow
-     * @param positionType
-     * @param data
-     */
-    static void signalGameGridScrolledWindowEdgeReached(GtkScrolledWindow *scrolledWindow, GtkPositionType positionType, gpointer platformPanel);        
-    
-    /**
-     * 
-     * @param widget
-     * @param platformPanel
-     */
-    static void signalShow(GtkWidget *widget, gpointer platformPanel);
-    
-    
-    /**
-     * Callback that gets fired when the horrible hacky timer triggers to force the first draw of the grid.
-     * @param platformPanel
-     * @return 
-     */
-    static gint callbackFirstShowHackyTimeout(gpointer platformPanel);
-        
-    /**
-     * 
-     * @param callbackResult
-     */
-    static void callbackNotification(CallbackResult *callbackResult);
-    
+    void loadGames();            
 };
 
 #endif /* PLATFORMPANEL_H */

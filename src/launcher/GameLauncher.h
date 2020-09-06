@@ -47,21 +47,21 @@ public:
     static const int ERROR_FILE_NOT_FOUND;
     static const int ERROR_OTHER;
     
-    static const int STATE_IDLE;
-    static const int STATE_INFLATING;
-    static const int STATE_SELECTING_FILE;
-    static const int STATE_FOUND_MULTIPLE_FILES;
-    static const int STATE_RUNNING;
-    static const int STATE_FINISHED;
-    static const int STATE_CANCELED;
+    static const int STATUS_IDLE;
+    static const int STATUS_STARTING;
+    static const int STATUS_INFLATING;
+    static const int STATUS_SELECTING_FILE;
+    static const int STATUS_FOUND_MULTIPLE_FILES;
+    static const int STATUS_RUNNING;
+    static const int STATUS_FINISHED;
+    static const int STATUS_CANCELED;
     
     /**
-     * Launches a game.
+     * Launches a game. Should be called from the main thread.
      * @param gameId Game id to launch.
-     * @param requester Pointer to the object that requested the launch.
-     * @param callback Callback that receives status updates. The parameter of this callback is a pointer to a CallbackResult object (the requester is responsible for freeing this pointer).
+     * @return 0 if launch process will start; > 0 otherwise.
      */
-    void launch(int64_t gameId, void *requester, void (*callback)(CallbackResult *));
+    int launch(int64_t gameId);
     
     /**
      * 
@@ -71,9 +71,15 @@ public:
     
     /**
      * 
-     * @return Current state of the launch.
+     * @return Current status of the launch.
      */
-    int getState();
+    int getStatus();
+    
+    /**
+     * 
+     * @return Game id.
+     */
+    int64_t getGameId();
     
     /**
      * This method should be called when state = STATE_FOUND_MULTIPLE_FILES. This state is set when multiple filenames with the matching criteria are found after uncompressing/unpacking a ROM file.
@@ -100,19 +106,14 @@ public:
     
 private:
     int error;
-    int state;
+    int status;
+    int64_t gameId;
     list<string> fileNames;
     string fileName;
     
     GameLauncher();
     virtual ~GameLauncher();
 
-    typedef struct
-    {
-        int64_t gameId;
-        void *requester;
-        void (*callback)(CallbackResult *);
-    }GameLauncherData_t;    
     pthread_mutex_t mutex;
     
     /**
@@ -124,17 +125,14 @@ private:
     
     /**
      * Posts status updates to the requester object.
-     * @param gameLauncherData
-     * @param error
-     * @param state
      * @param progress
      */
-    void postStatus(GameLauncherData_t *gameLauncherData, int error, int state, int progress);
+    void postStatus(int progress = -1);
     
     static GameLauncher *instance;
     
-    static void *launchWorker(void *pGameLauncherData);    
-    static void fileExtractorProgressListenerCallback(void *pGameLauncherData, FileExtractor *fileExtractor, size_t fileSize, size_t progressBytes);
+    static void *launchWorker(void *);    
+    static void fileExtractorProgressListenerCallback(void *, FileExtractor *fileExtractor, size_t fileSize, size_t progressBytes);
 };
 
 #endif /* GAMELAUNCHER_H */

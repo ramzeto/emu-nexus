@@ -179,6 +179,11 @@ public:
      */
     string nowIsoDateTime();
     
+    /**
+     * 
+     * @return Timestamp in millis.
+     */
+    long long timestampInMilliSeconds();
     
     /**
      * Scales an image preserving its aspect ratio.
@@ -210,6 +215,14 @@ public:
      * @param directoryName Directory to remove.
      */
     void removeDirectory(string directoryName);
+    
+    /**
+     * 
+     * @param sourceDirectoryName
+     * @param destinationDirectoryName
+     */
+    void moveDirectory(string sourceDirectoryName, string destinationDirectoryName);
+    
     
     /**
      * 

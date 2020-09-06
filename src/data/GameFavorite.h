@@ -30,6 +30,8 @@
 #include <jansson.h>
 #include <cstdint>
 
+#include "Game.h"
+
 using namespace std;
 
 class GameFavorite

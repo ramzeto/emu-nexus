@@ -16,22 +16,22 @@
  */
 
 /* 
- * File:   FavoritePanel.cpp
+ * File:   RecentsPanel.cpp
  * Author: ram
  * 
- * Created on May 8, 2020, 2:05 PM
+ * Created on June 5, 2020, 10:20 PM
  */
 
-#include "FavoritePanel.h"
-#include "GameFavorite.h"
+#include "RecentsPanel.h"
+#include "GameActivity.h"
 #include "MainBannerWidget.h"
 
-FavoritePanel::FavoritePanel(GtkWindow *parentWindow) : GamesPanel(parentWindow)
+RecentsPanel::RecentsPanel(GtkWindow *parentWindow) : GamesPanel(parentWindow)
 {
-    MainBannerWidget::getInstance()->setBannerType(MainBannerWidget::TYPE_FAVORITES);
+    MainBannerWidget::getInstance()->setBannerType(MainBannerWidget::TYPE_RECENTS);
 }
 
-void FavoritePanel::loadGames()
+void RecentsPanel::loadGames()
 {    
     if(games)
     {
@@ -39,14 +39,14 @@ void FavoritePanel::loadGames()
     }
     
     games = new list<Game *>();
-    list<GameFavorite *> *gameFavorites = GameFavorite::getItems();
-    for(unsigned int c = 0; c < gameFavorites->size(); c++)
+    list<GameActivity *> *gameActivities = GameActivity::getRecentItems();
+    for(unsigned int c = 0; c < gameActivities->size(); c++)
     {
-        GameFavorite *gameFavorite = GameFavorite::getItem(gameFavorites, c);
+        GameActivity *gameActivity = GameActivity::getItem(gameActivities, c);
         
-        Game *game = new Game(gameFavorite->getGameId());
+        Game *game = new Game(gameActivity->getGameId());
         game->load();
         games->push_back(game);
     }
-    GameFavorite::releaseItems(gameFavorites);
+    GameActivity::releaseItems(gameActivities);
 }

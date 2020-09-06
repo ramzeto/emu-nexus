@@ -36,8 +36,8 @@ const int GameImage::TYPE_SCREENSHOT = 3;
 const int GameImage::TYPE_CLEAR_LOGO = 4;
 const int GameImage::TYPE_BANNER = 5;
 
-const int GameImage::THUMBNAIL_WIDTH = 200;
-const int GameImage::THUMBNAIL_HEIGHT = 100;
+const int GameImage::THUMBNAIL_WIDTH = 250;
+const int GameImage::THUMBNAIL_HEIGHT = 250;
 
 GameImage::GameImage()
 {

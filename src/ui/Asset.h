@@ -35,13 +35,24 @@ using namespace std;
 class Asset {
 
 public:
+    static const string ASSET_CSS;
     static const string ASSET_IMAGE_LOGO;
     static const string ASSET_IMAGE_HOME;
     static const string ASSET_IMAGE_DOWNLOADING;
     static const string ASSET_IMAGE_DOCUMENT;
     static const string ASSET_IMAGE_FAVORITE;
+    static const string ASSET_IMAGE_NON_FAVORITE;
     static const string ASSET_IMAGE_RECENT;
+    static const string ASSET_IMAGE_NO_GAME_IMAGE;
+    static const string ASSET_IMAGE_EDIT;
     static const string ASSET_HOME_PML;
+    
+    
+    /**
+     * 
+     * @return CSS filename.
+     */
+    string getCss();
     
     /**
      * 
@@ -75,9 +86,27 @@ public:
     
     /**
      * 
+     * @return Non favorite image filename.
+     */
+    string getImageNonFavorite();
+    
+    /**
+     * 
      * @return Recent image filename.
      */
-    string getImageRecent();     
+    string getImageRecent();
+    
+    /**
+     * 
+     * return No game image filename.
+     */
+    string getImageNoGameImage();
+    
+    /**
+     * 
+     * @return Edit image filename.
+     */
+    string getImageEdit();
     
     /**
      * 

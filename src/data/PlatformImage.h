@@ -91,7 +91,7 @@ public:
         string getThumbnailFileName();
 	json_t *toJson();
 
-        static PlatformImage *getPrimaryImage(int64_t platformId);
+        static PlatformImage *getPlatformImage(int64_t platformId, int64_t type);
 	static list<PlatformImage *> *getItems(int64_t platformId);
 	static PlatformImage *getItem(list<PlatformImage *> *items, unsigned int index);
 	static void releaseItems(list<PlatformImage *> *items);

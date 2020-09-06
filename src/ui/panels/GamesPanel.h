@@ -16,53 +16,70 @@
  */
 
 /* 
- * File:   RecentPanel.h
+ * File:   GamesPanel.h
  * Author: ram
  *
- * Created on June 5, 2020, 10:20 PM
+ * Created on September 5, 2020, 12:58 PM
  */
 
-#ifndef RECENTPANEL_H
-#define RECENTPANEL_H
+#ifndef GAMESPANEL_H
+#define GAMESPANEL_H
 
 #include "Panel.h"
-#include "GameGridItemWidget.h"
-#include "GameActivity.h"
+#include "Game.h"
 #include "CallbackResult.h"
+#include "GameGridItemWidget.h"
 
 #include <map>
 #include <list>
 
-class RecentPanel : public Panel
+using namespace std;
+
+class GamesPanel : public Panel
 {
 public:
-    RecentPanel(GtkWindow *parentWindow); 
-
-private:
+    
+    /**
+     * 
+     * @param parentWindow Parent GtkWindow.
+     */
+    GamesPanel(GtkWindow *parentWindow);        
+    
+    /**
+     * 
+     */
+    virtual ~GamesPanel();
+    
+    /**
+     * Shows the game dialog for adding or editing.
+     * @param gameId 0 is for a new game.
+     * @param platformId A valid platformId should be passed for a new game, otherwise is ignored.
+     */
+    void showGameEditDialog(int64_t gameId, int64_t platformId = 0);
+        
+    
+protected:
     GtkScrolledWindow *gameGridScrolledWindow;
     GtkListBox *gameGridListBox;
-
-    list<GameActivity *> *gameActivities;
+    
+    list<Game *> *games;
     map<int64_t, GameGridItemWidget *> *gameGridItems;
-    int isShown;
     int panelWidth;
     int panelHeight;
     unsigned int gameGridItemIndex;
     int64_t selectedGameId;
-
-    virtual ~RecentPanel();
+    gulong signalSizeAllocateHandlerId;
+    gulong signalSizeEdgeReachedHandlerId;
     
+    /**
+     * Loads the game list
+     */
+    virtual void loadGames();
     
     /**
      * Loads the game grid
      */
     void loadGridPage();
-    
-    /**
-     * Shows the game dialog for editing.
-     * @param gameId 0 is for a new game.
-     */
-    void showGameEditDialog(int64_t gameId);
     
     /**
      * Updates the game visual representation in the grid
@@ -77,16 +94,10 @@ private:
     void selectGame(int64_t gameId);
     
     /**
-     * Launches a game
+     * Removes a game
      * @param gameId
      */
-    void launchGame(int64_t gameId);
-    
-    /**
-     * Shows the game detail dialog.
-     * @param gameId
-     */
-    void showGameDetailDialog(int64_t gameId);    
+    void removeGame(int64_t gameId);
     
     /**
      * 
@@ -98,19 +109,7 @@ private:
      * 
      * @param gameGridItemWidget
      */
-    static void onGameGridItemWidgetActive(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
     static void onGameGridItemWidgetMenuFavoriteSelect(GameGridItemWidget *gameGridItemWidget);
-    
-    /**
-     * 
-     * @param gameGridItemWidget
-     */
-    static void onGameGridItemWidgetMenuDetailSelect(GameGridItemWidget *gameGridItemWidget);
     
     /**
      * 
@@ -119,42 +118,40 @@ private:
     static void onGameGridItemWidgetMenuEditSelect(GameGridItemWidget *gameGridItemWidget);
     
     /**
-     * Signal triggered when the gameGridListBox "size-allocate" event happens.
+     * 
+     * @param gameGridItemWidget
+     */
+    static void onGameGridItemWidgetMenuRemoveSelect(GameGridItemWidget *gameGridItemWidget);
+    
+    /**
+     * Signal triggered when the "size-allocate" event happens.
      * @param widget
      * @param allocation
-     * @param recentPanel
+     * @param gamesPanel
      */
-    static void signalGameGridSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer recentPanel);
+    static void signalSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer gamesPanel);
         
     /**
      * Signal triggered when the gameGridScrolledWindow "edge-reached" event happens.
      * @param scrolledWindow
      * @param positionType
-     * @param recentPanel
+     * @param gamesPanel
      */
-    static void signalGameGridScrolledWindowEdgeReached(GtkScrolledWindow *scrolledWindow, GtkPositionType positionType, gpointer recentPanel);        
+    static void signalGameGridScrolledWindowEdgeReached(GtkScrolledWindow *scrolledWindow, GtkPositionType positionType, gpointer gamesPanel);                
     
     /**
-     * 
-     * @param widget
-     * @param recentPanel
-     */
-    static void signalShow(GtkWidget *widget, gpointer recentPanel);
-    
-    
-    /**
-     * Callback that gets fired when the horrible hacky timer triggers to force the first draw of the grid.
-     * @param recentPanel
+     * Callback that gets fired when the horrible hacky timer triggers to force the draw of the grid.
+     * @param gamesPanel
      * @return 
      */
-    static gint callbackFirstShowHackyTimeout(gpointer recentPanel);
-    
+    static gint callbackFirstShowHackyTimeout(gpointer gamesPanel);
+        
     /**
      * 
      * @param callbackResult
      */
-    static void callbackNotification(CallbackResult *callbackResult);
+    static void callbackNotification(CallbackResult *callbackResult);    
 };
 
-#endif /* RECENTPANEL_H */
+#endif /* GAMESPANEL_H */
 

@@ -351,7 +351,7 @@ list<GameActivity *> *GameActivity::getRecentItems()
 	sqlite3 *db = Database::getInstance()->acquire();
 
 	string query = "select id, gameId, timestamp, duration from GameActivity ";
-        query += " group by gameId order by timestamp desc";
+        query += " group by gameId order by timestamp desc limit 200";
         
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)

@@ -32,6 +32,7 @@ Directory *Directory::instance = NULL;
 
 const string Directory::DIRECTORY_ASSETS = "/usr/share/emu-nexus/assets/";
 const string Directory::DIRECTORY_UI_TEMPLATES = "ui_templates/";
+const string Directory::DIRECTORY_CSS = "css/";
 const string Directory::DIRECTORY_ASSET_IMAGES = "images/";
 const string Directory::DIRECTORY_MEDIA = "media/";
 const string Directory::DIRECTORY_ELASTICSEARCH = "elasticsearch/";
@@ -81,6 +82,11 @@ string Directory::getAssetsDirectory()
 string Directory::getUiTemplatesDirectory()
 {
     return getAssetsDirectory() + DIRECTORY_UI_TEMPLATES;
+}
+
+string Directory::getCssDirectory()
+{
+    return getAssetsDirectory() + DIRECTORY_CSS;
 }
 
 string Directory::getAssetImagesDirectory()

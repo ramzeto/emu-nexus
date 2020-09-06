@@ -60,6 +60,7 @@ private:
     GtkButton *addDirectoryButton;
     GtkBox *itemListContainerBox;
     GtkListBox *itemListBox;
+    GtkBox *bannerBox;
     GtkBox *contentBox;
     
     GtkBox *processBox;

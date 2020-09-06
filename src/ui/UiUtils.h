@@ -66,7 +66,7 @@ public:
      * @param width Desired width
      * @param height Desired height
      */
-    void loadImage(GtkImage *image, string fileName, int width, int height);
+    void loadImage(GtkImage *image, string fileName, int width, int height);        
     
     /**
      * 

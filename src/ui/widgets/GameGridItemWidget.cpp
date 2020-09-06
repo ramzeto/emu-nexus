@@ -31,11 +31,13 @@
 #include "CallbackResult.h"
 #include "NotificationManager.h"
 #include "Notifications.h"
+#include "MainBannerWidget.h"
+#include "GameLauncher.h"
 
-const int GameGridItemWidget::GAME_GRID_ITEM_WIDTH = 180;
-const int GameGridItemWidget::GAME_GRID_ITEM_HEIGHT = 300;
+const int GameGridItemWidget::GAME_GRID_ITEM_WIDTH = 250;
+const int GameGridItemWidget::GAME_GRID_ITEM_HEIGHT = 250;
 const int GameGridItemWidget::GAME_GRID_ITEM_IMAGE_WIDTH = GAME_GRID_ITEM_WIDTH - 20;
-const int GameGridItemWidget::GAME_GRID_ITEM_IMAGE_HEIGHT = GAME_GRID_ITEM_IMAGE_WIDTH * 1.443;
+const int GameGridItemWidget::GAME_GRID_ITEM_IMAGE_HEIGHT = GAME_GRID_ITEM_IMAGE_WIDTH;
 const int GameGridItemWidget::FAVORITE_IMAGE_WIDTH = 30;
 const int GameGridItemWidget::FAVORITE_IMAGE_HEIGHT = 30;
 
@@ -54,9 +56,7 @@ GameGridItemWidget::GameGridItemWidget(void *owner, Game *game) : Widget("GameGr
     activatedTimestamp = 0;
     
     callbackSelect = NULL;
-    callbackActivate = NULL;
     callbackContextMenuFavorite = NULL;
-    callbackContextMenuDetail = NULL;
     callbackContextMenuEdit = NULL;
     callbackContextMenuRemove = NULL;
     
@@ -84,8 +84,8 @@ void GameGridItemWidget::setGame(Game *game)
         delete this->game;        
     }
     
-    this->game = new Game(*game);
-    gtk_label_set_text(nameLabel, game->getName().c_str());
+    this->game = new Game(*game);    
+    gtk_widget_set_tooltip_text(widget, game->getName().c_str());
 
  
     GameImage *primaryImage = GameImage::getPrimaryImage(game->getId());
@@ -93,21 +93,25 @@ void GameGridItemWidget::setGame(Game *game)
     {
         if(Utils::getInstance()->fileExists(primaryImage->getThumbnailFileName()))
         {
+            gtk_label_set_text(nameLabel, "");
             UiUtils::getInstance()->loadImage(gameImage, primaryImage->getThumbnailFileName(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
         }
         else if(Utils::getInstance()->fileExists(primaryImage->getFileName()))
         {
+            gtk_label_set_text(nameLabel, "");
             UiUtils::getInstance()->loadImage(gameImage, primaryImage->getFileName(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
         }
         else
         {
-            UiUtils::getInstance()->loadImage(gameImage, Asset::getInstance()->getImageLogo(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+            gtk_label_set_text(nameLabel, game->getName().c_str());
+            UiUtils::getInstance()->loadImage(gameImage, Asset::getInstance()->getImageNoGameImage(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
         }
         delete primaryImage;
     }
     else
     {
-        UiUtils::getInstance()->loadImage(gameImage, Asset::getInstance()->getImageLogo(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
+        gtk_label_set_text(nameLabel, game->getName().c_str());
+        UiUtils::getInstance()->loadImage(gameImage, Asset::getInstance()->getImageNoGameImage(), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
     }
     gtk_widget_set_size_request(GTK_WIDGET(gameImage), GAME_GRID_ITEM_IMAGE_WIDTH, GAME_GRID_ITEM_IMAGE_HEIGHT);
 
@@ -137,19 +141,9 @@ void GameGridItemWidget::setCallbackSelect(void (*callbackSelect)(GameGridItemWi
     this->callbackSelect = callbackSelect;
 }
 
-void GameGridItemWidget::setCallbackActivate(void (*callbackActivate)(GameGridItemWidget *))
-{
-    this->callbackActivate = callbackActivate;
-}
-
 void GameGridItemWidget::setCallbackContextMenuFavorite(void (*callbackContextMenuFavorite)(GameGridItemWidget *))
 {
     this->callbackContextMenuFavorite = callbackContextMenuFavorite;
-}
-
-void GameGridItemWidget::setCallbackContextMenuDetail(void (*callbackContextMenuDetail)(GameGridItemWidget *))
-{
-    this->callbackContextMenuDetail = callbackContextMenuDetail;
 }
 
 void GameGridItemWidget::setCallbackContextMenuEdit(void (*callbackContextMenuEdit)(GameGridItemWidget *))
@@ -173,20 +167,19 @@ gboolean GameGridItemWidget::signalBoxButtonPressedEvent(GtkWidget* widget, GdkE
         if(now - ((GameGridItemWidget *)gameGridItemWidget)->selectedTimestamp == 0 && now - ((GameGridItemWidget *)gameGridItemWidget)->activatedTimestamp > 2)
         {
             ((GameGridItemWidget *)gameGridItemWidget)->activatedTimestamp = now;
-            if(((GameGridItemWidget *)gameGridItemWidget)->callbackActivate)
-            {
-                ((GameGridItemWidget *)gameGridItemWidget)->callbackActivate((GameGridItemWidget *)gameGridItemWidget);
-            }
+            
+            GameLauncher::getInstance()->launch(((GameGridItemWidget *)gameGridItemWidget)->game->getId());
         }
         else
         {
             if(((GameGridItemWidget *)gameGridItemWidget)->callbackSelect)
             {
                 ((GameGridItemWidget *)gameGridItemWidget)->callbackSelect((GameGridItemWidget *)gameGridItemWidget);
-            }            
+            }
         }
         
         ((GameGridItemWidget *)gameGridItemWidget)->selectedTimestamp = now;
+        MainBannerWidget::getInstance()->setGameId(((GameGridItemWidget *)gameGridItemWidget)->game->getId());
     }
     // Mouse right button
     else if(event->button.button == 3)
@@ -215,14 +208,7 @@ gboolean GameGridItemWidget::signalBoxButtonPressedEvent(GtkWidget* widget, GdkE
             g_signal_connect(menuitem, "activate", G_CALLBACK(signalMenuFavoriteActivate), gameGridItemWidget);
             
             delete gameFavorite;
-        }
-        
-        if(((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuDetail)
-        {
-            GtkWidget *menuitem = gtk_menu_item_new_with_label("Information");
-            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-            g_signal_connect(menuitem, "activate", G_CALLBACK(signalMenuDetailActivate), gameGridItemWidget);
-        }
+        }       
         
         if(((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuEdit)
         {
@@ -265,12 +251,7 @@ void GameGridItemWidget::signalMenuFavoriteActivate(GtkMenuItem *menuitem, gpoin
     
     ((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuFavorite((GameGridItemWidget *)gameGridItemWidget);
     
-    NotificationManager::getInstance()->postNotification(NOTIFICATION_FAVORITES_UPDATED, new Game(((GameGridItemWidget *)gameGridItemWidget)->game->getId()));        
-}
-
-void GameGridItemWidget::signalMenuDetailActivate(GtkMenuItem* menuitem, gpointer gameGridItemWidget)
-{
-    ((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuDetail((GameGridItemWidget *)gameGridItemWidget);
+    NotificationManager::getInstance()->postNotification(NOTIFICATION_GAME_FAVORITE_UPDATED, new Game(*((GameGridItemWidget *)gameGridItemWidget)->game));        
 }
 
 void GameGridItemWidget::signalMenuEditActivate(GtkMenuItem* menuitem, gpointer gameGridItemWidget)

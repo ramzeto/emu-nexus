@@ -45,39 +45,45 @@ const int GameLauncher::ERROR_INFLATE_NOT_SUPPORTED = 3;
 const int GameLauncher::ERROR_FILE_NOT_FOUND = 4;
 const int GameLauncher::ERROR_OTHER = 5;
 
-const int GameLauncher::STATE_IDLE = 1;
-const int GameLauncher::STATE_INFLATING = 2;
-const int GameLauncher::STATE_SELECTING_FILE = 3;
-const int GameLauncher::STATE_FOUND_MULTIPLE_FILES = 4;
-const int GameLauncher::STATE_RUNNING = 5;
-const int GameLauncher::STATE_FINISHED = 6;
-const int GameLauncher::STATE_CANCELED = 7;
+const int GameLauncher::STATUS_IDLE = 0;
+const int GameLauncher::STATUS_STARTING = 1;
+const int GameLauncher::STATUS_INFLATING = 2;
+const int GameLauncher::STATUS_SELECTING_FILE = 3;
+const int GameLauncher::STATUS_FOUND_MULTIPLE_FILES = 4;
+const int GameLauncher::STATUS_RUNNING = 5;
+const int GameLauncher::STATUS_FINISHED = 6;
+const int GameLauncher::STATUS_CANCELED = 7;
 
 GameLauncher *GameLauncher::instance = NULL;
 
 
 GameLauncher::GameLauncher()
 {
-    mutex = PTHREAD_MUTEX_INITIALIZER;        
+    mutex = PTHREAD_MUTEX_INITIALIZER;
+    status = STATUS_IDLE;
+    error = 0;
+    gameId = 0;
 }
 
 GameLauncher::~GameLauncher()
 {
 }
 
-void GameLauncher::launch(int64_t gameId, void* requester, void(*callback)(CallbackResult*))
+int GameLauncher::launch(int64_t gameId)
 {
-    GameLauncherData_t *gameLauncherData = new GameLauncherData_t;
-    gameLauncherData->gameId = gameId;
-    gameLauncherData->requester = requester;
-    gameLauncherData->callback = callback;
+    if(status != STATUS_IDLE)
+    {
+        return 1;
+    }    
+    this->gameId = gameId;
     
     pthread_t launchThread;
-    if(pthread_create(&launchThread, NULL, launchWorker, gameLauncherData) != 0) 
+    if(pthread_create(&launchThread, NULL, launchWorker, NULL) != 0) 
     {
-        cerr << "GameLauncher::" << __FUNCTION__ << endl;
         exit(EXIT_FAILURE);
     }
+    
+    return 0;
 }
 
 int GameLauncher::getError()
@@ -85,9 +91,14 @@ int GameLauncher::getError()
     return error;
 }
 
-int GameLauncher::getState()
+int GameLauncher::getStatus()
 {
-    return state;
+    return status;
+}
+
+int64_t GameLauncher::getGameId()
+{
+    return gameId;
 }
 
 list<string> GameLauncher::getFileNames()
@@ -102,9 +113,8 @@ void GameLauncher::selectFileName(string fileName)
 
 void GameLauncher::cancel()
 {
-    state = STATE_CANCELED;
+    status = STATUS_CANCELED;
 }
-
 
 void GameLauncher::getFileNamesWithExtensions(list<string> extensions, string directory)
 {
@@ -146,19 +156,10 @@ void GameLauncher::getFileNamesWithExtensions(list<string> extensions, string di
     }
 }
 
-void GameLauncher::postStatus(GameLauncherData_t* gameLauncherData, int error, int state, int progress)
+void GameLauncher::postStatus(int progress)
 {
-    this->error = error;
-    this->state = state;
-    
-    CallbackResult *callbackResult = new CallbackResult(gameLauncherData->requester);
-    callbackResult->setError(error);
-    callbackResult->setStatus(state);
-    callbackResult->setProgress(progress);        
-
-    gameLauncherData->callback(callbackResult);
+    NotificationManager::getInstance()->postNotification(NOTIFICATION_GAME_LAUNCHER_STATUS_CHANGED, NULL, status, error, progress);    
 }
-
 
 GameLauncher* GameLauncher::getInstance()
 {
@@ -170,20 +171,19 @@ GameLauncher* GameLauncher::getInstance()
     return instance;
 }
 
-void* GameLauncher::launchWorker(void* pGameLauncherData)
-{
-    GameLauncherData_t *gameLauncherData = (GameLauncherData_t *)pGameLauncherData;
-    
+void* GameLauncher::launchWorker(void *)
+{    
     // Launcher is busy
     if(pthread_mutex_trylock(&instance->mutex) == EBUSY)
-    {
-        instance->postStatus(gameLauncherData, ERROR_BUSY, STATE_IDLE, -1);
+    {        
         return NULL;
     }        
-        
-    instance->postStatus(gameLauncherData, 0, STATE_IDLE, -1);
+
+    instance->error = 0;
+    instance->status = STATUS_STARTING;
+    instance->postStatus();
     
-    Game *game = new Game(gameLauncherData->gameId);
+    Game *game = new Game(instance->gameId);
     game->load();
     
     Platform *platform = new Platform(game->getPlatformId());        
@@ -201,18 +201,7 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
     }
     
     if(deflate)
-    {
-        // Caches the game
-        GameCache *gameCache = GameCache::getGameCache(game->getId());
-        if(!gameCache)
-        {
-            gameCache = new GameCache((int64_t)0);
-            gameCache->setGameId(game->getId());
-            gameCache->setTimestamp(Utils::getInstance()->nowIsoDateTime());
-            gameCache->save();
-        }
-        
-        
+    {                       
         // Clears cache if necessary
         list<GameCache *> *gameCaches = GameCache::getItems();
         size_t cacheSize = 0;
@@ -230,7 +219,7 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
             for(unsigned int c = 0; c < gameCaches->size(); c++)
             {
                 GameCache *aGameCache = GameCache::getItem(gameCaches, c);
-                if(aGameCache->getId() == gameCache->getId())
+                if(aGameCache->getGameId() == game->getId())
                 {
                     continue;
                 }
@@ -248,34 +237,63 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
         GameCache::releaseItems(gameCaches);
         
         
-        // If cached game directory does not exist, then it should be created and the game ROM should be extracted
-        if(!Utils::getInstance()->directoryExists(gameCache->getDirectory()))
+        // Caches the game
+        GameCache *gameCache = GameCache::getGameCache(game->getId());
+        if(!gameCache)
         {
-            Utils::getInstance()->makeDirectory(gameCache->getDirectory());
-            instance->postStatus(gameLauncherData, 0, STATE_INFLATING, -1);
+            gameCache = new GameCache((int64_t)0);
+            gameCache->setGameId(game->getId());
+            gameCache->setTimestamp(Utils::getInstance()->nowIsoDateTime());
+            gameCache->save();
+        }
+        
+        // If cached game directory does not exist, then it should be created and the game ROM should be extracted
+        if(!gameCache || !Utils::getInstance()->directoryExists(gameCache->getDirectory()))
+        {
+            instance->status = STATUS_INFLATING;
+            instance->postStatus();
+            
+            string directory = Utils::getInstance()->getTempFileName() + "/";
+            Utils::getInstance()->makeDirectory(directory);                        
             
             FileExtractor *fileExtractor = new FileExtractor(game->getFileName());
-            fileExtractor->setProgressListener(gameLauncherData, fileExtractorProgressListenerCallback);
-            if(fileExtractor->extract(gameCache->getDirectory()))
+            fileExtractor->setProgressListener(instance, fileExtractorProgressListenerCallback);
+            if(fileExtractor->extract(directory))
             {
-                instance->postStatus(gameLauncherData, ERROR_INFLATE_NOT_SUPPORTED, STATE_INFLATING, -1);
+                instance->error = ERROR_INFLATE_NOT_SUPPORTED;
+                instance->postStatus();
             }
-            delete fileExtractor;                        
-        }
+            delete fileExtractor;
+            
+            if(!gameCache)
+            {
+                gameCache = new GameCache((int64_t)0);
+                gameCache->setGameId(game->getId());
+                gameCache->setTimestamp(Utils::getInstance()->nowIsoDateTime());
+                gameCache->save();
+            }
+            
+            Utils::getInstance()->moveDirectory(directory, gameCache->getDirectory());
+        }                
         
         
         // Tries to find a file with the proper extension
         if(!instance->error)
         {
-            instance->postStatus(gameLauncherData, 0, STATE_SELECTING_FILE, -1);
+            instance->status = STATUS_SELECTING_FILE;
+            instance->postStatus();
             
             instance->fileName = "";
             instance->fileNames.clear();
             instance->getFileNamesWithExtensions(Utils::getInstance()->strSplitByWhiteSpace(deflateFileExtensions), gameCache->getDirectory());
+            
+            // No suitable file found
             if(instance->fileNames.size() == 0)
             {
-                instance->postStatus(gameLauncherData, ERROR_FILE_NOT_FOUND, STATE_SELECTING_FILE, -1);
+                instance->error = ERROR_FILE_NOT_FOUND;
+                instance->postStatus();
             }
+            // More than one suitable files found
             else if(instance->fileNames.size() > 1)
             {
                 // For multidisk ROMs, if multiple .cue files are found, a .m3u file is created, so emulators like Retroarch with the Beetle Saturn core can use it (https://libretro.readthedocs.io/en/latest/library/beetle_saturn/).
@@ -307,12 +325,12 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
                     instance->fileNames.push_back(m3uFileName);
                     instance->fileNames.sort();
                 }
-                                                
                 
-                instance->postStatus(gameLauncherData, 0, STATE_FOUND_MULTIPLE_FILES, -1);
+                instance->status = STATUS_FOUND_MULTIPLE_FILES;
+                instance->postStatus();
                 
                 //Wait for file selection or cancellation
-                while(instance->fileName.length() == 0 && instance->state != STATE_CANCELED)
+                while(instance->fileName.length() == 0 && instance->status != STATUS_CANCELED)
                 {
                     sleep(1);
                 }
@@ -324,7 +342,7 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
         }
         
         
-        // If an error happens, the cache game is removed
+        // If an error happens, the cached game is removed
         if(instance->error)
         {
             gameCache->remove();
@@ -339,11 +357,12 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
     
     
     // Executes
-    if(instance->state != STATE_CANCELED && !instance->error)
+    if(instance->status != STATUS_CANCELED && !instance->error)
     {
         if(instance->fileName.length() > 0)
         {
-            instance->postStatus(gameLauncherData, 0, STATE_RUNNING, -1);
+            instance->status = STATUS_RUNNING;
+            instance->postStatus();
          
             // Escapes problematic characters in the game file name.
             string fileName = instance->fileName;
@@ -372,30 +391,35 @@ void* GameLauncher::launchWorker(void* pGameLauncherData)
             gameActivity->save();
             delete gameActivity;
             
-            instance->state = STATE_FINISHED;
-            instance->error = 0;
+            instance->status = STATUS_FINISHED;
+            instance->error = 0;        
+            instance->postStatus();
             
+            // Notifies the game activity
             NotificationManager::getInstance()->postNotification(NOTIFICATION_GAME_ACTIVITY_UPDATED, new Game(*game));
         }
         else
         {
-            instance->state = STATE_FINISHED;
+            instance->status = STATUS_FINISHED;
             instance->error = ERROR_FILE_NOT_FOUND;
-        }
+            instance->postStatus();
+        }                
     }   
     
     delete game;
     delete platform;
-    pthread_mutex_unlock(&instance->mutex);
-
-    instance->postStatus(gameLauncherData, instance->error, instance->state, -1);
     
-    delete gameLauncherData;
+
+    instance->status = STATUS_IDLE;
+    instance->postStatus();
+    pthread_mutex_unlock(&instance->mutex);
     
     return NULL;
 }
 
-void GameLauncher::fileExtractorProgressListenerCallback(void* pGameLauncherData, FileExtractor* fileExtractor, size_t fileSize, size_t progressBytes)
+
+void GameLauncher::fileExtractorProgressListenerCallback(void *, FileExtractor* fileExtractor, size_t fileSize, size_t progressBytes)
 {
-    instance->postStatus((GameLauncherData_t *)pGameLauncherData, 0, STATE_INFLATING, ((double) progressBytes / (double)fileSize) * 100.0);
+    instance->status = STATUS_INFLATING;
+    instance->postStatus(((double) progressBytes / (double)fileSize) * 100.0);
 }

@@ -67,13 +67,7 @@ public:
      * 
      * @param callbackSelect
      */
-    void setCallbackSelect(void (*callbackSelect)(GameGridItemWidget *));
-    
-    /**
-     * 
-     * @param callbackActivate
-     */
-    void setCallbackActivate(void (*callbackActivate)(GameGridItemWidget *));
+    void setCallbackSelect(void (*callbackSelect)(GameGridItemWidget *));    
     
     /**
      * 
@@ -113,9 +107,7 @@ private:
     time_t activatedTimestamp;
     
     void (*callbackSelect)(GameGridItemWidget *);
-    void (*callbackActivate)(GameGridItemWidget *);
     void (*callbackContextMenuFavorite)(GameGridItemWidget *);
-    void (*callbackContextMenuDetail)(GameGridItemWidget *);
     void (*callbackContextMenuEdit)(GameGridItemWidget *);
     void (*callbackContextMenuRemove)(GameGridItemWidget *);
     
@@ -133,14 +125,7 @@ private:
      * @param menuitem
      * @param mainWindow
      */
-    static void signalMenuFavoriteActivate(GtkMenuItem *menuitem, gpointer gameGridItemWidget);
-    
-    /**
-     * Signal triggered when the user selects the information menu option on a game in the grid.
-     * @param menuitem
-     * @param mainWindow
-     */
-    static void signalMenuDetailActivate(GtkMenuItem *menuitem, gpointer gameGridItemWidget);
+    static void signalMenuFavoriteActivate(GtkMenuItem *menuitem, gpointer gameGridItemWidget);    
     
     /**
      * Signal triggered when the user selects the edit menu option on a game in the grid.

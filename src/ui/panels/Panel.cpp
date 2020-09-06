@@ -35,11 +35,12 @@ Panel::Panel(GtkWindow *parentWindow, string panelFileName, string panelBoxId)
     panelBox = (GtkBox *)gtk_builder_get_object (builder, panelBoxId.c_str());
     destroyed = 0;
     
-    g_signal_connect (panelBox, "destroy", G_CALLBACK(signalDestroy), this);
+    //g_signal_connect (panelBox, "destroy", G_CALLBACK(signalDestroy), this);
 }
 
 Panel::~Panel() 
 {
+    destroyed = 1;
 }
 
 GtkBox *Panel::getPanelBox()
@@ -52,19 +53,12 @@ void Panel::show()
     gtk_widget_show_all(GTK_WIDGET(panelBox));
 }
 
-void Panel::destroy()
-{
-    destroyed = 1;
-    
-    gtk_widget_destroy(GTK_WIDGET(panelBox));
-}
-
 int Panel::isDestroyed()
 {
     return destroyed;
 }
 
-void Panel::signalDestroy(GtkWidget* widget, gpointer panel)
+/*void Panel::signalDestroy(GtkWidget* widget, gpointer panel)
 {
     //delete ((Panel *)panel);
     
@@ -77,4 +71,4 @@ gint Panel::callbackDeleteTimeout(gpointer panel)
     delete ((Panel *)panel);
     
     return 0;
-}
+}*/

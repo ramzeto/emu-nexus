@@ -16,15 +16,15 @@
  */
 
 /* 
- * File:   GameDialog.cpp
+ * File:   GameBannerWidget.cpp
  * Author: ram
  * 
- * Created on May 1, 2020, 9:29 PM
+ * Created on September 4, 2020, 5:13 PM
  */
 
-#include "GameDialog.h"
-#include "Platform.h"
+#include "GameBannerWidget.h"
 #include "UiUtils.h"
+#include "GameActivity.h"
 #include "GameDeveloper.h"
 #include "GamePublisher.h"
 #include "GameGenre.h"
@@ -36,87 +36,81 @@
 #include "Asset.h"
 #include "Directory.h"
 #include "EsrbRating.h"
-#include "SelectFromListDialog.h"
+#include "GameFavorite.h"
+#include "Notifications.h"
+#include "NotificationManager.h"
 #include "GameLauncher.h"
-#include "GameActivity.h"
-
-#include <unistd.h>
-#include <cstdlib>
-#include <iostream>
 
 
-const int GameDialog::THUMBNAIL_IMAGE_WIDTH = 100;
-const int GameDialog::THUMBNAIL_IMAGE_HEIGHT = 100;
-const int GameDialog::IMAGE_WIDTH = 400;
-const int GameDialog::IMAGE_HEIGHT = 400;
-const int GameDialog::INFORMATION_WIDTH = 600;
+const int GameBannerWidget::THUMBNAIL_IMAGE_WIDTH = 100;
+const int GameBannerWidget::THUMBNAIL_IMAGE_HEIGHT = 100;
 
-GameDialog::GameDialog(GtkWindow *parent, int64_t gameId) : Dialog(parent, "GameDialog.ui", "gameDialog")
+GameBannerWidget::GameBannerWidget(int64_t gameId) : Widget("GameBannerBox.ui", "gameBannerBox")
 {
+    gameImageEventBox = (GtkEventBox *)gtk_builder_get_object (builder, "gameImageEventBox");
+    gameImage = (GtkImage *)gtk_builder_get_object (builder, "gameImage");
     nameLabel = (GtkLabel *)gtk_builder_get_object (builder, "nameLabel");
     fileNameLabel = (GtkLabel *)gtk_builder_get_object (builder, "fileNameLabel");
-    platformLabel = (GtkLabel *)gtk_builder_get_object (builder, "platformLabel");
-    imageBox = (GtkEventBox *)gtk_builder_get_object (builder, "imageBox");
-    image = (GtkImage *)gtk_builder_get_object (builder, "image");
-    imageTypeLabel = (GtkLabel *)gtk_builder_get_object (builder, "imageTypeLabel");    
     imagesBox = (GtkBox *)gtk_builder_get_object (builder, "imagesBox");
-    g_signal_connect (imageBox, "button-press-event", G_CALLBACK(signalImageButtonPressedEvent), this);
-    documentsLabel = (GtkLabel *)gtk_builder_get_object (builder, "documentsLabel");
     documentsBox = (GtkBox *)gtk_builder_get_object (builder, "documentsBox");
     informationLabel = (GtkLabel *)gtk_builder_get_object (builder, "informationLabel");
- 
-    launchBox = (GtkBox *)gtk_builder_get_object(builder, "launchBox");
-    spinner = (GtkSpinner *)gtk_builder_get_object(builder, "spinner");
-    messageLabel = (GtkLabel *)gtk_builder_get_object(builder, "messageLabel");
-    progressBar = (GtkProgressBar *)gtk_builder_get_object(builder, "progressBar");
-    gtk_widget_hide(GTK_WIDGET(launchBox));
+    playTimeLabel = (GtkLabel *)gtk_builder_get_object (builder, "playTimeLabel");
+    lastPlayedLabel = (GtkLabel *)gtk_builder_get_object (builder, "lastPlayedLabel");
+    launchButton = (GtkButton *)gtk_builder_get_object (builder, "launchButton");
+    activityBox = (GtkBox *)gtk_builder_get_object (builder, "activityBox");
+    spinner = (GtkSpinner *)gtk_builder_get_object (builder, "spinner");
+    activityLabel = (GtkLabel *)gtk_builder_get_object (builder, "activityLabel");
+    favoriteEventBox = (GtkEventBox *)gtk_builder_get_object (builder, "favoriteEventBox");
+    favoriteImage = (GtkImage *)gtk_builder_get_object (builder, "favoriteImage");
+    editEventBox = (GtkEventBox *)gtk_builder_get_object (builder, "editEventBox");
+    editImage = (GtkImage *)gtk_builder_get_object (builder, "editImage");
     
     game = new Game(gameId);
     game->load();
     
     gameImages = GameImage::getItems(game->getId());
     gameDocuments = GameDocument::getItems(game->getId());
-    
-    Platform *platform = new Platform(game->getPlatformId());        
-    platform->load();
-    
+        
     gameImageBoxes = new map<GameImage *, GtkWidget *>;
     selectedGameImage = NULL;
     
     gameDocumentBoxes = new map<GameDocument *, GtkWidget *>;
     selectedGameDocument = NULL;
     
-    running = 0;
     selectGameImageTimestamp = 0;
     viewGameImageTimestamp = 0;
     selectGameImageBoxTimestamp = 0;
     viewGameImageBoxTimestamp = 0;
     selectGameDocumentBoxTimestamp = 0;
     viewGameDocumentBoxTimestamp = 0;
+    bannerWidth = 0;
+    bannerHeight = 0;
     
-    gtk_window_set_title(GTK_WINDOW(dialog), game->getName().c_str());
-    gtk_label_set_text(nameLabel, game->getName().c_str());
-    gtk_label_set_text(fileNameLabel, Utils::getInstance()->getFileBasename(game->getFileName()).c_str());
-    gtk_label_set_text(imageTypeLabel, "");
+    gtk_image_clear(gameImage);
+    gtk_image_clear(favoriteImage);
+    gtk_image_clear(editImage);
     
-    gtk_label_set_text(platformLabel, platform->getName().c_str());
-    delete platform;
+    g_signal_connect (gameImageEventBox, "button-press-event", G_CALLBACK(signalImageButtonPressedEvent), this);
+    g_signal_connect (favoriteEventBox, "button-press-event", G_CALLBACK(signalFavoriteButtonPressedEvent), this);
+    g_signal_connect (editEventBox, "button-press-event", G_CALLBACK(signalEditButtonPressedEvent), this);
+    g_signal_connect (launchButton, "clicked", G_CALLBACK (signalLaunchButtonClicked), this);
     
-    gtk_image_clear(image);
+    signalSizeAllocateHandlerId = g_signal_connect (widget, "size-allocate", G_CALLBACK(signalSizeAllocate), this);
     
-    updateInformation();
-    updateGameImagesGrid();
-    updateGameDocumentsGrid();
-    
-    launcherUiThreadBridge = UiThreadBridge::registerBridge(this, callbackGameLauncher);
-    
-    g_signal_connect(dialog, "delete-event", G_CALLBACK(signalDeleteEvent), this);
-    g_signal_connect(dialog, "key-press-event", G_CALLBACK (signalKeyPressedEvent), this);        
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_UPDATED, this, callbackNotification, 1);
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_FAVORITE_UPDATED, this, callbackNotification, 1);
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_ACTIVITY_UPDATED, this, callbackNotification, 1);
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_LAUNCHER_STATUS_CHANGED, this, callbackNotification, 1);
 }
 
-GameDialog::~GameDialog()
+GameBannerWidget::~GameBannerWidget()
 {
-    UiThreadBridge::unregisterBridge(launcherUiThreadBridge);
+    NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_UPDATED, this);
+    NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_FAVORITE_UPDATED, this);
+    NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_ACTIVITY_UPDATED, this);
+    NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_LAUNCHER_STATUS_CHANGED, this);
+    
+    g_signal_handler_disconnect(widget, signalSizeAllocateHandlerId);
     
     delete game;
     
@@ -127,75 +121,23 @@ GameDialog::~GameDialog()
     delete gameDocumentBoxes;
 }
 
-void GameDialog::launch()
+int64_t GameBannerWidget::getGameId() const
 {
-    //GameLauncher::getInstance()->launch(game->getId(), launcherUiThreadBridge, UiThreadBridge::callback);
-    //execute();
+    return game->getId();
 }
 
-void GameDialog::setLaunchStatus(int running, string message, int progress)
+void GameBannerWidget::updateInformation()
 {
-    this->running = running;
-    gtk_widget_show_all(GTK_WIDGET(launchBox));
+    gtk_label_set_text(nameLabel, game->getName().c_str());
+    gtk_widget_set_tooltip_text(GTK_WIDGET(nameLabel), game->getName().c_str());
     
-    if(running)
-    {        
-        gtk_spinner_start(spinner);
-        
-        if(progress >= 0)
-        {
-            gtk_widget_show(GTK_WIDGET(progressBar));
-            gtk_progress_bar_set_fraction(progressBar, ((double)progress) / 100.0);
-        }
-        else
-        {
-            gtk_widget_hide(GTK_WIDGET(progressBar));
-        }
-    }
-    else
-    {
-        gtk_spinner_stop(spinner);
-        gtk_widget_hide(GTK_WIDGET(progressBar));
-        updateInformation();
-    }
-    
-    gtk_window_set_title(GTK_WINDOW(dialog), message.c_str());
-    gtk_label_set_text(messageLabel, message.c_str());    
-}
-
-string GameDialog::selectLaunchFileName(list<string> fileNames)
-{
-    string fileName = "";
-    list<string> baseFileNames;
-    for(list<string>::iterator item = fileNames.begin(); item != fileNames.end(); item++)
-    {
-        baseFileNames.push_back(Utils::getInstance()->getFileBasename(*item));
-    }
-    
-    SelectFromListDialog *selectFromListDialog = new SelectFromListDialog(GTK_WINDOW(dialog), "Multiple files where found", baseFileNames);
-    if(selectFromListDialog->execute() == GTK_RESPONSE_ACCEPT)
-    {
-        list<string>::iterator item = fileNames.begin();
-        advance(item, selectFromListDialog->getSelectedIndex());
-        fileName = *item;
-    }
-    delete selectFromListDialog;
-    
-    return fileName;
-}
-
-
-void GameDialog::updateInformation()
-{
-    string html = "";
-    
+    gtk_label_set_text(fileNameLabel, Utils::getInstance()->getFileBasename(game->getFileName()).c_str());
+            
     list<GameActivity *> *gameActivities = GameActivity::getItems(-1, game->getId());
     if(gameActivities->size() > 0)
     {
-        html += "<b>Last played</b>\n";
-        html += gameActivities->back()->getTimestamp();        
-        html += "\n\n";
-        
+        gtk_label_set_text(lastPlayedLabel, gameActivities->back()->getTimestamp().substr(0, 10).c_str());
+                
         int64_t duration = 0; 
         for(unsigned int c = 0; c < gameActivities->size(); c++)
         {
@@ -207,39 +149,46 @@ void GameDialog::updateInformation()
         int64_t minutes = (duration % 3600) / 60;
         int64_t seconds = (duration % 3600) % 60;
         
-        html += "<b>Play time</b>\n";
+        string playTimeText = "";
         if(hours > 0)
         {
-            html += to_string(hours);
+            playTimeText += to_string(hours);
             if(hours == 1)
             {
-                html += " hour ";
+                playTimeText += " hour ";
             }
             else
             {
-                html += " hours ";
+                playTimeText += " hours ";
             }
         }
-        if(minutes > 0)
+        if(hours < 50 && minutes > 0)
         {
-            html += to_string(minutes);
+            playTimeText += to_string(minutes);
             if(minutes == 1)
             {
-                html += " minute ";
+                playTimeText += " minute ";
             }
             else
             {
-                html += " minutes ";
+                playTimeText += " minutes ";
             }
         }
-        if(seconds > 0)
+        if(hours == 0 && minutes == 0 && seconds > 0)
         {
-            html += to_string(seconds) + " seconds";
-        }                
-        html += "\n\n";
+            playTimeText += to_string(seconds) + " seconds";
+        }
+        gtk_label_set_text(playTimeLabel, playTimeText.c_str());
+    }
+    else
+    {
+        gtk_label_set_text(lastPlayedLabel, "Never");
+        gtk_label_set_text(playTimeLabel, "-");
     }
     GameActivity::releaseItems(gameActivities);
     
+    
+    string html = "";
     list<GameDeveloper *> *gameDevelopers = GameDeveloper::getItems(game->getId());
     if(gameDevelopers->size() > 0)
     {
@@ -353,21 +302,54 @@ void GameDialog::updateInformation()
     }
     
     gtk_label_set_markup(informationLabel, html.c_str());
+    
+    
+    int favoriteImageWidth = gtk_widget_get_allocated_width(GTK_WIDGET(favoriteImage));
+    int favoriteImageHeight = gtk_widget_get_allocated_width(GTK_WIDGET(favoriteImage));
+    GameFavorite *gameFavorite = new GameFavorite(game->getId());    
+    if(gameFavorite->load())
+    {
+        UiUtils::getInstance()->loadImage(favoriteImage, Asset::getInstance()->getImageFavorite(), favoriteImageWidth, favoriteImageHeight);
+    }
+    else
+    {
+        UiUtils::getInstance()->loadImage(favoriteImage, Asset::getInstance()->getImageNonFavorite(), favoriteImageWidth, favoriteImageHeight);
+    }
+    delete gameFavorite;
+    
+    
+    int editImageWidth = gtk_widget_get_allocated_width(GTK_WIDGET(editImage));
+    int editImageHeight = gtk_widget_get_allocated_width(GTK_WIDGET(editImage));
+    UiUtils::getInstance()->loadImage(editImage, Asset::getInstance()->getImageEdit(), editImageWidth, editImageHeight);
+    
+            
+    updateGameImagesGrid();
+    updateGameDocumentsGrid();
+    updateLaunchStatus(GameLauncher::getInstance()->getStatus(), GameLauncher::getInstance()->getError());
 }
 
-void GameDialog::updateGameImagesGrid()
+void GameBannerWidget::updateGameImagesGrid()
 {
+    if(gameImages->size() == 0)
+    {
+        gtk_widget_hide(GTK_WIDGET(gameImage));
+        gtk_widget_hide(GTK_WIDGET(imagesBox));
+        return;
+    }
+    
     gameImageBoxes->clear();
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(imagesBox), 1);
     
-    int width = IMAGE_WIDTH;//gtk_widget_get_allocated_width(rootWidget);
+    /*int width = gtk_widget_get_allocated_width(GTK_WIDGET(imagesBox));
     int columns = width / THUMBNAIL_IMAGE_WIDTH;
     
     int rows = gameImages->size() / columns;
     if(gameImages->size() % columns)
     {
         rows++;
-    }
+    }*/
+    int columns = 3;
+    int rows = 2;
 
     unsigned int index = 0;
     for(int row = 0; row < rows; row++)
@@ -398,7 +380,7 @@ void GameDialog::updateGameImagesGrid()
                 }
                 
                 gtk_widget_set_name(GTK_WIDGET(imageBox), to_string(index).c_str());                                
-                g_signal_connect (imageBox, "button-press-event", G_CALLBACK(signalImageBoxButtonPressedEvent), this);                                
+                g_signal_connect (imageBox, "button-press-event", G_CALLBACK(signalImageBoxButtonPressedEvent), this);
                 
                                 
                 if(selectedGameImage == gameImage)
@@ -409,6 +391,28 @@ void GameDialog::updateGameImagesGrid()
                 
                 gtk_widget_set_size_request(GTK_WIDGET(imageBox), THUMBNAIL_IMAGE_WIDTH, THUMBNAIL_IMAGE_HEIGHT);
                 gtk_box_pack_start(rowBox, GTK_WIDGET(imageBox), 1, 1, 0);
+                
+                
+                if(gameImage->getType() == GameImage::TYPE_BOX_FRONT)
+                {
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Box front");
+                }
+                else if(gameImage->getType() == GameImage::TYPE_BOX_BACK)
+                {
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Box back");
+                }
+                else if(gameImage->getType() == GameImage::TYPE_SCREENSHOT)
+                {
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Screenshot");
+                }
+                else if(gameImage->getType() == GameImage::TYPE_CLEAR_LOGO)
+                {
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Logo");
+                }
+                else if(gameImage->getType() == GameImage::TYPE_BANNER)
+                {
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Banner");
+                }
             }
             else
             {
@@ -431,7 +435,7 @@ void GameDialog::updateGameImagesGrid()
     }
 }
 
-void GameDialog::selectGameImage(GameImage *gameImage)
+void GameBannerWidget::selectGameImage(GameImage *gameImage)
 {
     if(!Utils::getInstance()->fileExists(gameImage->getFileName()))
     {
@@ -455,31 +459,12 @@ void GameDialog::selectGameImage(GameImage *gameImage)
     }
     
     
-    if(selectedGameImage->getType() == GameImage::TYPE_BOX_FRONT)
-    {
-        gtk_label_set_text(imageTypeLabel, "Box front");
-    }
-    else if(selectedGameImage->getType() == GameImage::TYPE_BOX_BACK)
-    {
-        gtk_label_set_text(imageTypeLabel, "Box back");
-    }
-    else if(selectedGameImage->getType() == GameImage::TYPE_SCREENSHOT)
-    {
-        gtk_label_set_text(imageTypeLabel, "Screenshot");
-    }
-    else if(selectedGameImage->getType() == GameImage::TYPE_CLEAR_LOGO)
-    {
-        gtk_label_set_text(imageTypeLabel, "Logo");
-    }
-    else if(selectedGameImage->getType() == GameImage::TYPE_BANNER)
-    {
-        gtk_label_set_text(imageTypeLabel, "Banner");
-    }
-
-    UiUtils::getInstance()->loadImage(image, selectedGameImage->getFileName(), IMAGE_WIDTH, IMAGE_HEIGHT);
+    int width = gtk_widget_get_allocated_width(GTK_WIDGET(this->gameImage));
+    int height = gtk_widget_get_allocated_width(GTK_WIDGET(this->gameImage));
+    UiUtils::getInstance()->loadImage(this->gameImage, selectedGameImage->getFileName(), width, height);
 }
 
-void GameDialog::viewGameImage(GameImage* gameImage)
+void GameBannerWidget::viewGameImage(GameImage* gameImage)
 {
     string tempDirectoryName = Utils::getInstance()->getTempFileName();
     Utils::getInstance()->makeDirectory(tempDirectoryName);
@@ -516,7 +501,7 @@ void GameDialog::viewGameImage(GameImage* gameImage)
     }
 }
 
-void GameDialog::saveGameImage(GameImage* gameImage)
+void GameBannerWidget::saveGameImage(GameImage* gameImage)
 {
     string imageName = game->getName();
     imageName = Utils::getInstance()->strReplace(imageName, "/", "_");
@@ -561,20 +546,18 @@ void GameDialog::saveGameImage(GameImage* gameImage)
     gtk_widget_destroy(fileChooserDialog);
 }
 
-void GameDialog::updateGameDocumentsGrid()
+void GameBannerWidget::updateGameDocumentsGrid()
 {
     if(gameDocuments->size() == 0)
     {
-        gtk_widget_hide(GTK_WIDGET(documentsLabel));
-        gtk_widget_hide(GTK_WIDGET(documentsBox));
-        
+        gtk_widget_hide(GTK_WIDGET(documentsBox));        
         return;
     }
     
     gameDocumentBoxes->clear();
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(documentsBox), 1);
     
-    int width = INFORMATION_WIDTH;//gtk_widget_get_allocated_width(rootWidget);
+    int width = gtk_widget_get_allocated_width(GTK_WIDGET(documentsBox));
     int columns = width / THUMBNAIL_IMAGE_WIDTH;
     
     int rows = gameDocuments->size() / columns;
@@ -612,6 +595,27 @@ void GameDialog::updateGameDocumentsGrid()
                 
                 gtk_widget_set_size_request(GTK_WIDGET(imageBox), THUMBNAIL_IMAGE_WIDTH, THUMBNAIL_IMAGE_HEIGHT);
                 gtk_box_pack_start(rowBox, GTK_WIDGET(imageBox), 1, 1, 0);
+                
+                if(gameDocument->getType() == GameDocument::TYPE_BOOK)
+                {
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Book");
+                }
+                else if(gameDocument->getType() == GameDocument::TYPE_GUIDE)
+                {
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Guide");
+                }
+                else if(gameDocument->getType() == GameDocument::TYPE_MAGAZINE)
+                {
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Magazine");
+                }
+                else if(gameDocument->getType() == GameDocument::TYPE_MANUAL)
+                {
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Manual");
+                }
+                else if(gameDocument->getType() == GameDocument::TYPE_OTHER)
+                {
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Other");
+                }
             }
             else
             {
@@ -629,7 +633,7 @@ void GameDialog::updateGameDocumentsGrid()
     }
 }
 
-void GameDialog::selectGameDocument(GameDocument *gameDocument)
+void GameBannerWidget::selectGameDocument(GameDocument *gameDocument)
 {
     if(selectedGameDocument)
     {
@@ -648,7 +652,7 @@ void GameDialog::selectGameDocument(GameDocument *gameDocument)
     }
 }
 
-void GameDialog::viewGameDocument(GameDocument *gameDocument)
+void GameBannerWidget::viewGameDocument(GameDocument *gameDocument)
 {    
     string tempDirectoryName = Utils::getInstance()->getTempFileName();
     Utils::getInstance()->makeDirectory(tempDirectoryName);
@@ -663,7 +667,7 @@ void GameDialog::viewGameDocument(GameDocument *gameDocument)
     }
 }
 
-void GameDialog::saveGameDocument(GameDocument *gameDocument)
+void GameBannerWidget::saveGameDocument(GameDocument *gameDocument)
 {
     string imageName = game->getName() + " (" + gameDocument->getName() + ")";
     imageName = Utils::getInstance()->strReplace(imageName, "/", "_");
@@ -686,38 +690,84 @@ void GameDialog::saveGameDocument(GameDocument *gameDocument)
     gtk_widget_destroy(fileChooserDialog);
 }
 
+void GameBannerWidget::updateLaunchStatus(int status, int error, int progress)
+{
+    if(status == GameLauncher::STATUS_IDLE)
+    {
+        gtk_widget_hide(GTK_WIDGET(activityBox));
+        gtk_widget_show_all(GTK_WIDGET(launchButton));
+        gtk_widget_show_all(GTK_WIDGET(editEventBox));
+        
+        return;
+    }
+    
+    gtk_widget_hide(GTK_WIDGET(launchButton));
+    gtk_widget_hide(GTK_WIDGET(editEventBox));
+    gtk_widget_show_all(GTK_WIDGET(activityBox));
+    
+    string message = "";
+    if(status == GameLauncher::STATUS_STARTING)
+    {
+        message = "Starting...";
+    }
+    else if(status == GameLauncher::STATUS_INFLATING)
+    {
+        message = "Inflating...";
+        
+        if(progress >= 0)
+        {
+            message += "(" + to_string(progress) + "%)";
+        }
+    }
+    else if(status == GameLauncher::STATUS_SELECTING_FILE)
+    {
+        message = "Selecting...";
+    }
+    else if(status == GameLauncher::STATUS_FOUND_MULTIPLE_FILES)
+    {
+        message = "Multiple files";
+    }        
+    else if(status == GameLauncher::STATUS_RUNNING)
+    {
+        message = "Running...";
+    }
+    else if(status == GameLauncher::STATUS_FINISHED)
+    {
+        message = "Finished";
+    }
+    
+    gtk_label_set_text(activityLabel, message.c_str());
+}
 
-
-
-gboolean GameDialog::signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDialog)
+gboolean GameBannerWidget::signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameBannerWidget)
 {
     // Mouse left button
     if(event->button.button == 1)
     {
-        GameImage *gameImage = GameImage::getItem(((GameDialog *)gameDialog)->gameImages, atoi(gtk_widget_get_name(widget)));
+        GameImage *gameImage = GameImage::getItem(((GameBannerWidget *)gameBannerWidget)->gameImages, atoi(gtk_widget_get_name(widget)));
         
-        if(gameImage == ((GameDialog *)gameDialog)->selectedGameImage)
+        if(gameImage == ((GameBannerWidget *)gameBannerWidget)->selectedGameImage)
         {
             time_t now = time(NULL);
-            if(now == ((GameDialog *)gameDialog)->selectGameImageBoxTimestamp && (now - ((GameDialog *)gameDialog)->viewGameImageBoxTimestamp) > 2)
+            if(now == ((GameBannerWidget *)gameBannerWidget)->selectGameImageBoxTimestamp && (now - ((GameBannerWidget *)gameBannerWidget)->viewGameImageBoxTimestamp) > 2)
             {
-                 ((GameDialog *)gameDialog)->viewGameImageBoxTimestamp = now;
-                 ((GameDialog *)gameDialog)->viewGameImage(((GameDialog *)gameDialog)->selectedGameImage);
+                 ((GameBannerWidget *)gameBannerWidget)->viewGameImageBoxTimestamp = now;
+                 ((GameBannerWidget *)gameBannerWidget)->viewGameImage(((GameBannerWidget *)gameBannerWidget)->selectedGameImage);
             }
-            ((GameDialog *)gameDialog)->selectGameImageBoxTimestamp = now;
+            ((GameBannerWidget *)gameBannerWidget)->selectGameImageBoxTimestamp = now;
         }
         else
         {
-            ((GameDialog *)gameDialog)->selectGameImage(gameImage);
+            ((GameBannerWidget *)gameBannerWidget)->selectGameImage(gameImage);
         }                
     }    
     
     return TRUE;
 }
 
-gboolean GameDialog::signalImageButtonPressedEvent(GtkWidget* widget, GdkEvent* event, gpointer gameDialog)
+gboolean GameBannerWidget::signalImageButtonPressedEvent(GtkWidget* widget, GdkEvent* event, gpointer gameBannerWidget)
 {    
-    if(!((GameDialog *)gameDialog)->selectedGameImage)
+    if(!((GameBannerWidget *)gameBannerWidget)->selectedGameImage)
     {
         return TRUE;
     }
@@ -726,12 +776,12 @@ gboolean GameDialog::signalImageButtonPressedEvent(GtkWidget* widget, GdkEvent* 
     if(event->button.button == 1)
     {
         time_t now = time(NULL);        
-        if(now == ((GameDialog *)gameDialog)->selectGameImageTimestamp && (now - ((GameDialog *)gameDialog)->viewGameImageTimestamp) > 2)
+        if(now == ((GameBannerWidget *)gameBannerWidget)->selectGameImageTimestamp && (now - ((GameBannerWidget *)gameBannerWidget)->viewGameImageTimestamp) > 2)
         {
-             ((GameDialog *)gameDialog)->viewGameImageTimestamp = now;
-             ((GameDialog *)gameDialog)->viewGameImage(((GameDialog *)gameDialog)->selectedGameImage);
+             ((GameBannerWidget *)gameBannerWidget)->viewGameImageTimestamp = now;
+             ((GameBannerWidget *)gameBannerWidget)->viewGameImage(((GameBannerWidget *)gameBannerWidget)->selectedGameImage);
         }
-        ((GameDialog *)gameDialog)->selectGameImageTimestamp = now;
+        ((GameBannerWidget *)gameBannerWidget)->selectGameImageTimestamp = now;
     }
     // Mouse right button
     else if(event->button.button == 3)
@@ -741,10 +791,10 @@ gboolean GameDialog::signalImageButtonPressedEvent(GtkWidget* widget, GdkEvent* 
         GtkWidget *saveMenuitem = gtk_menu_item_new_with_label("Save");
 
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), viewMenuitem);
-        g_signal_connect(viewMenuitem, "activate", G_CALLBACK(signalImageMenuViewActivate), gameDialog);
+        g_signal_connect(viewMenuitem, "activate", G_CALLBACK(signalImageMenuViewActivate), gameBannerWidget);
         
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), saveMenuitem);
-        g_signal_connect(saveMenuitem, "activate", G_CALLBACK(signalImageMenuSaveActivate), gameDialog);
+        g_signal_connect(saveMenuitem, "activate", G_CALLBACK(signalImageMenuSaveActivate), gameBannerWidget);
         
         gtk_widget_show_all(menu);
         gtk_menu_popup_at_pointer(GTK_MENU(menu), event);        
@@ -754,52 +804,52 @@ gboolean GameDialog::signalImageButtonPressedEvent(GtkWidget* widget, GdkEvent* 
     return TRUE;
 }
 
-void GameDialog::signalImageMenuViewActivate(GtkMenuItem* menuitem, gpointer gameDialog)
+void GameBannerWidget::signalImageMenuViewActivate(GtkMenuItem* menuitem, gpointer gameBannerWidget)
 {
-    ((GameDialog *)gameDialog)->viewGameImage(((GameDialog *)gameDialog)->selectedGameImage);    
+    ((GameBannerWidget *)gameBannerWidget)->viewGameImage(((GameBannerWidget *)gameBannerWidget)->selectedGameImage);    
 }
 
-void GameDialog::signalImageMenuSaveActivate(GtkMenuItem* menuitem, gpointer gameDialog)
+void GameBannerWidget::signalImageMenuSaveActivate(GtkMenuItem* menuitem, gpointer gameBannerWidget)
 {
-    ((GameDialog *)gameDialog)->saveGameImage(((GameDialog *)gameDialog)->selectedGameImage);
+    ((GameBannerWidget *)gameBannerWidget)->saveGameImage(((GameBannerWidget *)gameBannerWidget)->selectedGameImage);
 }
 
-gboolean GameDialog::signalDocumentBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameDialog)
+gboolean GameBannerWidget::signalDocumentBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameBannerWidget)
 {        
     // Mouse left button
     if(event->button.button == 1)
     {
-        GameDocument *gameDocument = GameDocument::getItem(((GameDialog *)gameDialog)->gameDocuments, atoi(gtk_widget_get_name(widget)));
-        if(gameDocument == ((GameDialog *)gameDialog)->selectedGameDocument)
+        GameDocument *gameDocument = GameDocument::getItem(((GameBannerWidget *)gameBannerWidget)->gameDocuments, atoi(gtk_widget_get_name(widget)));
+        if(gameDocument == ((GameBannerWidget *)gameBannerWidget)->selectedGameDocument)
         {
             time_t now = time(NULL);
-            if(now == ((GameDialog *)gameDialog)->selectGameDocumentBoxTimestamp && (now - ((GameDialog *)gameDialog)->viewGameDocumentBoxTimestamp) > 2)
+            if(now == ((GameBannerWidget *)gameBannerWidget)->selectGameDocumentBoxTimestamp && (now - ((GameBannerWidget *)gameBannerWidget)->viewGameDocumentBoxTimestamp) > 2)
             {
-                 ((GameDialog *)gameDialog)->viewGameDocumentBoxTimestamp = now;
-                 ((GameDialog *)gameDialog)->viewGameDocument(((GameDialog *)gameDialog)->selectedGameDocument);
+                 ((GameBannerWidget *)gameBannerWidget)->viewGameDocumentBoxTimestamp = now;
+                 ((GameBannerWidget *)gameBannerWidget)->viewGameDocument(((GameBannerWidget *)gameBannerWidget)->selectedGameDocument);
             }
-            ((GameDialog *)gameDialog)->selectGameDocumentBoxTimestamp = now;
+            ((GameBannerWidget *)gameBannerWidget)->selectGameDocumentBoxTimestamp = now;
         }
         else
         {
-            ((GameDialog *)gameDialog)->selectGameDocument(gameDocument);
+            ((GameBannerWidget *)gameBannerWidget)->selectGameDocument(gameDocument);
         }
     }
     // Mouse right button
     else if(event->button.button == 3)
     {
-        GameDocument *gameDocument = GameDocument::getItem(((GameDialog *)gameDialog)->gameDocuments, atoi(gtk_widget_get_name(widget)));
-        ((GameDialog *)gameDialog)->selectGameDocument(gameDocument);
+        GameDocument *gameDocument = GameDocument::getItem(((GameBannerWidget *)gameBannerWidget)->gameDocuments, atoi(gtk_widget_get_name(widget)));
+        ((GameBannerWidget *)gameBannerWidget)->selectGameDocument(gameDocument);
     
         GtkWidget *menu = gtk_menu_new();
         GtkWidget *viewMenuitem = gtk_menu_item_new_with_label("View");
         GtkWidget *saveMenuitem = gtk_menu_item_new_with_label("Save");
 
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), viewMenuitem);
-        g_signal_connect(viewMenuitem, "activate", G_CALLBACK(signalDocumentMenuViewActivate), gameDialog);
+        g_signal_connect(viewMenuitem, "activate", G_CALLBACK(signalDocumentMenuViewActivate), gameBannerWidget);
         
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), saveMenuitem);
-        g_signal_connect(saveMenuitem, "activate", G_CALLBACK(signalDocumentMenuSaveActivate), gameDialog);
+        g_signal_connect(saveMenuitem, "activate", G_CALLBACK(signalDocumentMenuSaveActivate), gameBannerWidget);
         
         gtk_widget_show_all(menu);
         gtk_menu_popup_at_pointer(GTK_MENU(menu), event);        
@@ -809,99 +859,112 @@ gboolean GameDialog::signalDocumentBoxButtonPressedEvent(GtkWidget *widget, GdkE
     return TRUE;
 }
 
-void GameDialog::signalDocumentMenuViewActivate(GtkMenuItem *menuitem, gpointer gameDialog)
+void GameBannerWidget::signalDocumentMenuViewActivate(GtkMenuItem *menuitem, gpointer gameBannerWidget)
 {
-    ((GameDialog *)gameDialog)->viewGameDocument(((GameDialog *)gameDialog)->selectedGameDocument);
+    ((GameBannerWidget *)gameBannerWidget)->viewGameDocument(((GameBannerWidget *)gameBannerWidget)->selectedGameDocument);
 }
 
-void GameDialog::signalDocumentMenuSaveActivate(GtkMenuItem *menuitem, gpointer gameDialog)
+void GameBannerWidget::signalDocumentMenuSaveActivate(GtkMenuItem *menuitem, gpointer gameBannerWidget)
 {
-    ((GameDialog *)gameDialog)->saveGameDocument(((GameDialog *)gameDialog)->selectedGameDocument);
+    ((GameBannerWidget *)gameBannerWidget)->saveGameDocument(((GameBannerWidget *)gameBannerWidget)->selectedGameDocument);
 }
-
-gboolean GameDialog::signalDeleteEvent(GtkWidget* window, GdkEvent* event, gpointer gameDialog)
-{
-    return ((GameDialog *)gameDialog)->running;
-}
-
-gboolean GameDialog::signalKeyPressedEvent(GtkEntry* entry, GdkEvent* event, gpointer gameDialog)
-{
-    return ((GameDialog *)gameDialog)->running;
-}
-
-void GameDialog::callbackGameLauncher(CallbackResult *callbackResult)
-{
-    GameDialog *gameDialog = (GameDialog *)callbackResult->getRequester();
     
-    string message = "";
-    int running = 0;
-    if(callbackResult->getError())
+gboolean GameBannerWidget::signalFavoriteButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameBannerWidget)
+{    
+    int favoriteImageWidth = gtk_widget_get_allocated_width(GTK_WIDGET(((GameBannerWidget *)gameBannerWidget)->favoriteImage));
+    int favoriteImageHeight = gtk_widget_get_allocated_width(GTK_WIDGET(((GameBannerWidget *)gameBannerWidget)->favoriteImage));
+    
+    GameFavorite *gameFavorite = new GameFavorite(((GameBannerWidget *)gameBannerWidget)->game->getId());    
+    if(gameFavorite->load())
     {
-        if(callbackResult->getError() == GameLauncher::ERROR_BUSY)
-        {
-            message = "Launcher busy";
-        }
-        else if(callbackResult->getError() == GameLauncher::ERROR_FILE_NOT_FOUND)
-        {
-            message = "File not found";
-        }
-        else if(callbackResult->getError() == GameLauncher::ERROR_INFLATE)
-        {
-            message = "Inflating failed";
-        }
-        else if(callbackResult->getError() == GameLauncher::ERROR_INFLATE_NOT_SUPPORTED)
-        {
-            message = "Format unsupported";
-        }
-        else if(callbackResult->getError() == GameLauncher::ERROR_OTHER)
-        {
-            message = "Other error";
-        }
-        
-        running = 0;
+        gameFavorite->remove();
+        UiUtils::getInstance()->loadImage(((GameBannerWidget *)gameBannerWidget)->favoriteImage, Asset::getInstance()->getImageNonFavorite(), favoriteImageWidth, favoriteImageHeight);
     }
     else
     {
-        if(callbackResult->getStatus() == GameLauncher::STATUS_IDLE)
+        gameFavorite->setTimestamp(Utils::getInstance()->nowIsoDateTime());
+        gameFavorite->save();
+        UiUtils::getInstance()->loadImage(((GameBannerWidget *)gameBannerWidget)->favoriteImage, Asset::getInstance()->getImageFavorite(), favoriteImageWidth, favoriteImageHeight);
+    }
+    delete gameFavorite;
+    
+    NotificationManager::getInstance()->postNotification(NOTIFICATION_GAME_FAVORITE_UPDATED, new Game(*((GameBannerWidget *)gameBannerWidget)->game)); 
+    
+    return TRUE;
+}
+    
+gboolean GameBannerWidget::signalEditButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameBannerWidget)
+{
+    NotificationManager::getInstance()->postNotification(NOTIFICATION_GAME_EDIT_REQUIRED, new Game(*((GameBannerWidget *)gameBannerWidget)->game)); 
+    
+    return TRUE;
+}
+
+void GameBannerWidget::signalLaunchButtonClicked(GtkButton* button, gpointer gameBannerWidget)
+{
+    GameLauncher::getInstance()->launch(((GameBannerWidget *)gameBannerWidget)->game->getId());
+}
+
+void GameBannerWidget::signalSizeAllocate(GtkWidget* widget, GtkAllocation* allocation, gpointer gameBannerWidget)
+{    
+    if(((GameBannerWidget *)gameBannerWidget)->bannerWidth != allocation->width || ((GameBannerWidget *)gameBannerWidget)->bannerHeight != allocation->height)
+    {        
+        ((GameBannerWidget *)gameBannerWidget)->bannerWidth = allocation->width;
+        ((GameBannerWidget *)gameBannerWidget)->bannerHeight = allocation->height;
+       
+        g_timeout_add(10, callbackFirstShowHackyTimeout, gameBannerWidget);
+    }
+}
+
+gint GameBannerWidget::callbackFirstShowHackyTimeout(gpointer gameBannerWidget)
+{
+    ((GameBannerWidget *)gameBannerWidget)->updateInformation();
+    
+    return 0;
+}
+
+void GameBannerWidget::callbackNotification(CallbackResult *callbackResult)
+{
+    try
+    {
+        GameBannerWidget *gameBannerWidget = (GameBannerWidget *)callbackResult->getRequester();
+        
+        if(callbackResult->getType().compare(NOTIFICATION_GAME_UPDATED) == 0)
         {
-            running = 1;
-            message = "Preparing...";
-        }
-        else if(callbackResult->getStatus() == GameLauncher::STATUS_INFLATING)
-        {
-            running = 1;
-            message = "Decompressing/Unpacking...";
-        }
-        else if(callbackResult->getStatus() == GameLauncher::STATUS_SELECTING_FILE)
-        {
-            running = 1;
-            message = "Selecting file...";
-        }
-        else if(callbackResult->getStatus() == GameLauncher::STATUS_FOUND_MULTIPLE_FILES)
-        {            
-            string fileName = gameDialog->selectLaunchFileName(GameLauncher::getInstance()->getFileNames());
-            if(fileName.length() > 0)
+            Game *game = (Game *)callbackResult->getData();
+            if(gameBannerWidget->game->getId() == game->getId())
             {
-                running = 1;
-                GameLauncher::getInstance()->selectFileName(fileName);
+                gameBannerWidget->game->load();
+                gameBannerWidget->updateInformation();
             }
-            else
-            {
-                running = 0;
-                message = "Execution canceled";
-                GameLauncher::getInstance()->cancel();
-            }
-        }        
-        else if(callbackResult->getStatus() == GameLauncher::STATUS_RUNNING)
-        {
-            running = 1;
-            message = "Running...";
         }
-        else if(callbackResult->getStatus() == GameLauncher::STATUS_FINISHED)
+        else if(callbackResult->getType().compare(NOTIFICATION_GAME_ACTIVITY_UPDATED) == 0)
         {
-            running = 0;
-            message = "Execution finished";
+            Game *game = (Game *)callbackResult->getData();
+            
+            if(gameBannerWidget->game->getId() == game->getId())
+            {
+                gameBannerWidget->game->load();
+                gameBannerWidget->updateInformation();
+            }
+        }
+        else if(callbackResult->getType().compare(NOTIFICATION_GAME_FAVORITE_UPDATED) == 0)
+        {
+            Game *game = (Game *)callbackResult->getData();
+            
+            if(gameBannerWidget->game->getId() == game->getId())
+            {
+                gameBannerWidget->game->load();
+                gameBannerWidget->updateInformation();
+            }
+        }
+        else if(callbackResult->getType().compare(NOTIFICATION_GAME_LAUNCHER_STATUS_CHANGED) == 0)
+        {
+            gameBannerWidget->updateLaunchStatus(callbackResult->getStatus(), callbackResult->getError(), callbackResult->getProgress());
         }
     }
-    gameDialog->setLaunchStatus(running, message, callbackResult->getProgress());
+    catch(exception ex)
+    {
+        
+    }
 }

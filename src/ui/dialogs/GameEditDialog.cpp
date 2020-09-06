@@ -47,13 +47,15 @@ const int GameEditDialog::THUMBNAIL_IMAGE_HEIGHT = 90;
 const int GameEditDialog::IMAGE_WIDTH = 300;
 const int GameEditDialog::IMAGE_HEIGHT = 400;
 
-GameEditDialog::GameEditDialog(GtkWindow *parent, int64_t platformId, int64_t gameId) : Dialog(parent, "GameEditDialog.ui", "gameEditDialog")
+GameEditDialog::GameEditDialog(GtkWindow *parent, int64_t gameId, int64_t platformId) : Dialog(parent, "GameEditDialog.ui", "gameEditDialog")
 {
     saved = 0;
         
     game = new Game(gameId);    
-    game->load();
-    game->setPlatformId(platformId);
+    if(!game->load())
+    {
+        game->setPlatformId(platformId);
+    }    
     
     esrbRatings = EsrbRating::getItems();
     gameImages = GameImage::getItems(game->getId());
@@ -1387,7 +1389,9 @@ void GameEditDialog::save()
     
     if(isNew)
     {
-        NotificationManager::getInstance()->postNotification(NOTIFICATION_PLATFORM_UPDATED, new Platform(game->getPlatformId())); 
+        Platform *platfom = new Platform(game->getPlatformId());
+        platfom->load();
+        NotificationManager::getInstance()->postNotification(NOTIFICATION_PLATFORM_UPDATED, platfom); 
     }
         
     gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);        

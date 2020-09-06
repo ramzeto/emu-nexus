@@ -16,23 +16,22 @@
  */
 
 /* 
- * File:   FavoritePanel.h
+ * File:   RecentsPanel.h
  * Author: ram
  *
- * Created on May 8, 2020, 2:05 PM
+ * Created on June 5, 2020, 10:20 PM
  */
 
-#ifndef FAVORITEPANEL_H
-#define FAVORITEPANEL_H
+#ifndef RECENTSPANEL_H
+#define RECENTSPANEL_H
 
 #include "GamesPanel.h"
 
-
-class FavoritePanel : public GamesPanel
+class RecentsPanel : public GamesPanel
 {
 public:
-    FavoritePanel(GtkWindow *parentWindow);
-    
+    RecentsPanel(GtkWindow *parentWindow); 
+
 protected:
 
     /**
@@ -41,5 +40,5 @@ protected:
     void loadGames();
 };
 
-#endif /* FAVORITEPANEL_H */
+#endif /* RECENTSPANEL_H */
 

@@ -368,6 +368,14 @@ string Utils::nowIsoDateTime()
     return string(buffer);
 }
 
+long long Utils::timestampInMilliSeconds()
+{
+    struct timeval te; 
+    gettimeofday(&te, NULL);
+    long long milliseconds = te.tv_sec * 1000LL + te.tv_usec/1000;
+    return milliseconds;
+}
+
 int Utils::scaleImage(string inFileName, int outWidth, int outHeight, string outFileName)
 {
     try
@@ -454,6 +462,12 @@ void Utils::removeDirectory(string directoryName)
 {
     system(string("rm -rf " + directoryName).c_str());
 }
+
+void Utils::moveDirectory(string sourceDirectoryName, string destinationDirectoryName)
+{
+    system(string("mv \"" + sourceDirectoryName + "\" \"" + destinationDirectoryName + "\"").c_str());
+}
+
 
 Utils* Utils::getInstance()
 {

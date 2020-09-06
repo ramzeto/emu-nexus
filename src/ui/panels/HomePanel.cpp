@@ -32,20 +32,58 @@
 #include "Asset.h"
 #include "Build.h"
 #include "Logger.h"
+#include "MainBannerWidget.h"
 
 
 HomePanel::HomePanel(GtkWindow *parentWindow) : Panel(parentWindow, "HomePanel.ui", "homeBox")
 {
-    logoImage = (GtkImage *)gtk_builder_get_object (builder, "logoImage");
-    versionLabel = (GtkLabel *)gtk_builder_get_object (builder, "versionLabel");
     informationLabel = (GtkLabel *)gtk_builder_get_object (builder, "informationLabel");
     
-    gtk_label_set_text(versionLabel, (string("Version ") + string(BUILD_VERSION)).c_str());
+    isShown = 0;
+    panelWidth = 0;
+    panelHeight = 0;
+    
+    //gtk_label_set_text(versionLabel, (string("Version ") + string(BUILD_VERSION)).c_str());
     gtk_label_set_markup(informationLabel, Utils::getInstance()->getFileContents(Asset::getInstance()->getHomePml()).c_str());
-        
-    UiUtils::getInstance()->loadImage(logoImage, Asset::getInstance()->getImageLogo(), 300, 300);    
+    
+    g_signal_connect (getPanelBox(), "show", G_CALLBACK(signalShow), this);    
+    g_signal_connect (getPanelBox(), "size-allocate", G_CALLBACK(signalSizeAllocate), this);  
 }
 
 HomePanel::~HomePanel()
 {
+}
+
+void HomePanel::signalSizeAllocate(GtkWidget* widget, GtkAllocation* allocation, gpointer homePanel)
+{    
+    if(((HomePanel *)homePanel)->isDestroyed())
+    {
+        return;
+    }
+
+    if(((HomePanel *)homePanel)->panelWidth != allocation->width || ((HomePanel *)homePanel)->panelHeight != allocation->height)
+    {        
+        ((HomePanel *)homePanel)->panelWidth = allocation->width;
+        ((HomePanel *)homePanel)->panelHeight = allocation->height;
+       
+        ((HomePanel *)homePanel)->isShown = 0;
+        signalShow(widget, homePanel);
+    }
+}
+
+void HomePanel::signalShow(GtkWidget* widget, gpointer homePanel)
+{
+    if(!((HomePanel *)homePanel)->isShown)
+    {
+        // @TODO .- Change this horrible solution to force the list to show the first time.
+        g_timeout_add(10, callbackFirstShowHackyTimeout, homePanel);
+    }
+}
+
+gint HomePanel::callbackFirstShowHackyTimeout(gpointer homePanel)
+{    
+    ((HomePanel *)homePanel)->isShown = 1;
+    MainBannerWidget::getInstance()->setBannerType(MainBannerWidget::TYPE_HOME);
+    
+    return 0;
 }

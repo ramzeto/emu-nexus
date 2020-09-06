@@ -42,10 +42,36 @@ public:
     HomePanel(GtkWindow *parentWindow);    
     virtual ~HomePanel();
     
-private:            
-    GtkImage *logoImage;
-    GtkLabel *versionLabel;
+private:    
     GtkLabel *informationLabel;
+    
+    int isShown;
+    int panelWidth;
+    int panelHeight;
+    
+    
+    /**
+     * Signal triggered when the "size-allocate" event happens.
+     * @param widget
+     * @param allocation
+     * @param homePanel
+     */
+    static void signalSizeAllocate(GtkWidget *widget, GtkAllocation *allocation, gpointer homePanel);
+    
+    /**
+     * 
+     * @param widget
+     * @param homePanel
+     */
+    static void signalShow(GtkWidget *widget, gpointer homePanel);
+    
+    
+    /**
+     * Callback that gets fired when the horrible hacky timer triggers to force the first draw of the widget.
+     * @param homePanel
+     * @return 
+     */
+    static gint callbackFirstShowHackyTimeout(gpointer homePanel);    
 };
 
 #endif /* HOMEPANEL_H */
