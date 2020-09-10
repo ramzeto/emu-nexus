@@ -8,156 +8,9 @@ and open the template in the editor.
     Author     : ram
 */
 
-/*window{
-    background-color: #353b44;
-    border-color: transparent;
-}
-
-headerbar{
-    padding: 10px;
-    background: #353b44;
-    border-color: transparent;
-}
-
-headerbar button{
-    background: #252930;
-    border: #252930;
-    border-color: transparent;
-}
-
-headerbar button:active{
-    background: #5e6e87;
-    border: #5e6e87;
-    border-color: transparent;
-}
-
-headerbar button label{
-    color: white;    
-}
-
-headerbar label{
-    color: #5e6e87;
-}
-
-dialog{
-    background-color: #353b44;
-    border-color: transparent;
-}
-
-dialog button{
-    background: #252930;
-    border: #252930;
-    border-color: transparent;
-}
-
-dialog button:active{
-    background: #5e6e87;
-    border: #5e6e87;
-    border-color: transparent;
-}
-
-box button{
-    background: #252930;
-    border: #252930;
-    border-color: transparent;
-}
-
-box button:active{
-    background: #5e6e87;
-    border: #5e6e87;
-    border-color: transparent;
-}
-
-entry{
-    background: #252a30;
-    border: #252a30;
-    color: white;
-}
-
-textview{
-    background-color: #252a30;
-    border: #252a30;
-    color: white;
-    padding: 5px;
-}
-
-label{
-    color: white;
-}
-
-combobox box{
-    color: white;
-    background: #252930;
-}
-
 scrolledwindow{
     border-color: transparent;
 }
-
-scrollbar {
-    background-color: transparent;
-}
-
-slider {
-    background-color: #475366;
-}
-
-list{
-    background-color: #252a30;
-}
-
-list row:hover{
-    background-color: #475366;
-}
-
-notebook{
-    background-color: #353b44;
-    border-color: #353b44;
-}
-
-notebook stack{
-    border-color: #353b44;
-    background-color: #353b44;
-}
-
-notebook header{
-    border-color: #353b44;
-    background-color: #353b44;
-}
-
-notebook tab{
-    background: transparent;
-    background-image: none;
-    border-image: none;
-}
-
-notebook tab:active{
-    background: blue;
-    background-image: none;
-    border-image: none;
-}
-
-notebook tab:hover{
-    background-color: #252930;
-}
-
-*:selected {
-    background-color: #5e6e87;
-}
-
-box#homeBox{
-    background-color: #252a30;
-}
-
-box#overlayBox{
-    background-color: red;
-}
-
-menu{
-    background: #252930;
-    color: white;
-}
-*/
 
 list{
     background: transparent;
@@ -215,12 +68,52 @@ list#SearchableListDialog_listBox row:hover{
     background-color: transparent;
 }
 
-box#gameBannerBox{
+button#mainWindow_addPlatformButton{
+    background: #33bc3f;
+    border: #33bc3f;
+    color: white;
+    font-weight: bolder;
+}
+
+button#mainWindow_addGameButton{
+    background: #33bc3f;
+    border: #33bc3f;
+    color: white;
+    font-weight: bolder;
+}
+
+button#mainWindow_addGameButton{
+    background: #33bc3f;
+    border: #33bc3f;
+    color: white;
+    font-weight: bolder;
+}
+
+button#mainWindow_addDirectoryButton{
+    background: #33bc3f;
+    border: #33bc3f;
+    color: white;
+    font-weight: bolder;
+}
+
+image#mainBannerBox_overlayBackgroundImage{
+    background-color: black;
+    opacity: 0.7;
+}
+
+button#setupBannerBox_startButton{
+    background: #33bc3f;
+    border: #33bc3f;
+    color: white;
+    font-weight: bolder;
+}
+
+box#setupBannerBox{
     color: white;
 }
 
-scrolledwindow{
-    border-color: transparent;
+box#gameBannerBox{
+    color: white;
 }
 
 button#gameBannerBox_launchButton{
@@ -228,12 +121,6 @@ button#gameBannerBox_launchButton{
     border: #33bc3f;
     color: white;
     font-weight: bolder;
-}
-
-image#mainBannerBox_overlayImage
-{
-    background-color: black;
-    opacity: 0.7;
 }
 
 label#gameGridEventBox_nameLabel

@@ -117,28 +117,55 @@ void UiUtils::removeListRow(GtkListBox* listBox, GtkWidget* row)
 }
 
 
-void UiUtils::loadImage(GtkImage* image, string fileName, int width, int height)
+void UiUtils::loadImage(GtkImage* image, string fileName, int width, int height, int aspectFill)
 {
-    GdkPixbuf *pixBuf = NULL;    
-    string key = fileName + "_" + to_string(width) + "_" + to_string(height);
-        
     //@TODO Clear cache at some point
-    if(imageCache->find(key) != imageCache->end())
+    
+    GdkPixbuf *pixBuf = NULL;
+    string key;
+    if(aspectFill)
     {
-        pixBuf = imageCache->at(key);
+        key = fileName;
+        
+        if(imageCache->find(key) != imageCache->end())
+        {
+            pixBuf = imageCache->at(key);
+        }
+        else
+        {
+            if(Utils::getInstance()->fileExists(fileName))
+            {
+                pixBuf = gdk_pixbuf_new_from_file(fileName.c_str(), NULL);
+                imageCache->insert(pair<string, GdkPixbuf *>(key, pixBuf));
+            }
+        }
+
+        width = gdk_pixbuf_get_width (pixBuf);
+        height = gdk_pixbuf_get_height (pixBuf);
+        
+        gtk_widget_set_size_request(GTK_WIDGET(image), width, height);
+        gtk_image_set_from_pixbuf(image, pixBuf);
     }
     else
     {
-        //@TODO Clear cache at some point
-        if(Utils::getInstance()->fileExists(fileName))
+        key = fileName + "_" + to_string(width) + "_" + to_string(height);
+
+        if(imageCache->find(key) != imageCache->end())
         {
-            pixBuf = gdk_pixbuf_new_from_file_at_scale (fileName.c_str(), width, height, 1, NULL);
-            imageCache->insert(pair<string, GdkPixbuf *>(key, pixBuf));
+            pixBuf = imageCache->at(key);
         }
+        else
+        {
+            if(Utils::getInstance()->fileExists(fileName))
+            {
+                pixBuf = gdk_pixbuf_new_from_file_at_scale (fileName.c_str(), width, height, 1, NULL);
+                imageCache->insert(pair<string, GdkPixbuf *>(key, pixBuf));
+            }
+        }
+
+        gtk_widget_set_size_request(GTK_WIDGET(image), width, height);
+        gtk_image_set_from_pixbuf(image, pixBuf);
     }
-    
-    gtk_widget_set_size_request(GTK_WIDGET(image), width, height);
-    gtk_image_set_from_pixbuf(image, pixBuf);
 }
 
 UiUtils* UiUtils::getInstance()

@@ -61,9 +61,15 @@ public:
     string getDatabaseFileName();
 
     /**
+     * 
+     * @return 1 if the database is setup and preloaded, 0 otherwise.
+     */
+    int isSetup();
+    
+    /**
      * Starts the database. Handles the changes between application versions.
      */
-    void init();    
+    void init();   
     
     /**
      * 

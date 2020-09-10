@@ -29,6 +29,7 @@
 
 const string Asset::ASSET_CSS = "default.css";
 const string Asset::ASSET_IMAGE_LOGO = "logo.png";
+const string Asset::ASSET_IMAGE_BASE_BANNER = "base_banner.jpg";
 const string Asset::ASSET_IMAGE_HOME = ASSET_IMAGE_LOGO;
 const string Asset::ASSET_IMAGE_DOWNLOADING = ASSET_IMAGE_LOGO;
 const string Asset::ASSET_IMAGE_DOCUMENT = ASSET_IMAGE_LOGO;
@@ -57,6 +58,11 @@ string Asset::getCss()
 string Asset::getImageLogo()
 {
     return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_LOGO;
+}
+
+string Asset::getImageBaseBanner()
+{
+    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_BASE_BANNER;
 }
 
 string Asset::getImageHome()

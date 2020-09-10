@@ -447,7 +447,7 @@ list<GameImage *> *GameImage::getItems(int64_t gameId)
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	list<GameImage *> *items = new list<GameImage *>;
-	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where gameId = ?";
+	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where gameId = ? order by type";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{

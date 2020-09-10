@@ -28,6 +28,8 @@
 #include "ApiDatabase.h"
 #include "Directory.h"
 #include "Preferences.h"
+#include "Logger.h"
+#include "ThreadManager.h"
 
 #include <unistd.h>
 #include <jansson.h>
@@ -38,20 +40,12 @@ TheGamesDB::Elasticsearch *TheGamesDB::Elasticsearch::instance = NULL;
 
 const string TheGamesDB::Elasticsearch::URL = "http://localhost";
 const int TheGamesDB::Elasticsearch::WAIT_TIME_ELASTICSEARCH = 10;
-const int TheGamesDB::Elasticsearch::REQUEST_MAX_RETRIES = 5;
+const int TheGamesDB::Elasticsearch::REQUEST_MAX_RETRIES = 10;
 const int TheGamesDB::Elasticsearch::REQUEST_TIME_TO_RETRY = 1;
 const int TheGamesDB::Elasticsearch::STATUS_OK = 0;
 const int TheGamesDB::Elasticsearch::STATUS_STARTING = 1;
-const int TheGamesDB::Elasticsearch::STATUS_UPDATING = 2;
-const int TheGamesDB::Elasticsearch::STATUS_STOPPED = 3;
+const int TheGamesDB::Elasticsearch::STATUS_STOPPED = 2;
 
-const string TheGamesDB::Elasticsearch::RESULT_TYPE_START = "start";
-const string TheGamesDB::Elasticsearch::RESULT_TYPE_GENRES = "genres";
-const string TheGamesDB::Elasticsearch::RESULT_TYPE_DEVELOPERS = "developers";
-const string TheGamesDB::Elasticsearch::RESULT_TYPE_PUBLISHERS = "publishers";
-const string TheGamesDB::Elasticsearch::RESULT_TYPE_ESRB_RATINGS = "esrb_ratings";
-const string TheGamesDB::Elasticsearch::RESULT_TYPE_PLATFORMS = "platforms";
-const string TheGamesDB::Elasticsearch::RESULT_TYPE_GAMES = "games";
 
 TheGamesDB::Elasticsearch::Elasticsearch()
 {
@@ -63,119 +57,425 @@ TheGamesDB::Elasticsearch::~Elasticsearch()
 
 }
 
-void TheGamesDB::Elasticsearch::start(void *requester, void (*callback)(CallbackResult *))
+void TheGamesDB::Elasticsearch::start(function<void(int)> callback)
 {
     status = STATUS_STARTING;
     
-    RequesterRef_t *requesterRef = new RequesterRef_t;
-    requesterRef->requester = requester;
-    requesterRef->callback = callback;
-    
-    if(pthread_create(&processThread, NULL, processWorker, requesterRef) != 0) 
-    {
-        cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << endl;
-        exit(EXIT_FAILURE);
-    }
-    
-    pthread_t processStartListenerThread;
-    if(pthread_create(&processStartListenerThread, NULL, processStartListenerWorker, requesterRef) != 0) 
-    {
-        cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << endl;
-        exit(EXIT_FAILURE);
-    }
+    ThreadManager::getInstance()->execute(0, [callback]() -> void {
+        
+        ThreadManager::getInstance()->execute(0, []() -> void {
+            string command = Preferences::getInstance()->getElasticseachBinary() + " -E http.port=" + to_string(Preferences::getInstance()->getElasticsearchPort());
+            Logger::getInstance()->debug("TheGamesDB::Elasticsearch", __FUNCTION__, command);
+            system(command.c_str());
+        });
+        
+        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort());    
+        Logger::getInstance()->debug("TheGamesDB::Elasticsearch", __FUNCTION__, url);        
+
+        json_t *jsonResponse = NULL;
+        int maxTries = REQUEST_MAX_RETRIES;
+        int error = 1;
+        int tries = 0;
+        while(error)
+        {
+            sleep(WAIT_TIME_ELASTICSEARCH);
+
+            HttpConnector *httpConnector = new HttpConnector(url);
+            int httpStatus = httpConnector->get();
+
+            if(httpStatus == HttpConnector::HTTP_OK)
+            {
+                json_error_t jsonError;
+                jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
+                if(!jsonResponse)
+                {
+                    Logger::getInstance()->error("TheGamesDB::Elasticsearch", __FUNCTION__, string(jsonError.text));
+                }
+                else
+                {            
+                    char *jsonDump = json_dumps(jsonResponse, 0);
+                    Logger::getInstance()->debug("TheGamesDB::Elasticsearch", __FUNCTION__, string(jsonDump));                    
+                    free(jsonDump);
+
+                    error = 0;
+                }                   
+            }
+            delete httpConnector;
+
+            if(error)
+            {
+                tries++;
+
+                if(tries > maxTries)
+                {
+                    break;
+                }
+            }
+        }
+
+        if(!error)
+        {
+            instance->status = STATUS_OK;
+        }
+        else
+        {
+            instance->status = STATUS_STOPPED;
+        }
+        
+    }, [callback]() -> void {
+        callback(instance->status);
+    });
 }
 
-void TheGamesDB::Elasticsearch::getGenres(void* requester, void (*callback)(CallbackResult *))
+void TheGamesDB::Elasticsearch::getEsrbRatings(function<void(list<TheGamesDB::EsrbRating *> *)> callback)
 {
-    RequesterRef_t *requesterRef = new RequesterRef_t;
-    requesterRef->requester = requester;
-    requesterRef->callback = callback;
+    list<TheGamesDB::EsrbRating *> *items = new list<TheGamesDB::EsrbRating *>;
     
-    pthread_t thread;
-    if(pthread_create(&thread, NULL, getGenresWorker, requesterRef) != 0) 
-    {
-        cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << endl;
-        exit(EXIT_FAILURE);
-    }
+    ThreadManager::getInstance()->execute(0, [items]() -> void {
+        int tries = 0;
+        int from = 0;
+        int size = 1000;
+        int hits = 0;        
+        
+        do
+        {
+            hits = 0;
+            string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/esrbrating/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
+
+            HttpConnector *httpConnector = new HttpConnector(url);        
+            if(httpConnector->get() == HttpConnector::HTTP_OK)
+            {
+                json_error_t jsonError;
+                json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
+
+                if(jsonResponse)
+                {
+                    json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
+                    json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
+
+                    hits = json_array_size(jsonHits);
+                    for(int index = 0; index < hits; index++)
+                    {
+                        json_t *jsonHit = json_array_get(jsonHits, index);
+
+                        items->push_back(new TheGamesDB::EsrbRating(json_object_get(jsonHit, "_source")));
+                    }
+
+                    json_decref(jsonResponse);
+                }
+                else
+                {
+                    Logger::getInstance()->error("TheGamesDB::Elasticsearch", __FUNCTION__, string(jsonError.text));
+                }
+
+                from += size;
+            }
+            else if(tries <= REQUEST_MAX_RETRIES)
+            {
+                sleep(REQUEST_TIME_TO_RETRY);
+                tries++;
+                hits = 1;
+            }
+            
+            delete httpConnector;
+        }
+        while(hits > 0);
+        
+    }, [callback, items]() -> void {
+        callback(items);        
+        TheGamesDB::EsrbRating::releaseItems(items);
+    });
 }
 
-void TheGamesDB::Elasticsearch::getDevelopers(void* requester, void (*callback)(CallbackResult *))
+void TheGamesDB::Elasticsearch::getDevelopers(function<void(list<TheGamesDB::Developer *> *)> callback)
 {
-    RequesterRef_t *requesterRef = new RequesterRef_t;
-    requesterRef->requester = requester;
-    requesterRef->callback = callback;
+    list<TheGamesDB::Developer *> *items = new list<TheGamesDB::Developer *>;
     
-    pthread_t thread;
-    if(pthread_create(&thread, NULL, getDevelopersWorker, requesterRef) != 0) 
-    {
-        cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << endl;
-        exit(EXIT_FAILURE);
-    }
+    ThreadManager::getInstance()->execute(0, [items]() -> void {
+        int tries = 0;
+        int from = 0;
+        int size = 1000;
+        int hits = 0;        
+
+        do
+        {
+            hits = 0;
+            string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/developer/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
+
+            HttpConnector *httpConnector = new HttpConnector(url);        
+            if(httpConnector->get() == HttpConnector::HTTP_OK)
+            {
+                json_error_t jsonError;
+                json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
+
+                if(jsonResponse)
+                {
+                    json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
+                    json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
+
+                    hits = json_array_size(jsonHits);
+                    for(int index = 0; index < hits; index++)
+                    {
+                        json_t *jsonHit = json_array_get(jsonHits, index);
+
+                        items->push_back(new TheGamesDB::Developer(json_object_get(jsonHit, "_source")));
+                    }
+
+                    json_decref(jsonResponse);
+                }
+                else
+                {
+                    Logger::getInstance()->error("TheGamesDB::Elasticsearch", __FUNCTION__, string(jsonError.text));
+                }
+
+                from += size;
+            }
+            else if(tries <= REQUEST_MAX_RETRIES)
+            {
+                sleep(REQUEST_TIME_TO_RETRY);
+                tries++;
+                hits = 1;
+            }
+
+            delete httpConnector;                
+        }
+        while(hits > 0);
+        
+    }, [callback, items]() -> void {
+        callback(items);        
+        TheGamesDB::Developer::releaseItems(items);
+    });
 }
 
-void TheGamesDB::Elasticsearch::getPublishers(void* requester, void (*callback)(CallbackResult *))
+void TheGamesDB::Elasticsearch::getPublishers(function<void(list<TheGamesDB::Publisher *> *)> callback)
 {
-    RequesterRef_t *requesterRef = new RequesterRef_t;
-    requesterRef->requester = requester;
-    requesterRef->callback = callback;
+    list<TheGamesDB::Publisher *> *items = new list<TheGamesDB::Publisher *>;
     
-    pthread_t thread;
-    if(pthread_create(&thread, NULL, getPublishersWorker, requesterRef) != 0) 
-    {
-        cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << endl;
-        exit(EXIT_FAILURE);
-    }
+    ThreadManager::getInstance()->execute(0, [items]() -> void {
+        int tries = 0;
+        int from = 0;
+        int size = 1000;
+        int hits = 0;
+
+        do
+        {
+            hits = 0;
+            string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/publisher/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
+
+            HttpConnector *httpConnector = new HttpConnector(url);        
+            if(httpConnector->get() == HttpConnector::HTTP_OK)
+            {
+                json_error_t jsonError;
+                json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
+
+                if(jsonResponse)
+                {                
+                    json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
+                    json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
+
+                    hits = json_array_size(jsonHits);
+                    for(int index = 0; index < hits; index++)
+                    {
+                        json_t *jsonHit = json_array_get(jsonHits, index);
+
+                        items->push_back(new TheGamesDB::Publisher(json_object_get(jsonHit, "_source")));
+                    }
+
+                    json_decref(jsonResponse);
+                }
+                else
+                {
+                    Logger::getInstance()->error("TheGamesDB::Elasticsearch", __FUNCTION__, string(jsonError.text));
+                }
+
+                from += size;
+            }
+            else if(tries <= REQUEST_MAX_RETRIES)
+            {
+                sleep(REQUEST_TIME_TO_RETRY);
+                tries++;
+                hits = 1;
+            }
+
+            delete httpConnector;                
+        }
+        while(hits > 0);
+        
+    }, [callback, items]() -> void {
+        callback(items);        
+        TheGamesDB::Publisher::releaseItems(items);
+    });
 }
 
-void TheGamesDB::Elasticsearch::getEsrbRatings(void* requester, void (*callback)(CallbackResult *))
+void TheGamesDB::Elasticsearch::getGenres(function<void(list<TheGamesDB::Genre *> *)> callback)
 {
-    RequesterRef_t *requesterRef = new RequesterRef_t;
-    requesterRef->requester = requester;
-    requesterRef->callback = callback;
+    list<TheGamesDB::Genre *> *items = new list<TheGamesDB::Genre *>;
     
-    pthread_t thread;
-    if(pthread_create(&thread, NULL, getEsrbRatingsWorker, requesterRef) != 0) 
-    {
-        cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << endl;
-        exit(EXIT_FAILURE);
-    }
+    ThreadManager::getInstance()->execute(0, [items]() -> void {
+        int tries = 0;
+        int from = 0;
+        int size = 1000;
+        int hits = 0;
+
+        do
+        {
+            hits = 0;
+            string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/genre/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
+
+            HttpConnector *httpConnector = new HttpConnector(url);        
+            if(httpConnector->get() == HttpConnector::HTTP_OK)
+            {
+                json_error_t jsonError;
+                json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
+
+                if(jsonResponse)
+                {                
+                    json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
+                    json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
+
+                    hits = json_array_size(jsonHits);
+                    for(int index = 0; index < hits; index++)
+                    {
+                        json_t *jsonHit = json_array_get(jsonHits, index);
+
+                        items->push_back(new TheGamesDB::Genre(json_object_get(jsonHit, "_source")));
+                    }
+
+                    json_decref(jsonResponse);
+                }
+                else
+                {
+                    Logger::getInstance()->error("TheGamesDB::Elasticsearch", __FUNCTION__, string(jsonError.text));
+                }
+
+                from += size;
+            }
+            else if(tries <= REQUEST_MAX_RETRIES)
+            {
+                sleep(REQUEST_TIME_TO_RETRY);
+                tries++;
+                hits = 1;
+            }
+
+            delete httpConnector;                
+        }
+        while(hits > 0);
+
+    }, [callback, items]() -> void {
+        callback(items);        
+        TheGamesDB::Genre::releaseItems(items);
+    });
 }
 
-void TheGamesDB::Elasticsearch::getPlatforms(void* requester, void (*callback)(CallbackResult *))
+void TheGamesDB::Elasticsearch::getPlatforms(function<void(list<TheGamesDB::Platform *> *)> callback)
 {
-    RequesterRef_t *requesterRef = new RequesterRef_t;
-    requesterRef->requester = requester;
-    requesterRef->callback = callback;
+    list<TheGamesDB::Platform *> *items = new list<TheGamesDB::Platform *>;
     
-    pthread_t thread;
-    if(pthread_create(&thread, NULL, getPlatformsWorker, requesterRef) != 0) 
-    {
-        cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << endl;
-        exit(EXIT_FAILURE);
-    }
+    ThreadManager::getInstance()->execute(0, [items]() -> void {
+        int tries = 0;
+        int from = 0;
+        int size = 1000;
+        int hits = 0;
+        
+        do
+        {
+            hits = 0;
+            string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/platform/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
+
+            HttpConnector *httpConnector = new HttpConnector(url);        
+            if(httpConnector->get() == HttpConnector::HTTP_OK)
+            {
+                json_error_t jsonError;
+                json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
+                if(jsonResponse)
+                {
+                    json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
+                    json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
+
+                    hits = json_array_size(jsonHits);
+                    for(int index = 0; index < hits; index++)
+                    {
+                        json_t *jsonHit = json_array_get(jsonHits, index);                                        
+                        items->push_back(new TheGamesDB::Platform(json_object_get(jsonHit, "_source")));                    
+                    }
+
+                    json_decref(jsonResponse);
+                }
+                else
+                {
+                    Logger::getInstance()->error("TheGamesDB::Elasticsearch", __FUNCTION__, string(jsonError.text));
+                }
+
+                from += size;
+            }
+            else if(tries <= REQUEST_MAX_RETRIES)
+            {
+                sleep(REQUEST_TIME_TO_RETRY);
+                tries++;
+                hits = 1;
+            }
+
+            delete httpConnector;                
+        }
+        while(hits > 0);
+
+        items->sort([](TheGamesDB::Platform *platform1, TheGamesDB::Platform *platform2) -> int {
+            return Utils::getInstance()->strToLowerCase(platform1->getName()).compare(Utils::getInstance()->strToLowerCase(platform2->getName())) < 0;
+        });
+        
+    }, [callback, items]() -> void {
+        callback(items);        
+        TheGamesDB::Platform::releaseItems(items);
+    });
 }
 
-void TheGamesDB::Elasticsearch::getGames(int64_t apiPlatformId, string query, void* requester, void (*callback)(CallbackResult *))
+void TheGamesDB::Elasticsearch::getGames(int64_t apiPlatformId, string query, function<void(list<TheGamesDB::Game *> *)> callback)
 {
-    RequesterRef_t *requesterRef = new RequesterRef_t;
-    requesterRef->requester = requester;
-    requesterRef->callback = callback;
-    requesterRef->apiPlatformId = apiPlatformId;
-    requesterRef->query = query;
-    
-    pthread_t thread;
-    if(pthread_create(&thread, NULL, getGamesWorker, requesterRef) != 0) 
-    {
-        cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << endl;
-        exit(EXIT_FAILURE);
-    }
+    list<TheGamesDB::Game *> *items = new list<TheGamesDB::Game *>;
+    query = Utils::getInstance()->strReplace(query, "!", " ");
+    query = Utils::getInstance()->strReplace(query, "?", " ");
+    query = Utils::getInstance()->strReplace(query, "/", " ");
+    query = Utils::getInstance()->strReplace(query, ":", " ");
+        
+    ThreadManager::getInstance()->execute(0, [apiPlatformId, query, items]() -> void {
+        
+        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/platform" + to_string(apiPlatformId) + "/_search?q=name:" + Utils::getInstance()->urlEncode(query) + "&from=0&size=20";
+
+        HttpConnector *httpConnector = new HttpConnector(url);        
+        if(httpConnector->get() == HttpConnector::HTTP_OK)
+        {
+            json_error_t jsonError;
+            json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
+            if(jsonResponse)
+            {
+                json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
+                json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
+                for(unsigned int index = 0; index < json_array_size(jsonHits); index++)
+                {
+                    json_t *jsonHit = json_array_get(jsonHits, index);
+                    items->push_back(new TheGamesDB::Game(json_object_get(jsonHit, "_source")));                    
+                }
+
+                json_decref(jsonResponse);
+            }
+            else
+            {
+                Logger::getInstance()->error("TheGamesDB::Elasticsearch", __FUNCTION__, string(jsonError.text));
+            }
+        }
+
+        delete httpConnector;
+
+    }, [callback, items]() -> void {
+        callback(items);        
+        TheGamesDB::Game::releaseItems(items);
+    });
 }
 
 int TheGamesDB::Elasticsearch::getStatus()
 {
     return status;
 }
-
 
 TheGamesDB::Elasticsearch* TheGamesDB::Elasticsearch::getInstance()
 {
@@ -187,508 +487,6 @@ TheGamesDB::Elasticsearch* TheGamesDB::Elasticsearch::getInstance()
     return instance;
 }
 
-void *TheGamesDB::Elasticsearch::processWorker(void *requesterRef)
-{
-    string command = Preferences::getInstance()->getElasticseachBinary() + " -E http.port=" + to_string(Preferences::getInstance()->getElasticsearchPort());    
-    cout << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " command: " << command << endl;
-    system(command.c_str());
-    
-    return NULL;
-}
-
-void *TheGamesDB::Elasticsearch::processStartListenerWorker(void *requesterRef)
-{
-    string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort());    
-    cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " url: " << url << endl;
-
-    json_t *jsonResponse = NULL;
-    int maxTries = 10;
-    int error = 1;
-    int tries = 0;
-    while(error)
-    {
-        sleep(WAIT_TIME_ELASTICSEARCH); 
-                
-        HttpConnector *httpConnector = new HttpConnector(url);
-        int httpStatus = httpConnector->get();
-
-        if(httpStatus == HttpConnector::HTTP_OK)
-        {
-            json_error_t jsonError;
-            jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
-            if(!jsonResponse)
-            {
-                cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonError: " << jsonError.text << endl;
-            }
-            else
-            {            
-                char *jsonDump = json_dumps(jsonResponse, 0);
-                cout << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonResponse: " << jsonDump << endl;
-                free(jsonDump);
-
-                error = 0;
-            }                   
-        }
-        delete httpConnector;
-        
-        if(error)
-        {
-            tries++;
-            
-            if(tries > maxTries)
-            {
-                break;
-            }
-        }
-    }
-
-    
-    if(!error)
-    {
-        Elasticsearch::instance->status = STATUS_OK;
-    }
-    else
-    {        
-        Elasticsearch::instance->status = STATUS_STOPPED;
-    }
-    
-    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
-    callbackResult->setType(RESULT_TYPE_START);
-    callbackResult->setError(error);
-    callbackResult->setData(jsonResponse);
-    callbackResult->setDestroyCallback(callbackResultDestroy);
-    ((RequesterRef_t *)requesterRef)->callback(callbackResult);
-    
-    delete ((RequesterRef_t *)requesterRef);
-
-    return NULL;
-}
-
-void *TheGamesDB::Elasticsearch::getGenresWorker(void *requesterRef)
-{
-    int tries = 0;
-    int from = 0;
-    int size = 1000;
-    int hits = 0;
-    int error = 0;
-    list<TheGamesDB::Genre *> *genres = new list<TheGamesDB::Genre *>;
-    
-    do
-    {
-        hits = 0;
-        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/genre/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);       
-        
-        HttpConnector *httpConnector = new HttpConnector(url);        
-        if(httpConnector->get() == HttpConnector::HTTP_OK)
-        {
-            json_error_t jsonError;
-            json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
-            
-            if(jsonResponse)
-            {
-                json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
-                json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
-                
-                hits = json_array_size(jsonHits);
-                for(int index = 0; index < hits; index++)
-                {
-                    json_t *jsonHit = json_array_get(jsonHits, index);
-                    
-                    genres->push_back(new TheGamesDB::Genre(json_object_get(jsonHit, "_source")));
-                }
-                
-                json_decref(jsonResponse);
-            }
-            else
-            {
-                cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonError: " << jsonError.text << endl;
-            }
-            
-            from += size;
-        }
-        else if(tries <= REQUEST_MAX_RETRIES)
-        {
-            sleep(REQUEST_TIME_TO_RETRY);
-            tries++;
-            hits = 1;
-        }
-        else
-        {
-            error = 1;
-        }
-        
-        delete httpConnector;                
-    }while(hits > 0);
-
-    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
-    callbackResult->setType(RESULT_TYPE_GENRES);
-    callbackResult->setError(error);
-    callbackResult->setData(genres);
-    callbackResult->setDestroyCallback(callbackResultDestroy);
-    ((RequesterRef_t *)requesterRef)->callback(callbackResult);
-        
-    delete ((RequesterRef_t *)requesterRef);
-    return NULL;
-}
-
-void *TheGamesDB::Elasticsearch::getDevelopersWorker(void *requesterRef)
-{
-    int tries = 0;
-    int from = 0;
-    int size = 1000;
-    int hits = 0;
-    int error = 0;
-    list<TheGamesDB::Developer *> *developers = new list<TheGamesDB::Developer *>;
-    
-    do
-    {
-        hits = 0;
-        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/developer/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
-                
-        HttpConnector *httpConnector = new HttpConnector(url);        
-        if(httpConnector->get() == HttpConnector::HTTP_OK)
-        {
-            json_error_t jsonError;
-            json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
-            
-            if(jsonResponse)
-            {
-                json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
-                json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
-                
-                hits = json_array_size(jsonHits);
-                for(int index = 0; index < hits; index++)
-                {
-                    json_t *jsonHit = json_array_get(jsonHits, index);
-                    
-                    developers->push_back(new TheGamesDB::Developer(json_object_get(jsonHit, "_source")));
-                }
-                
-                json_decref(jsonResponse);
-            }
-            else
-            {
-                cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonError: " << jsonError.text << endl;
-            }
-            
-            from += size;
-        }
-        else if(tries <= REQUEST_MAX_RETRIES)
-        {
-            sleep(REQUEST_TIME_TO_RETRY);
-            tries++;
-            hits = 1;
-        }
-        else
-        {
-            error = 1;
-        }
-        
-        delete httpConnector;                
-    }while(hits > 0);
-
-    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
-    callbackResult->setType(RESULT_TYPE_DEVELOPERS);
-    callbackResult->setError(error);
-    callbackResult->setData(developers);
-    callbackResult->setDestroyCallback(callbackResultDestroy);
-    ((RequesterRef_t *)requesterRef)->callback(callbackResult);    
-    
-    delete ((RequesterRef_t *)requesterRef);
-    return NULL;    
-}
-
-void *TheGamesDB::Elasticsearch::getPublishersWorker(void *requesterRef)
-{
-    int tries = 0;
-    int from = 0;
-    int size = 1000;
-    int hits = 0;
-    int error = 0;
-    list<TheGamesDB::Publisher *> *publishers = new list<TheGamesDB::Publisher *>;
-    
-    do
-    {
-        hits = 0;
-        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/publisher/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
-                
-        HttpConnector *httpConnector = new HttpConnector(url);        
-        if(httpConnector->get() == HttpConnector::HTTP_OK)
-        {
-            json_error_t jsonError;
-            json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
-            
-            if(jsonResponse)
-            {                
-                json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
-                json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
-                
-                hits = json_array_size(jsonHits);
-                for(int index = 0; index < hits; index++)
-                {
-                    json_t *jsonHit = json_array_get(jsonHits, index);
-                    
-                    publishers->push_back(new TheGamesDB::Publisher(json_object_get(jsonHit, "_source")));
-                }
-                
-                json_decref(jsonResponse);
-            }
-            else
-            {
-                cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonError: " << jsonError.text << endl;
-            }
-            
-            from += size;
-        }
-        else if(tries <= REQUEST_MAX_RETRIES)
-        {
-            sleep(REQUEST_TIME_TO_RETRY);
-            tries++;
-            hits = 1;
-        }
-        else
-        {
-            error = 1;
-        }
-        
-        delete httpConnector;                
-    }while(hits > 0);
-
-    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
-    callbackResult->setType(RESULT_TYPE_PUBLISHERS);
-    callbackResult->setError(error);
-    callbackResult->setData(publishers);
-    callbackResult->setDestroyCallback(callbackResultDestroy);
-    ((RequesterRef_t *)requesterRef)->callback(callbackResult);   
-        
-    delete ((RequesterRef_t *)requesterRef);
-    return NULL;
-}
-
-void *TheGamesDB::Elasticsearch::getEsrbRatingsWorker(void *requesterRef)
-{
-    int tries = 0;
-    int from = 0;
-    int size = 1000;
-    int hits = 0;
-    int error = 0;
-    list<TheGamesDB::EsrbRating *> *esrbRatings = new list<TheGamesDB::EsrbRating *>;
-    
-    do
-    {
-        hits = 0;
-        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/esrbrating/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
-                
-        HttpConnector *httpConnector = new HttpConnector(url);        
-        if(httpConnector->get() == HttpConnector::HTTP_OK)
-        {
-            json_error_t jsonError;
-            json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
-            
-            if(jsonResponse)
-            {
-                json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
-                json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
-                
-                hits = json_array_size(jsonHits);
-                for(int index = 0; index < hits; index++)
-                {
-                    json_t *jsonHit = json_array_get(jsonHits, index);
-                    
-                    esrbRatings->push_back(new TheGamesDB::EsrbRating(json_object_get(jsonHit, "_source")));
-                }
-                
-                json_decref(jsonResponse);
-            }
-            else
-            {
-                cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonError: " << jsonError.text << endl;
-            }
-            
-            from += size;
-        }
-        else if(tries <= REQUEST_MAX_RETRIES)
-        {
-            sleep(REQUEST_TIME_TO_RETRY);
-            tries++;
-            hits = 1;
-        }
-        else
-        {
-            error = 1;
-        }
-        
-        delete httpConnector;                
-    }while(hits > 0);
-
-    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
-    callbackResult->setType(RESULT_TYPE_ESRB_RATINGS);
-    callbackResult->setError(error);
-    callbackResult->setData(esrbRatings);
-    callbackResult->setDestroyCallback(callbackResultDestroy);
-    ((RequesterRef_t *)requesterRef)->callback(callbackResult);   
-    
-    delete ((RequesterRef_t *)requesterRef);
-    return NULL;    
-}
-
-int platformsSort(TheGamesDB::Platform *platform1, TheGamesDB::Platform *platform2)
-{
-    return Utils::getInstance()->strToLowerCase(platform1->getName()).compare(Utils::getInstance()->strToLowerCase(platform2->getName())) < 0;
-}
-
-void *TheGamesDB::Elasticsearch::getPlatformsWorker(void *requesterRef)
-{
-    int tries = 0;
-    int from = 0;
-    int size = 1000;
-    int hits = 0;
-    int error = 0;
-    list<TheGamesDB::Platform *> *platforms = new list<TheGamesDB::Platform *>;
-    
-    do
-    {
-        hits = 0;
-        string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/platform/_search?q=*&from=" + to_string(from) + "&size=" + to_string(size);
-                
-        HttpConnector *httpConnector = new HttpConnector(url);        
-        if(httpConnector->get() == HttpConnector::HTTP_OK)
-        {
-            json_error_t jsonError;
-            json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
-            if(jsonResponse)
-            {
-                json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
-                json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
-                
-                hits = json_array_size(jsonHits);
-                for(int index = 0; index < hits; index++)
-                {
-                    json_t *jsonHit = json_array_get(jsonHits, index);                                        
-                    platforms->push_back(new TheGamesDB::Platform(json_object_get(jsonHit, "_source")));                    
-                }
-                
-                json_decref(jsonResponse);
-            }
-            else
-            {
-                cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonError: " << jsonError.text << endl;
-            }
-            
-            from += size;
-        }
-        else if(tries <= REQUEST_MAX_RETRIES)
-        {
-            sleep(REQUEST_TIME_TO_RETRY);
-            tries++;
-            hits = 1;
-        }
-        else
-        {
-            error = 1;
-        }
-        
-        delete httpConnector;                
-    }while(hits > 0);
-
-    platforms->sort(platformsSort);
-    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
-    callbackResult->setType(RESULT_TYPE_PLATFORMS);
-    callbackResult->setError(error);
-    callbackResult->setData(platforms);
-    callbackResult->setDestroyCallback(callbackResultDestroy);
-    ((RequesterRef_t *)requesterRef)->callback(callbackResult);   
-    
-    delete ((RequesterRef_t *)requesterRef);
-    return NULL;    
-}
-
-
-void *TheGamesDB::Elasticsearch::getGamesWorker(void *requesterRef)
-{
-    int64_t apiPlatformId = ((RequesterRef_t *)requesterRef)->apiPlatformId;
-    string query = ((RequesterRef_t *)requesterRef)->query;
-    query = Utils::getInstance()->strReplace(query, "!", " ");
-    query = Utils::getInstance()->strReplace(query, "?", " ");
-    query = Utils::getInstance()->strReplace(query, "/", " ");
-    query = Utils::getInstance()->strReplace(query, ":", " ");
-
-    
-    int error = 0;
-    list<TheGamesDB::Game *> *games = new list<TheGamesDB::Game *>;
-    string url = URL + ":" + to_string(Preferences::getInstance()->getElasticsearchPort()) + "/platform" + to_string(apiPlatformId) + "/_search?q=name:" + Utils::getInstance()->urlEncode(query) + "&from=0&size=20";
-
-    HttpConnector *httpConnector = new HttpConnector(url);        
-    if(httpConnector->get() == HttpConnector::HTTP_OK)
-    {
-        json_error_t jsonError;
-        json_t *jsonResponse = json_loadb((char *)httpConnector->getResponseData(), httpConnector->getResponseDataSize(), 0, &jsonError);
-        if(jsonResponse)
-        {
-            json_t *jsonHitsSection = json_object_get(jsonResponse, "hits");
-            json_t *jsonHits = json_object_get(jsonHitsSection, "hits");
-            for(unsigned int index = 0; index < json_array_size(jsonHits); index++)
-            {
-                json_t *jsonHit = json_array_get(jsonHits, index);
-                games->push_back(new TheGamesDB::Game(json_object_get(jsonHit, "_source")));                    
-            }
-
-            json_decref(jsonResponse);
-        }
-        else
-        {
-            cerr << "TheGamesDB::Elasticsearch::" << __FUNCTION__ << " jsonError: " << jsonError.text << endl;
-        }
-    }
-    else
-    {
-        error = 1;
-    }
-
-    delete httpConnector;
-
-    CallbackResult *callbackResult = new CallbackResult(((RequesterRef_t *)requesterRef)->requester);
-    callbackResult->setType(RESULT_TYPE_GAMES);
-    callbackResult->setError(error);
-    callbackResult->setData(games);
-    callbackResult->setDestroyCallback(callbackResultDestroy);
-    ((RequesterRef_t *)requesterRef)->callback(callbackResult);   
-    
-    delete ((RequesterRef_t *)requesterRef);
-    return NULL; 
-}
-
-void TheGamesDB::Elasticsearch::callbackResultDestroy(CallbackResult *callbackResult)
-{
-    if(callbackResult->getType().compare(RESULT_TYPE_START) == 0)
-    {
-        json_decref((json_t *)callbackResult->getData());
-    }
-    else if(callbackResult->getType().compare(RESULT_TYPE_GENRES) == 0)
-    {
-        TheGamesDB::Genre::releaseItems((list<TheGamesDB::Genre *> *)callbackResult->getData());
-    }
-    else if(callbackResult->getType().compare(RESULT_TYPE_DEVELOPERS) == 0)
-    {
-        TheGamesDB::Developer::releaseItems((list<TheGamesDB::Developer *> *)callbackResult->getData());
-    }
-    else if(callbackResult->getType().compare(RESULT_TYPE_PUBLISHERS) == 0)
-    {
-        TheGamesDB::Publisher::releaseItems((list<TheGamesDB::Publisher *> *)callbackResult->getData());
-    }
-    else if(callbackResult->getType().compare(RESULT_TYPE_ESRB_RATINGS) == 0)
-    {
-        TheGamesDB::EsrbRating::releaseItems((list<TheGamesDB::EsrbRating *> *)callbackResult->getData());
-    }
-    else if(callbackResult->getType().compare(RESULT_TYPE_PLATFORMS) == 0)
-    {
-        TheGamesDB::Platform::releaseItems((list<TheGamesDB::Platform *> *)callbackResult->getData());
-    }
-    else if(callbackResult->getType().compare(RESULT_TYPE_GAMES) == 0)
-    {
-        TheGamesDB::Game::releaseItems((list<TheGamesDB::Game *> *)callbackResult->getData());
-    }
-}
 
 
 

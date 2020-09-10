@@ -60,13 +60,14 @@ public:
     void removeListRow(GtkListBox *listBox, GtkWidget *row);
     
     /**
-     * Loads an image from a file into a gtkimage control, scaling to width x height respecting the aspect ratio
-     * @param image Image control
-     * @param fileName Image filename (absolute path) to load
-     * @param width Desired width
-     * @param height Desired height
+     * Loads an image from a file into a gtkimage control, scaling to width x height respecting the aspect ratio.
+     * @param image Image widget.
+     * @param fileName Image filename (absolute path) to load.
+     * @param width Desired width.
+     * @param height Desired height.
+     * @param aspectFill When > 0, stretches the image to width x height respecting the aspect ratio.
      */
-    void loadImage(GtkImage *image, string fileName, int width, int height);        
+    void loadImage(GtkImage *image, string fileName, int width, int height, int aspectFill = 0);
     
     /**
      * 

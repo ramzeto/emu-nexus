@@ -30,6 +30,8 @@
 #include "Build.h"
 #include "ApplicationVersion.h"
 #include "Utils.h"
+#include "Logger.h"
+#include "ThreadManager.h"
 
 using namespace std;
 
@@ -43,6 +45,7 @@ MainWindow *gMainWindow;
 int main(int argc, char** argv) 
 {
     Database::getInstance()->init();
+    ThreadManager::getInstance()->init();
     
     // Starts GTK
     GtkApplication *app;

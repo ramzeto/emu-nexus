@@ -27,6 +27,7 @@
 #include "Build.h"
 #include "ApplicationVersion.h"
 #include "Directory.h"
+#include "Genre.h"
 
 #include <stdlib.h>
 #include <string>
@@ -85,6 +86,13 @@ void Database::close()
 string Database::getDatabaseFileName()
 {
     return Directory::getInstance()->getDataDirectory() + DATABASE_FILE_NAME;
+}
+
+int Database::isSetup()
+{
+    // If genres exists, means that TheGamesDB preloaded data is present.
+    list<Genre *> *genres = Genre::getItems("");    
+    return genres->size() > 0;   
 }
 
 void Database::init()

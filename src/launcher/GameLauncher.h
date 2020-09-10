@@ -31,7 +31,6 @@
 #include <list>
 
 #include "FileExtractor.h"
-#include "CallbackResult.h"
 
 using namespace std;
 
@@ -130,9 +129,6 @@ private:
     void postStatus(int progress = -1);
     
     static GameLauncher *instance;
-    
-    static void *launchWorker(void *);    
-    static void fileExtractorProgressListenerCallback(void *, FileExtractor *fileExtractor, size_t fileSize, size_t progressBytes);
 };
 
 #endif /* GAMELAUNCHER_H */

@@ -28,8 +28,7 @@
 
 #include "Panel.h"
 #include "Platform.h"
-#include "UiThreadBridge.h"
-#include "CallbackResult.h"
+#include "Notification.h"
 
 #include <gtk/gtk.h>
 #include <list>
@@ -58,8 +57,8 @@ private:
     GtkSearchEntry *gameSearchEntry;
     GtkButton *addGameButton;
     GtkButton *addDirectoryButton;
-    GtkBox *itemListContainerBox;
-    GtkListBox *itemListBox;
+    GtkBox *platformBox;
+    GtkListBox *platformListBox;
     GtkBox *bannerBox;
     GtkBox *contentBox;
     
@@ -75,12 +74,6 @@ private:
     Panel *currentPanel;
     int64_t selectedPlatformId;
     
-    UiThreadBridge *processUiThreadBridge;
-
-    /**
-     * Starts GUI.
-     */
-    void startGui();
     
     /**
      * Shows a panel in the contentBox.
@@ -112,7 +105,7 @@ private:
     /**
      * Loads the items list.
      */
-    void loadItemsList();
+    void loadPlatformList();
     
     /**
      * 
@@ -143,28 +136,9 @@ private:
     void removePlatform(int64_t platformId);
     
     
-    /**
-     * Callback triggered from the FirstSetupPanel when the initial setup has been completed.
-     * @param mainWindow MainWindow reference.
-     */
-    static void onSetupReadyCallback(void *mainWindow);
     
-    /**
-     * Signal triggered when a window "configure-event" (resize, maximized, etc.) happens.
-     * @param window
-     * @param event
-     * @param mainWindow
-     */
-    static void signalMainWindowConfigureEvent(GtkWindow *window, GdkEvent *event, gpointer mainWindow);    
     
-    /**
-     * Signal triggered when itemListBox "row-selected" event happens.
-     * @param listBox
-     * @param row
-     * @param mainWindow
-     */
-    static void signalItemListRowSelected (GtkListBox *listBox, GtkWidget *row, gpointer mainWindow);
-    
+        
     /**
      * Signal triggered when the user presses a mouse button over a platform in the list.
      * @param widget
@@ -190,43 +164,9 @@ private:
     
     /**
      * 
-     * @param button
-     * @param mainWindow
-     */
-    static void signalAddPlatformButtonClicked(GtkButton *button, gpointer mainWindow);
-    
-    /**
-     * 
-     * @param button
-     * @param mainWindow
-     */
-    static void signalAddGameButtonClicked(GtkButton *button, gpointer mainWindow);
-
-    /**
-     * 
-     * @param button
-     * @param mainWindow
-     */
-    static void signalAddDirectoryButtonClicked(GtkButton *button, gpointer mainWindow);
-    
-    /**
-     * 
-     * @param searchEntry
-     * @param mainWindow
-     */
-    static void signalGameSearchEntrySearchChanged(GtkSearchEntry *searchEntry, gpointer mainWindow);
-    
-    /**
-     * 
      * @param callbackResult
      */
-    static void callbackSerialProcessStatus(CallbackResult *callbackResult);
-    
-    /**
-     * 
-     * @param callbackResult
-     */
-    static void callbackNotification(CallbackResult *callbackResult);
+    static void onNotification(Notification *notification);
     
 };
 

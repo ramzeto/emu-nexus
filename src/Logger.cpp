@@ -13,6 +13,7 @@
 
 #include "Logger.h"
 #include "Utils.h"
+#include "ThreadManager.h"
 
 #include <iostream>
 #include <cstdarg>
@@ -29,19 +30,19 @@ Logger::~Logger()
 
 void Logger::message(string className, string functionName, string message)
 {
-    string output = Utils::getInstance()->nowIsoDateTime() + " | " + __FUNCTION__ + " | " + className + " | " + functionName + " | " + message;
+    string output = Utils::getInstance()->nowIsoDateTime() + " | " + __FUNCTION__ + " | " + className + " | " + functionName + " | isMainThread: " + to_string(ThreadManager::getInstance()->isMainThread()) + " | " + message;
     cout << output << endl;
 }
 
 void Logger::debug(string className, string functionName, string message)
 {
-    string output = Utils::getInstance()->nowIsoDateTime() + " | " + __FUNCTION__ + " | " + className + " | " + functionName + " | " + message;
+    string output = Utils::getInstance()->nowIsoDateTime() + " | " + __FUNCTION__ + " | " + className + " | " + functionName + " | isMainThread: " + to_string(ThreadManager::getInstance()->isMainThread()) + " | " + message;
     cout << output << endl;
 }
 
 void Logger::error(string className, string functionName, string message)
 {
-    string output = Utils::getInstance()->nowIsoDateTime() + " | " + __FUNCTION__ + " | " + className + " | " + functionName + " | " + message;
+    string output = Utils::getInstance()->nowIsoDateTime() + " | " + __FUNCTION__ + " | " + className + " | " + functionName + " | isMainThread: " + to_string(ThreadManager::getInstance()->isMainThread()) + " | " + message;
     cout << output << endl;
 }
 

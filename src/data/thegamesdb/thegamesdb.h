@@ -29,8 +29,7 @@
 #include <list>
 #include <jansson.h>
 #include <pthread.h>
-
-#include "CallbackResult.h"
+#include <functional>
 
 using namespace std;
 
@@ -44,123 +43,6 @@ extern "C" {
 namespace TheGamesDB
 {
     static const int API_ID = 1;
-
-    /**
-     * This class handles the requests to the Elasticsearch engine.
-     */
-    class Elasticsearch
-    {
-    public:            
-        static const int STATUS_OK;
-        static const int STATUS_STARTING;
-        static const int STATUS_UPDATING;
-        static const int STATUS_STOPPED;
-        
-        static const string RESULT_TYPE_START;
-        static const string RESULT_TYPE_GENRES;
-        static const string RESULT_TYPE_DEVELOPERS;
-        static const string RESULT_TYPE_PUBLISHERS;
-        static const string RESULT_TYPE_ESRB_RATINGS;
-        static const string RESULT_TYPE_PLATFORMS;
-        static const string RESULT_TYPE_GAMES;
-
-        /**
-         * Starts the engine. This method will return immediately. The requester should listen to the callback to start using the engine.
-         * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that indicates that the engine has started or not. Receives a pointer to a CallbackResult object. CallbackResult->getData() is the response from the engine in a json_t pointer. It will be called in a new thread.
-         */
-        void start(void *requester, void (*callback)(CallbackResult *));
-
-        /**
-         * Gets the genres in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
-         * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the genres. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::Genre *> object. It will be called in a new thread.
-         */
-        void getGenres(void *requester, void (*callback)(CallbackResult *));
-
-        /**
-         * Gets the developers in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
-         * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the developers. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::Developer *> object. It will be called in a new thread.
-         */
-        void getDevelopers(void *requester, void (*callback)(CallbackResult *));
-
-        /**
-         * Gets the publishers in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
-         * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the publishers. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::Publisher *> object. It will be called in a new thread.
-         */
-        void getPublishers(void *requester, void (*callback)(CallbackResult *));
-
-        /**
-         * Gets the ESRB ratings in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
-         * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the ESRB ratings. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::EsrbRating *> object. It will be called in a new thread.
-         */
-        void getEsrbRatings(void *requester, void (*callback)(CallbackResult *));
-
-        /**
-         * Gets the platforms in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
-         * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the platforms. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::Platform *> object. It will be called in a new thread.
-         */
-        void getPlatforms(void *requester, void (*callback)(CallbackResult *));
-                
-        /**
-         * Gets matching games (according to the query parameter) in TheGamesDB. This method will return immediately. The requester should listen to the callback to get the items.
-         * @param apiPlatformId Id of the TheGamesDB::Platform in which the game will be looked for.
-         * @param query Query to search.
-         * @param requester Pointer to the object that requested the method.
-         * @param callback Callback that receives the games. Receives a pointer to a CallbackResult object. CallbackResult->getData() is a pointer to a list<TheGamesDB::Game *> object. It will be called in a new thread.
-         */
-        void getGames(int64_t apiPlatformId, string query, void *requester, void (*callback)(CallbackResult *));
-
-
-        /**
-         * 
-         * @return current status of the database.
-         */
-        int getStatus();
-
-        /**
-         * 
-         * @return Elasticsearch instance.
-         */
-        static Elasticsearch *getInstance();
-
-    private:
-        static const string URL;
-        static const int WAIT_TIME_ELASTICSEARCH;
-        static const int REQUEST_MAX_RETRIES;
-        static const int REQUEST_TIME_TO_RETRY;
-
-        typedef struct{
-            void *requester;
-            void (*callback)(CallbackResult*);
-            int64_t apiPlatformId;
-            string query;
-        }RequesterRef_t;           
-
-        pthread_t processThread;
-        int status;
-
-        Elasticsearch();
-        virtual ~Elasticsearch();                        
-
-        static Elasticsearch *instance;
-        static void *processWorker(void *pRequesterRef);
-        static void *processStartListenerWorker(void *pRequesterRef);
-        static void *getGenresWorker(void *pRequesterRef);
-        static void *getDevelopersWorker(void *pRequesterRef);
-        static void *getPublishersWorker(void *pRequesterRef);
-        static void *getEsrbRatingsWorker(void *pRequesterRef);            
-        static void *getPlatformsWorker(void *pRequesterRef);
-        static void *getGamesWorker(void *pRequesterRef);
-        
-        static void callbackResultDestroy(CallbackResult *callbackResult);
-    };
-
-
 
     class PlatformImage
     {
@@ -500,6 +382,87 @@ namespace TheGamesDB
     };
 
 
+    
+    /**
+     * This class handles the requests to the Elasticsearch engine.
+     */
+    class Elasticsearch
+    {
+    public:            
+        static const int STATUS_OK;
+        static const int STATUS_STARTING;
+        static const int STATUS_STOPPED;       
+        
+        /**
+         * Starts the Elasticsearch process.
+         * @param callback Lambda function that receives the status of the process as parameter.
+         */
+        void start(function<void(int)> callback);
+        
+        /**
+         * Gets EsrbRatings.
+         * @param callback Lambda function that receives a list of TheGamesDB::EsrbRating (it will be freed automatically).
+         */
+        void getEsrbRatings(function<void(list<TheGamesDB::EsrbRating *> *)> callback);
+        
+        /**
+         * Gets Developers.
+         * @param callback Lambda function that receives a list of TheGamesDB::Developer (it will be freed automatically).
+         */
+        void getDevelopers(function<void(list<TheGamesDB::Developer *> *)> callback);
+        
+        /**
+         * Gets Publishers.
+         * @param callback Lambda function that receives a list of TheGamesDB::Publisher (it will be freed automatically).
+         */        
+        void getPublishers(function<void(list<TheGamesDB::Publisher *> *)> callback);
+        
+        /**
+         * Gets Genres.
+         * @param callback Lambda function that receives a list of TheGamesDB::Genre (it will be freed automatically).
+         */          
+        void getGenres(function<void(list<TheGamesDB::Genre *> *)> callback);
+        
+        /**
+         * Gets Platforms.
+         * @param callback Lambda function that receives a list of TheGamesDB::Platform (it will be freed automatically).
+         */        
+        void getPlatforms(function<void(list<TheGamesDB::Platform *> *)> callback);
+        
+        /**
+         * Gets games.
+         * @param apiPlatformId Id of the TheGamesDB::Platform in which the game will be looked for.
+         * @param query Query to search.
+         * @param callback Lambda function that receives a list of TheGamesDB::Game (it will be freed automatically).
+         */
+        void getGames(int64_t apiPlatformId, string query, function<void(list<TheGamesDB::Game *> *)> callback);
+
+
+        /**
+         * 
+         * @return current status of the database.
+         */
+        int getStatus();
+
+        /**
+         * 
+         * @return Elasticsearch instance.
+         */
+        static Elasticsearch *getInstance();
+
+    private:
+        static const string URL;
+        static const int WAIT_TIME_ELASTICSEARCH;
+        static const int REQUEST_MAX_RETRIES;
+        static const int REQUEST_TIME_TO_RETRY;
+        
+        int status;
+
+        Elasticsearch();
+        virtual ~Elasticsearch();                        
+
+        static Elasticsearch *instance;        
+    };    
 }
 
 

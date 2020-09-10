@@ -37,6 +37,7 @@ class Asset {
 public:
     static const string ASSET_CSS;
     static const string ASSET_IMAGE_LOGO;
+    static const string ASSET_IMAGE_BASE_BANNER;
     static const string ASSET_IMAGE_HOME;
     static const string ASSET_IMAGE_DOWNLOADING;
     static const string ASSET_IMAGE_DOCUMENT;
@@ -59,6 +60,12 @@ public:
      * @return Logo image filename.
      */
     string getImageLogo();
+    
+    /**
+     * 
+     * @return Base banner filename.
+     */
+    string getImageBaseBanner();
     
     /**
      * 

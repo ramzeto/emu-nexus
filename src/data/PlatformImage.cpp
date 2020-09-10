@@ -444,7 +444,7 @@ list<PlatformImage *> *PlatformImage::getItems(int64_t platformId)
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	list<PlatformImage *> *items = new list<PlatformImage *>;
-	string query = "select id, platformId, type, fileName, external, apiId, apiItemId, url, downloaded from PlatformImage where platformId = ?";
+	string query = "select id, platformId, type, fileName, external, apiId, apiItemId, url, downloaded from PlatformImage where platformId = ? order by type";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
