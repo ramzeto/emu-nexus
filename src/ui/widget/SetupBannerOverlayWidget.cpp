@@ -52,7 +52,7 @@ SetupBannerOverlayWidget::SetupBannerOverlayWidget() : MainBannerOverlayWidget("
         }
 
         ((SetupBannerOverlayWidget *)setupBannerOverlayWidget)->started = 1;
-        gtk_widget_hide(GTK_WIDGET(button));
+        ((SetupBannerOverlayWidget *)setupBannerOverlayWidget)->update();
 
         SetupDatabaseProcess *setupDatabaseProcess = new SetupDatabaseProcess();
         SerialProcessExecutor::getInstance()->schedule(setupDatabaseProcess);
@@ -72,11 +72,13 @@ void SetupBannerOverlayWidget::update()
     {
         gtk_widget_hide(GTK_WIDGET(startButton));
         gtk_widget_show_all(GTK_WIDGET(activityBox));
+        gtk_spinner_start(spinner);
     }
     else
     {
         gtk_widget_hide(GTK_WIDGET(activityBox));
         gtk_widget_show(GTK_WIDGET(startButton));
+        gtk_spinner_stop(spinner);
     }
     
     int width = gtk_widget_get_allocated_width(GTK_WIDGET(logoImage));
@@ -101,7 +103,7 @@ void SetupBannerOverlayWidget::onNotification(Notification* notification)
             if(notification->getProgress() > 0)
             {
                 message += " (" + to_string(notification->getProgress()) + "%)";
-            }            
+            }
             gtk_label_set_text(setupBannerOverlayWidget->activityLabel, message.c_str());
         }
         else
