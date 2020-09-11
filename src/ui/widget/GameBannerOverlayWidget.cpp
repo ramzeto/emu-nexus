@@ -140,7 +140,7 @@ GameBannerOverlayWidget::GameBannerOverlayWidget(int64_t gameId) : MainBannerOve
         {
             gameFavorite->setTimestamp(Utils::getInstance()->nowIsoDateTime());
             gameFavorite->save();
-            UiUtils::getInstance()->loadImage(((GameBannerOverlayWidget *)gameBannerOverlayWidget)->favoriteImage, Asset::getInstance()->getImageFavorite(), favoriteImageWidth, favoriteImageHeight);
+            gtk_image_set_from_icon_name(((GameBannerOverlayWidget *)gameBannerOverlayWidget)->favoriteImage, "emblem-favorite", GTK_ICON_SIZE_DND);
         }
         delete gameFavorite;
 
@@ -371,20 +371,16 @@ void GameBannerOverlayWidget::update()
     GameFavorite *gameFavorite = new GameFavorite(game->getId());    
     if(gameFavorite->load())
     {
-        UiUtils::getInstance()->loadImage(favoriteImage, Asset::getInstance()->getImageFavorite(), favoriteImageWidth, favoriteImageHeight);
+        gtk_image_set_from_icon_name(favoriteImage, "emblem-favorite", GTK_ICON_SIZE_LARGE_TOOLBAR);
     }
     else
     {
         UiUtils::getInstance()->loadImage(favoriteImage, Asset::getInstance()->getImageNonFavorite(), favoriteImageWidth, favoriteImageHeight);
     }
     delete gameFavorite;
-    
-    
-    int editImageWidth = gtk_widget_get_allocated_width(GTK_WIDGET(editImage));
-    int editImageHeight = gtk_widget_get_allocated_width(GTK_WIDGET(editImage));
-    UiUtils::getInstance()->loadImage(editImage, Asset::getInstance()->getImageEdit(), editImageWidth, editImageHeight);
-    
-            
+           
+    gtk_image_set_from_icon_name(editImage, "accessories-text-editor", GTK_ICON_SIZE_LARGE_TOOLBAR);
+                
     updateGameImagesGrid();
     updateGameDocumentsGrid();
     updateLaunchStatus(GameLauncher::getInstance()->getStatus(), GameLauncher::getInstance()->getError());
@@ -438,7 +434,7 @@ void GameBannerOverlayWidget::updateGameImagesGrid()
                 }
                 else
                 {
-                    UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageDownloading(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
+                    gtk_image_set_from_icon_name(image, "emblem-downloads", GTK_ICON_SIZE_LARGE_TOOLBAR);
                 }
                 
                 gtk_widget_set_name(GTK_WIDGET(imageBox), to_string(index).c_str());                                

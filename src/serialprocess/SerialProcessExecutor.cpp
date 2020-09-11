@@ -76,7 +76,6 @@ void SerialProcessExecutor::executeNext()
         currentSerialProcess = serialProcesses->front();
         ThreadManager::getInstance()->execute(0, [this]() -> void {
             SerialProcess *serialProcess = currentSerialProcess;
-            Logger::getInstance()->debug("SerialProcessExecutor", __FUNCTION__, currentSerialProcess->getType());
             int status = serialProcess->execute();
 
             if(status != SerialProcess::STATUS_RUNNING)

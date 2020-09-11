@@ -38,14 +38,8 @@ public:
     static const string ASSET_CSS;
     static const string ASSET_IMAGE_LOGO;
     static const string ASSET_IMAGE_BASE_BANNER;
-    static const string ASSET_IMAGE_HOME;
-    static const string ASSET_IMAGE_DOWNLOADING;
-    static const string ASSET_IMAGE_DOCUMENT;
-    static const string ASSET_IMAGE_FAVORITE;
     static const string ASSET_IMAGE_NON_FAVORITE;
-    static const string ASSET_IMAGE_RECENT;
     static const string ASSET_IMAGE_NO_GAME_IMAGE;
-    static const string ASSET_IMAGE_EDIT;
     static const string ASSET_HOME_PML;
     
     
@@ -66,55 +60,19 @@ public:
      * @return Base banner filename.
      */
     string getImageBaseBanner();
-    
-    /**
-     * 
-     * @return Home image filename.
-     */
-    string getImageHome();
-    
-    /**
-     * 
-     * @return "Represents downloading" image filename.
-     */
-    string getImageDownloading();
-    
-    /**
-     * 
-     * @return Document image filename.
-     */
-    string getImageDocument();
-    
-    /**
-     * 
-     * @return Favorite image filename.
-     */
-    string getImageFavorite();
-    
+        
     /**
      * 
      * @return Non favorite image filename.
      */
     string getImageNonFavorite();
-    
-    /**
-     * 
-     * @return Recent image filename.
-     */
-    string getImageRecent();
-    
+        
     /**
      * 
      * return No game image filename.
      */
     string getImageNoGameImage();
-    
-    /**
-     * 
-     * @return Edit image filename.
-     */
-    string getImageEdit();
-    
+        
     /**
      * 
      * @return Home information file (Pango Markup Language).

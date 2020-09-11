@@ -494,20 +494,40 @@ void GameEditDialog::loadEsrbRatings()
 
 void GameEditDialog::selectFileName()
 {
+    int fileSelected = 0;    
     GtkWidget *fileChooserDialog = gtk_file_chooser_dialog_new ("Select filename", GTK_WINDOW(dialog), GTK_FILE_CHOOSER_ACTION_OPEN, "Cancel", GTK_RESPONSE_CANCEL, "Select", GTK_RESPONSE_ACCEPT, NULL);
     gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(fileChooserDialog), Preferences::getInstance()->getLastPath().c_str());
 
     if (gtk_dialog_run (GTK_DIALOG (fileChooserDialog)) == GTK_RESPONSE_ACCEPT)
     {
-        char *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
-        gtk_entry_set_text(fileNameEntry, cFileName);
-
-        Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(string(cFileName)));
-        Preferences::getInstance()->save();
-        
+        gchar *cFileName = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (fileChooserDialog));
+        string fileName = string(cFileName);
         g_free(cFileName);
+        
+        gtk_entry_set_text(fileNameEntry, fileName.c_str());
+
+        Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(fileName));
+        Preferences::getInstance()->save();
+       
+        string gameName = sanitizeFileName(fileName);
+        
+        gtk_entry_set_text(nameEntry, gameName.c_str());
+        fileSelected = 1;
     }
     gtk_widget_destroy(fileChooserDialog);
+    
+    if(fileSelected)
+    {        
+        int yes = 0;
+        MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(dialog), "Search \"" + string(gtk_entry_get_text(nameEntry)) + "\" in the database?", "Yes", "No");
+        yes = messageDialog->execute() == GTK_RESPONSE_YES;
+        delete messageDialog;
+        
+        if(yes)
+        {
+            search();
+        }
+    }
 }
 
 void GameEditDialog::loadGameImageTypes()
@@ -583,23 +603,22 @@ void GameEditDialog::updateGameImageGrid()
                 GtkEventBox *imageBox = (GtkEventBox *)gtk_builder_get_object (imageBoxBuilder, "imageBox");
                 GtkImage *image = (GtkImage *)gtk_builder_get_object (imageBoxBuilder, "image");
 
-                string fileName;
                 if(!gameImage->getId())
                 {
                     if(Utils::getInstance()->fileExists(gameImage->getFileName()))
                     {
-                        fileName = gameImage->getFileName();
+                        UiUtils::getInstance()->loadImage(image, gameImage->getFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
                     }
                     else
                     {
-                        fileName = Asset::getInstance()->getImageDownloading();
+                        gtk_image_set_from_icon_name(image, "emblem-downloads", GTK_ICON_SIZE_DIALOG);
                     }
                 }
                 else
                 {
-                    fileName = gameImage->getThumbnailFileName();
+                    UiUtils::getInstance()->loadImage(image, gameImage->getThumbnailFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
                 }
-                UiUtils::getInstance()->loadImage(image, fileName, THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
+                
                 
                 gtk_widget_set_name(GTK_WIDGET(imageBox), to_string(index).c_str());                                
                 g_signal_connect (imageBox, "button-press-event", G_CALLBACK(signalImageBoxButtonPressedEvent), this);                                
@@ -1079,6 +1098,39 @@ void GameEditDialog::selectGameDocument(GameDocument *gameDocument)
     gtk_widget_show(GTK_WIDGET(removeDocumentButton));
     gtk_widget_show(GTK_WIDGET(documentNameEntry));
 }
+
+string GameEditDialog::sanitizeFileName(string fileName)
+{
+    fileName = Utils::getInstance()->getFileBasename(fileName);    
+    size_t periodPosition = fileName.find_last_of(".");        
+    if(periodPosition != string::npos)
+    {
+        fileName.erase(periodPosition, fileName.length() - periodPosition);
+    }
+    
+    string sanitizedName = "";
+    int open = 0;
+    for(unsigned int c = 0; c < fileName.length(); c++)
+    {
+        char letter = fileName.c_str()[c];
+        
+        if(letter == '(' || letter == '[' || letter == '{')
+        {
+            open++;
+        }
+        else if(open > 0 && (letter == ')' || letter == ']' || letter == '}'))
+        {
+            open--;
+        }                
+        else if(!open)
+        {
+            sanitizedName += letter;
+        }
+    }
+    
+    return Utils::getInstance()->trim(sanitizedName);
+}
+
 
 void GameEditDialog::search()
 {

@@ -158,10 +158,11 @@ private:
     void updateGameDocumentType();
     void selectGameDocument(GameDocument *gameDocument);
     
+    string sanitizeFileName(string fileName);
     void search();
     
     void cancel();
-    void save();    
+    void save();
     
     
     

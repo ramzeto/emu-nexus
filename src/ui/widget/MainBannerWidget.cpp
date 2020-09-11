@@ -387,6 +387,7 @@ void MainBannerWidget::setBackgroundImage()
     gtk_image_set_from_pixbuf(backgroundImage, scaledPixbuf);
     
     g_object_unref(averagePixbuf);
+    g_object_unref(scaledPixbuf);
 }
 
 void MainBannerWidget::setOverlayBackgroundVisibility(int visible)

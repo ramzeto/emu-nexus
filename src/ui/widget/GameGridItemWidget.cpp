@@ -32,6 +32,7 @@
 #include "Notifications.h"
 #include "MainBannerWidget.h"
 #include "GameLauncher.h"
+#include "Logger.h"
 
 const int GameGridItemWidget::GAME_GRID_ITEM_WIDTH = 250;
 const int GameGridItemWidget::GAME_GRID_ITEM_HEIGHT = 250;
@@ -40,11 +41,15 @@ const int GameGridItemWidget::GAME_GRID_ITEM_IMAGE_HEIGHT = GAME_GRID_ITEM_IMAGE
 const int GameGridItemWidget::FAVORITE_IMAGE_WIDTH = 30;
 const int GameGridItemWidget::FAVORITE_IMAGE_HEIGHT = 30;
 
+GdkPixbuf *GameGridItemWidget::selectedPixbuf = NULL;
+GameGridItemWidget *GameGridItemWidget::selectedGameGridItemWidget = NULL;
+
 GameGridItemWidget::GameGridItemWidget(void *owner, Game *game) : Widget("GameGridItemWidget.ui", "gameGridItemBox")
 {
     this->owner = owner;
     this->game = NULL;
     
+    selectedImage = (GtkImage *)gtk_builder_get_object (builder, "selectedImage");
     gameImage = (GtkImage *)gtk_builder_get_object (builder, "gameImage");
     favoriteImage = (GtkImage *)gtk_builder_get_object (builder, "favoriteImage");
     nameLabel = (GtkLabel *)gtk_builder_get_object (builder, "nameLabel");
@@ -59,6 +64,7 @@ GameGridItemWidget::GameGridItemWidget(void *owner, Game *game) : Widget("GameGr
     callbackContextMenuEdit = NULL;
     callbackContextMenuRemove = NULL;
     
+    gtk_image_clear(selectedImage);
     setGame(game);
 }
 
@@ -69,6 +75,11 @@ GameGridItemWidget::~GameGridItemWidget()
         delete game;        
     }
     game = NULL;
+    
+    if(selectedGameGridItemWidget == this)
+    {
+        selectedGameGridItemWidget = NULL;
+    }
 }
 
 void* GameGridItemWidget::getOwner()
@@ -118,7 +129,7 @@ void GameGridItemWidget::setGame(Game *game)
     GameFavorite *gameFavorite = new GameFavorite(game->getId());    
     if(gameFavorite->load())
     {
-        UiUtils::getInstance()->loadImage(favoriteImage, Asset::getInstance()->getImageFavorite(), FAVORITE_IMAGE_WIDTH, FAVORITE_IMAGE_HEIGHT);
+        gtk_image_set_from_icon_name(favoriteImage, "emblem-favorite", GTK_ICON_SIZE_LARGE_TOOLBAR);
     }
     else
     {
@@ -134,6 +145,69 @@ Game* GameGridItemWidget::getGame()
 {
     return game;
 }
+
+void GameGridItemWidget::setSelected(int selected)
+{
+    if(selectedGameGridItemWidget)
+    {
+        GameGridItemWidget *gameGridItemWidget = selectedGameGridItemWidget;
+        selectedGameGridItemWidget = NULL;
+        gameGridItemWidget->setSelected(0);
+    }
+
+    // Hacky solution to draw the theme background color on the widget
+    if(selected)
+    {
+        int widgetWidth = gtk_widget_get_allocated_width(GTK_WIDGET(widget));
+        int widgetHeight = gtk_widget_get_allocated_height(GTK_WIDGET(widget));
+                
+        if(!selectedPixbuf)
+        {
+            // Gets the selected background color from a GtkListBoxRow widget, because it has a background color en every theme.
+            GdkRGBA *selectedColor;
+            GtkListBoxRow *rowBox = (GtkListBoxRow *)gtk_list_box_row_new();
+            GtkStyleContext *styleContext = gtk_widget_get_style_context(GTK_WIDGET(rowBox));            
+            gtk_style_context_get (styleContext, GTK_STATE_FLAG_SELECTED, "background-color", &selectedColor, NULL);            
+                        
+            GdkPixbuf *pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8, widgetWidth, widgetHeight);
+            
+            int width = gdk_pixbuf_get_width (pixbuf);
+            int height = gdk_pixbuf_get_height (pixbuf);
+            int channels = gdk_pixbuf_get_n_channels(pixbuf);
+            int rowstride = gdk_pixbuf_get_rowstride(pixbuf);
+            guchar *pixels = gdk_pixbuf_get_pixels(pixbuf);
+                       
+            for(int x = 0; x < width; x++)
+            {
+                for(int y = 0; y < height; y++)
+                {
+                    guchar *pixel = pixels + y * rowstride + x * channels;
+                    pixel[0] = selectedColor->red * 255;
+                    pixel[1] = selectedColor->green * 255;
+                    pixel[2] = selectedColor->blue * 255;
+                    pixel[3] = selectedColor->alpha * 255;
+                }
+            }
+            
+            gdk_rgba_free (selectedColor);
+            
+            selectedPixbuf = pixbuf;
+        }
+        
+        GdkPixbuf *scaledPixbuf = gdk_pixbuf_scale_simple(selectedPixbuf, widgetWidth, widgetHeight, GDK_INTERP_NEAREST);
+        gtk_image_set_from_pixbuf(selectedImage, scaledPixbuf);
+        g_object_unref(scaledPixbuf);
+        
+        gtk_widget_set_size_request(GTK_WIDGET(selectedImage), widgetWidth, widgetHeight);
+        
+        selectedGameGridItemWidget = this;
+    }
+    else
+    {
+        gtk_image_clear(selectedImage);
+    }
+}
+
 
 void GameGridItemWidget::setCallbackSelect(void (*callbackSelect)(GameGridItemWidget *))
 {
@@ -162,7 +236,6 @@ gboolean GameGridItemWidget::signalBoxButtonPressedEvent(GtkWidget* widget, GdkE
     {
         time_t now = time(NULL);
         
-                
         if(now - ((GameGridItemWidget *)gameGridItemWidget)->selectedTimestamp == 0 && now - ((GameGridItemWidget *)gameGridItemWidget)->activatedTimestamp > 2)
         {
             ((GameGridItemWidget *)gameGridItemWidget)->activatedTimestamp = now;
@@ -171,6 +244,8 @@ gboolean GameGridItemWidget::signalBoxButtonPressedEvent(GtkWidget* widget, GdkE
         }
         else
         {
+            ((GameGridItemWidget *)gameGridItemWidget)->setSelected(1);
+            
             if(((GameGridItemWidget *)gameGridItemWidget)->callbackSelect)
             {
                 ((GameGridItemWidget *)gameGridItemWidget)->callbackSelect((GameGridItemWidget *)gameGridItemWidget);

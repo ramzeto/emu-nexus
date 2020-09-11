@@ -56,12 +56,18 @@ public:
      * @param game Game that will be displayed. The object is copied.
      */
     void setGame(Game *game);
-    
+        
     /**
      * 
      * @return 
      */
     Game *getGame();
+    
+    /**
+     * Sets widget as selected or not.
+     * @param selected
+     */
+    void setSelected(int selected);
     
     /**
      * 
@@ -98,6 +104,7 @@ private:
     static const int FAVORITE_IMAGE_HEIGHT;
     
     void *owner;
+    GtkImage *selectedImage;
     GtkImage *gameImage;
     GtkImage *favoriteImage;
     GtkLabel *nameLabel;
@@ -110,6 +117,9 @@ private:
     void (*callbackContextMenuFavorite)(GameGridItemWidget *);
     void (*callbackContextMenuEdit)(GameGridItemWidget *);
     void (*callbackContextMenuRemove)(GameGridItemWidget *);
+    
+    static GdkPixbuf *selectedPixbuf;
+    static GameGridItemWidget *selectedGameGridItemWidget;
     
     /**
      * Signal triggered when the user presses a mouse button over a game in the grid.
@@ -140,6 +150,7 @@ private:
      * @param mainWindow
      */
     static void signalMenuRemoveActivate(GtkMenuItem *menuitem, gpointer gameGridItemWidget);
+    
 };
 
 #endif /* GAMEGRIDITEMWIDGET_H */

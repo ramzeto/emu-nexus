@@ -343,23 +343,22 @@ void PlatformEditDialog::updateImageGrid()
                 GtkEventBox *imageBox = (GtkEventBox *)gtk_builder_get_object (imageBoxBuilder, "imageBox");
                 GtkImage *image = (GtkImage *)gtk_builder_get_object (imageBoxBuilder, "image");
 
-                string fileName;
                 if(!platformImage->getId())
                 {
                     if(Utils::getInstance()->fileExists(platformImage->getFileName()))
                     {
-                        fileName = platformImage->getFileName();
+                        UiUtils::getInstance()->loadImage(image, platformImage->getFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
                     }
                     else
                     {
-                        fileName = Asset::getInstance()->getImageDownloading();
+                        gtk_image_set_from_icon_name(image, "emblem-downloads", GTK_ICON_SIZE_DIALOG);
                     }
                 }
                 else
                 {
-                    fileName = platformImage->getThumbnailFileName();
+                    UiUtils::getInstance()->loadImage(image, platformImage->getThumbnailFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
                 }
-                UiUtils::getInstance()->loadImage(image, fileName, THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
+                
                 
                 gtk_widget_set_name(GTK_WIDGET(imageBox), to_string(index).c_str());                                
                 g_signal_connect (imageBox, "button-press-event", G_CALLBACK(signalImageBoxButtonPressedEvent), this);                                

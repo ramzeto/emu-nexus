@@ -51,7 +51,7 @@ GamesPanel::GamesPanel(GtkWindow *parentWindow)  : Panel(parentWindow, "GamesPan
             ((GamesPanel *)gamesPanel)->panelWidth = allocation->width;
             ((GamesPanel *)gamesPanel)->panelHeight = allocation->height;
 
-            // @TODO .- Hacky load
+            // Hacky load to force displaying the widget correctly. There is a small delay before the reported dimensions are actually set in the widget.
             g_timeout_add(10, [](gpointer gamesPanel) -> gint {
                 ((GamesPanel *)gamesPanel)->gameGridItemIndex = 0;
                 ((GamesPanel *)gamesPanel)->loadGridPage();    
@@ -184,10 +184,6 @@ void GamesPanel::loadGridPage()
                                 
                 gtk_box_pack_start(rowBox, gameGridItemWidget->getWidget(), 1, 1, 0);
                 
-                if(selectedGameId == game->getId())
-                {
-                    gtk_widget_set_state_flags(gameGridItemWidget->getWidget(), GTK_STATE_FLAG_SELECTED, 1);
-                }
                 gameGridItems->insert(pair<int64_t, GameGridItemWidget *>(game->getId(), gameGridItemWidget));
                 
                 gameGridItemIndex++;
@@ -209,6 +205,21 @@ void GamesPanel::loadGridPage()
     // Force redraw the entire widget
     gtk_widget_hide(GTK_WIDGET(getPanelBox()));
     gtk_widget_show_all(GTK_WIDGET(getPanelBox()));
+    
+        
+    if(selectedGameId)
+    {
+        // @TODO .- Hacky wait to reselect the current selected game to force the selected background
+        g_timeout_add(10, [](gpointer gamesPanel) -> gint {
+            if(((GamesPanel *)gamesPanel)->gameGridItems->find(((GamesPanel *)gamesPanel)->selectedGameId) != ((GamesPanel *)gamesPanel)->gameGridItems->end())
+            {
+                GameGridItemWidget *gameGridItemWidget = ((GamesPanel *)gamesPanel)->gameGridItems->at(((GamesPanel *)gamesPanel)->selectedGameId);
+                gameGridItemWidget->setSelected(1);
+            }
+
+            return 0;
+        }, this);         
+    }
 }
 
 void GamesPanel::updateGame(int64_t gameId)
@@ -239,34 +250,7 @@ void GamesPanel::updateGame(int64_t gameId)
 
 void GamesPanel::selectGame(int64_t gameId)
 {
-    // @TODO.- Change the background color when selected
-    if(selectedGameId)
-    {
-        if(gameGridItems->find(selectedGameId) != gameGridItems->end())
-        {
-            GameGridItemWidget *gameGridItemWidget = gameGridItems->at(selectedGameId);
-            
-            GtkStyleContext *styleContext = gtk_widget_get_style_context(GTK_WIDGET(gameGridItemWidget->getWidget()));            
-            gtk_style_context_set_state (styleContext, GTK_STATE_FLAG_NORMAL);
-            
-            //gtk_style_context_get (styleContext, GTK_STATE_FLAG_PRELIGHT,"background-color", &color1, NULL);
-            
-            //gtk_widget_set_state_flags(gameGridItemWidget->getWidget(), GTK_STATE_FLAG_NORMAL, 1);
-        }
-    }
-        
     selectedGameId = gameId;
-    if(selectedGameId)
-    {
-        if(gameGridItems->find(selectedGameId) != gameGridItems->end())
-        {
-            GameGridItemWidget *gameGridItemWidget = gameGridItems->at(selectedGameId);
-            
-            GtkStyleContext *styleContext = gtk_widget_get_style_context(GTK_WIDGET(gameGridItemWidget->getWidget()));
-            gtk_style_context_set_state (styleContext, GTK_STATE_FLAG_SELECTED);
-            //gtk_widget_set_state_flags(gameGridItemWidget->getWidget(), GTK_STATE_FLAG_SELECTED, 1);            
-        }        
-    }
 }
 
 void GamesPanel::removeGame(int64_t gameId)

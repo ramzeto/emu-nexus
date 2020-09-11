@@ -30,14 +30,8 @@
 const string Asset::ASSET_CSS = "default.css";
 const string Asset::ASSET_IMAGE_LOGO = "logo.png";
 const string Asset::ASSET_IMAGE_BASE_BANNER = "base_banner.jpg";
-const string Asset::ASSET_IMAGE_HOME = ASSET_IMAGE_LOGO;
-const string Asset::ASSET_IMAGE_DOWNLOADING = ASSET_IMAGE_LOGO;
-const string Asset::ASSET_IMAGE_DOCUMENT = ASSET_IMAGE_LOGO;
-const string Asset::ASSET_IMAGE_FAVORITE = "favorite.png";
 const string Asset::ASSET_IMAGE_NON_FAVORITE = "non_favorite.png";
-const string Asset::ASSET_IMAGE_RECENT = "recent.png";
 const string Asset::ASSET_IMAGE_NO_GAME_IMAGE = "no_game_image.png";
-const string Asset::ASSET_IMAGE_EDIT = "edit.png";
 const string Asset::ASSET_HOME_PML = "home.pml";
 
 Asset *Asset::instance = NULL;
@@ -65,44 +59,15 @@ string Asset::getImageBaseBanner()
     return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_BASE_BANNER;
 }
 
-string Asset::getImageHome()
-{
-    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_HOME;
-}
-
-string Asset::getImageDownloading()
-{
-    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_DOWNLOADING;
-}
-
-string Asset::getImageDocument()
-{
-    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_DOCUMENT;
-}
-
-string Asset::getImageFavorite()
-{
-    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_FAVORITE;
-}
 
 string Asset::getImageNonFavorite()
 {
     return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_NON_FAVORITE;
 }
 
-string Asset::getImageRecent()
-{
-    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_RECENT;
-}
-
 string Asset::getImageNoGameImage()
 {
     return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_NO_GAME_IMAGE;
-}
-
-string Asset::getImageEdit()
-{
-    return Directory::getInstance()->getAssetImagesDirectory() + ASSET_IMAGE_EDIT;
 }
 
 string Asset::getHomePml()

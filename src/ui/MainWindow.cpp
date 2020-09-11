@@ -334,20 +334,21 @@ void MainWindow::loadPlatformList()
         {
             gtk_label_set_text(nameLabel, "EMU-nexus");
             gtk_label_set_text(gamesLabel, "Home");
-            UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageHome(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
+            
+            //https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
+            gtk_image_set_from_icon_name(image, "go-home", GTK_ICON_SIZE_DIALOG);
             
             gtk_widget_set_name(platformRowBox, to_string(0).c_str());
         }
         // Recents
         else if(index == ITEM_RECENTS_INDEX)
         {
-            list<GameActivity *> *recentItems = GameActivity::getRecentItems();
-            
             gtk_label_set_text(nameLabel, "Recently played");
-            UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageRecent(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
             
-            gtk_label_set_text(gamesLabel, string(to_string(recentItems->size()) + " items").c_str());
+            gtk_image_set_from_icon_name(image, "document-open-recent", GTK_ICON_SIZE_DIALOG);
             
+            list<GameActivity *> *recentItems = GameActivity::getRecentItems();
+            gtk_label_set_text(gamesLabel, string(to_string(recentItems->size()) + " items").c_str());            
             GameActivity::releaseItems(recentItems);
             
             gtk_widget_set_name(platformRowBox, to_string(0).c_str());
@@ -355,13 +356,12 @@ void MainWindow::loadPlatformList()
         // Favorites
         else if(index == ITEM_FAVORITES_INDEX)
         {
-            list<GameFavorite *> *gameFavorites = GameFavorite::getItems();
-            
             gtk_label_set_text(nameLabel, "Favorites");
-            UiUtils::getInstance()->loadImage(image, Asset::getInstance()->getImageFavorite(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
             
-            gtk_label_set_text(gamesLabel, string(to_string(gameFavorites->size()) + " items").c_str());
+            gtk_image_set_from_icon_name(image, "emblem-favorite", GTK_ICON_SIZE_DIALOG);
             
+            list<GameFavorite *> *gameFavorites = GameFavorite::getItems();
+            gtk_label_set_text(gamesLabel, string(to_string(gameFavorites->size()) + " items").c_str());            
             GameFavorite::releaseItems(gameFavorites);
             
             gtk_widget_set_name(platformRowBox, to_string(0).c_str());
