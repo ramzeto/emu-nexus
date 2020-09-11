@@ -90,7 +90,7 @@
                 <property name="orientation">vertical</property>
                 <child>
                   <object class="GtkScrolledWindow">
-                    <property name="width_request">350</property>
+                    <property name="width_request">200</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="shadow_type">in</property>

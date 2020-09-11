@@ -60,8 +60,8 @@
 
 using namespace std;
 
-const int MainWindow::PLATFORM_IMAGE_WIDTH = 100;
-const int MainWindow::PLATFORM_IMAGE_HEIGHT = 100;
+const int MainWindow::PLATFORM_IMAGE_WIDTH = 75;
+const int MainWindow::PLATFORM_IMAGE_HEIGHT = 75;
 
 const int MainWindow::ITEM_HOME_INDEX = 0;
 const int MainWindow::ITEM_RECENTS_INDEX = 1;
@@ -348,7 +348,7 @@ void MainWindow::loadPlatformList()
             gtk_image_set_from_icon_name(image, "document-open-recent", GTK_ICON_SIZE_DIALOG);
             
             list<GameActivity *> *recentItems = GameActivity::getRecentItems();
-            gtk_label_set_text(gamesLabel, string(to_string(recentItems->size()) + " items").c_str());            
+            gtk_label_set_text(gamesLabel, string("(" + to_string(recentItems->size()) + ")").c_str());            
             GameActivity::releaseItems(recentItems);
             
             gtk_widget_set_name(platformRowBox, to_string(0).c_str());
@@ -361,7 +361,7 @@ void MainWindow::loadPlatformList()
             gtk_image_set_from_icon_name(image, "emblem-favorite", GTK_ICON_SIZE_DIALOG);
             
             list<GameFavorite *> *gameFavorites = GameFavorite::getItems();
-            gtk_label_set_text(gamesLabel, string(to_string(gameFavorites->size()) + " items").c_str());            
+            gtk_label_set_text(gamesLabel, string("(" + to_string(gameFavorites->size()) + ")").c_str());            
             GameFavorite::releaseItems(gameFavorites);
             
             gtk_widget_set_name(platformRowBox, to_string(0).c_str());
@@ -373,7 +373,7 @@ void MainWindow::loadPlatformList()
             list<Game *> *games = Game::getItems(platform->getId(), "");
             
             gtk_label_set_text(nameLabel, platform->getName().c_str());
-            gtk_label_set_text(gamesLabel, string(to_string(games->size()) + " items").c_str());
+            gtk_label_set_text(gamesLabel, string("(" + to_string(games->size()) + ")").c_str());
             
             Game::releaseItems(games);
 

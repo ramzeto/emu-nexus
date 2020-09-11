@@ -390,24 +390,19 @@ void GameBannerOverlayWidget::updateGameImagesGrid()
 {
     if(gameImages->size() == 0)
     {
-        gtk_widget_hide(GTK_WIDGET(gameImage));
-        gtk_widget_hide(GTK_WIDGET(imagesBox));
+        int width = gtk_widget_get_allocated_width(GTK_WIDGET(gameImage));
+        int height = gtk_widget_get_allocated_width(GTK_WIDGET(gameImage));
+        UiUtils::getInstance()->loadImage(gameImage, Asset::getInstance()->getImageNoGameImage(), width, height);        
         return;
     }
     
     gameImageBoxes->clear();
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(imagesBox), 1);
     
-    /*int width = gtk_widget_get_allocated_width(GTK_WIDGET(imagesBox));
-    int columns = width / THUMBNAIL_IMAGE_WIDTH;
-    
-    int rows = gameImages->size() / columns;
-    if(gameImages->size() % columns)
-    {
-        rows++;
-    }*/
-    int columns = 3;
-    int rows = 2;
+    int width = gtk_widget_get_allocated_width(GTK_WIDGET(imagesBox));
+    int columns = width / THUMBNAIL_IMAGE_WIDTH;    
+    //int rows = gameImages->size() / columns;
+    int rows = 1;
 
     unsigned int index = 0;
     for(int row = 0; row < rows; row++)
@@ -617,12 +612,12 @@ void GameBannerOverlayWidget::updateGameDocumentsGrid()
     
     int width = gtk_widget_get_allocated_width(GTK_WIDGET(documentsBox));
     int columns = width / THUMBNAIL_IMAGE_WIDTH;
-    
-    int rows = gameDocuments->size() / columns;
+    int rows = 1;
+    /*int rows = gameDocuments->size() / columns;
     if(gameDocuments->size() % columns)
     {
         rows++;
-    }
+    }*/
 
     unsigned int index = 0;
     for(int row = 0; row < rows; row++)
