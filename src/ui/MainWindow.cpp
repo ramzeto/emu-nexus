@@ -419,7 +419,7 @@ void MainWindow::updateRecents()
 {
     list<GameActivity *> *recentItems = GameActivity::getRecentItems();
     GtkLabel *gamesLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, ITEM_RECENTS_INDEX)), "gamesLabel");
-    gtk_label_set_text(gamesLabel, string(to_string(recentItems->size()) + " items").c_str());            
+    gtk_label_set_text(gamesLabel, string("(" + to_string(recentItems->size()) + ")").c_str());            
     GameActivity::releaseItems(recentItems);
 }
 
@@ -427,7 +427,7 @@ void MainWindow::updateFavorites()
 {
     list<GameFavorite *> *gameFavorites = GameFavorite::getItems();            
     GtkLabel *gamesLabel = (GtkLabel *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gtk_list_box_get_row_at_index(platformListBox, ITEM_FAVORITES_INDEX)), "gamesLabel");
-    gtk_label_set_text(gamesLabel, string(to_string(gameFavorites->size()) + " items").c_str());            
+    gtk_label_set_text(gamesLabel, string("(" + to_string(gameFavorites->size()) + ")").c_str());            
     GameFavorite::releaseItems(gameFavorites);            
 }
 
@@ -448,7 +448,7 @@ void MainWindow::updatePlatform(int64_t platformId)
             list<Game *> *games = Game::getItems(platform->getId(), "");
 
             gtk_label_set_text(nameLabel, platform->getName().c_str());
-            gtk_label_set_text(gamesLabel, string(to_string(games->size()) + " items").c_str());
+            gtk_label_set_text(gamesLabel, string("(" + to_string(games->size()) + ")").c_str());
 
             Game::releaseItems(games);
 

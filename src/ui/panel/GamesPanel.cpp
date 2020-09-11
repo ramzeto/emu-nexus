@@ -275,6 +275,9 @@ void GamesPanel::removeGame(int64_t gameId)
         // Notifies of the removed game to favorites
         NotificationManager::getInstance()->notify(NOTIFICATION_GAME_FAVORITE_UPDATED, "", 0, 0, new Game(*game));
         
+        // Notifies of the removed game to recents
+        NotificationManager::getInstance()->notify(NOTIFICATION_GAME_ACTIVITY_UPDATED, "", 0, 0, new Game(*game));
+        
         // Updates the banner
         MainBannerWidget::getInstance()->setBannerType(MainBannerWidget::getInstance()->getBannerType(), MainBannerWidget::getInstance()->getPlatformId());
     }
