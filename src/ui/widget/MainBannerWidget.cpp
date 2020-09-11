@@ -124,8 +124,8 @@ void MainBannerWidget::setBannerType(int bannerType, int64_t platformId)
                 }              
                 if(gameBannerOverlayWidget)
                 {
-                    delete welcomeBannerOverlayWidget;
-                    welcomeBannerOverlayWidget = NULL;
+                    delete gameBannerOverlayWidget;
+                    gameBannerOverlayWidget = NULL;
                 }
                 UiUtils::getInstance()->clearContainer(GTK_CONTAINER(contentBox), 1);
                 
@@ -145,8 +145,8 @@ void MainBannerWidget::setBannerType(int bannerType, int64_t platformId)
                 }
                 if(gameBannerOverlayWidget)
                 {
-                    delete welcomeBannerOverlayWidget;
-                    welcomeBannerOverlayWidget = NULL;
+                    delete gameBannerOverlayWidget;
+                    gameBannerOverlayWidget = NULL;
                 }
                 UiUtils::getInstance()->clearContainer(GTK_CONTAINER(contentBox), 1);
                 
@@ -174,8 +174,8 @@ void MainBannerWidget::setBannerType(int bannerType, int64_t platformId)
         }            
         if(gameBannerOverlayWidget)
         {
-            delete welcomeBannerOverlayWidget;
-            welcomeBannerOverlayWidget = NULL;
+            delete gameBannerOverlayWidget;
+            gameBannerOverlayWidget = NULL;
         }
         UiUtils::getInstance()->clearContainer(GTK_CONTAINER(contentBox), 1);
         
@@ -197,8 +197,8 @@ void MainBannerWidget::setBannerType(int bannerType, int64_t platformId)
         }            
         if(gameBannerOverlayWidget)
         {
-            delete welcomeBannerOverlayWidget;
-            welcomeBannerOverlayWidget = NULL;
+            delete gameBannerOverlayWidget;
+            gameBannerOverlayWidget = NULL;
         }
         UiUtils::getInstance()->clearContainer(GTK_CONTAINER(contentBox), 1);
         
@@ -220,8 +220,8 @@ void MainBannerWidget::setBannerType(int bannerType, int64_t platformId)
         }            
         if(gameBannerOverlayWidget)
         {
-            delete welcomeBannerOverlayWidget;
-            welcomeBannerOverlayWidget = NULL;
+            delete gameBannerOverlayWidget;
+            gameBannerOverlayWidget = NULL;
         }
         UiUtils::getInstance()->clearContainer(GTK_CONTAINER(contentBox), 1);
         

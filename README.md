@@ -48,11 +48,18 @@ Few custom styles are used, the appearance relies on the system theme. The scree
 
 The icon is based in the work of [Pixel perfect](https://www.flaticon.com/authors/pixel-perfect). NES cartridge image comes from [Wikipedia](https://commons.wikimedia.org/wiki/File:NES-Cartridge.jpg).
 
+### In Ubuntu
 
-To try it yourself download the source code or clone the repository and run these commands:
+Install the required libraries:
+
+    sudo apt-get install libgtk-3-dev libsqlite3-dev libjansson-dev libcurl4-gnutls-dev libxml2-dev libdlib-dev libarchive-dev libpoppler-cpp-dev
+
+Download the source code or clone the repository and run these commands:
 
     cd <EMU-nexus source code directory>
     make
     sudo make install
 
+
+    
 
