@@ -57,6 +57,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="hexpand">True</property>
+                <property name="hscrollbar_policy">never</property>
                 <property name="shadow_type">in</property>
                 <child>
                   <object class="GtkViewport">
@@ -135,7 +136,6 @@
                                 <property name="wrap">True</property>
                                 <property name="wrap_mode">char</property>
                                 <property name="ellipsize">end</property>
-                                <property name="max_width_chars">40</property>
                                 <property name="lines">2</property>
                                 <attributes>
                                   <attribute name="font-desc" value="Sans Bold 16"/>
@@ -168,8 +168,6 @@
                             <property name="wrap">True</property>
                             <property name="wrap_mode">char</property>
                             <property name="ellipsize">end</property>
-                            <property name="max_width_chars">40</property>
-                            <property name="lines">2</property>
                             <attributes>
                               <attribute name="font-desc" value="Sans 10"/>
                             </attributes>
