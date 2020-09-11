@@ -58,11 +58,7 @@ SelectFromListDialog::SelectFromListDialog(GtkWindow *parent, string title, list
     
     
     
-    g_signal_connect (listBox, "row-selected", G_CALLBACK(+[](GtkButton *button, gpointer selectFromListDialog) -> void {
-        ((SelectFromListDialog *)selectFromListDialog)->cancel();
-    }), this);
-    
-    g_signal_connect (closeButton, "clicked", G_CALLBACK (+[](GtkListBox *listBox, GtkWidget *row, gpointer selectFromListDialog) -> void {
+    g_signal_connect (listBox, "row-selected", G_CALLBACK (+[](GtkListBox *listBox, GtkWidget *row, gpointer selectFromListDialog) -> void {
         if(!selectFromListDialog || !row || !GTK_IS_LIST_BOX_ROW(row))
         {
             return;
@@ -70,7 +66,11 @@ SelectFromListDialog::SelectFromListDialog(GtkWindow *parent, string title, list
 
         int position = gtk_list_box_row_get_index (GTK_LIST_BOX_ROW(row));
         ((SelectFromListDialog *)selectFromListDialog)->select(position);
-    }), this);
+    }), this);    
+    
+    g_signal_connect (closeButton, "clicked", G_CALLBACK(+[](GtkButton *button, gpointer selectFromListDialog) -> void {
+        ((SelectFromListDialog *)selectFromListDialog)->cancel();
+    }), this);   
 }
 
 SelectFromListDialog::~SelectFromListDialog()
