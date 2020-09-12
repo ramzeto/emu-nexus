@@ -282,20 +282,32 @@ gboolean GameGridItemWidget::signalBoxButtonPressedEvent(GtkWidget* widget, GdkE
             g_signal_connect(menuitem, "activate", G_CALLBACK(signalMenuFavoriteActivate), gameGridItemWidget);
             
             delete gameFavorite;
-        }       
-        
-        if(((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuEdit)
-        {
-            GtkWidget *menuitem = gtk_menu_item_new_with_label("Edit");
-            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-            g_signal_connect(menuitem, "activate", G_CALLBACK(signalMenuEditActivate), gameGridItemWidget);
         }
         
-        if(((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuRemove)
+        int allowEditing = 1;
+        if(GameLauncher::getInstance()->getStatus() != GameLauncher::STATUS_IDLE)
         {
-            GtkWidget *menuitem = gtk_menu_item_new_with_label("Remove");
-            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-            g_signal_connect(menuitem, "activate", G_CALLBACK(signalMenuRemoveActivate), gameGridItemWidget);
+            if(GameLauncher::getInstance()->getGameId() == ((GameGridItemWidget *)gameGridItemWidget)->game->getId())
+            {
+                allowEditing = 0;
+            }
+        }
+
+        if(allowEditing)
+        {
+            if(((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuEdit)
+            {
+                GtkWidget *menuitem = gtk_menu_item_new_with_label("Edit");
+                gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+                g_signal_connect(menuitem, "activate", G_CALLBACK(signalMenuEditActivate), gameGridItemWidget);
+            }
+
+            if(((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuRemove)
+            {
+                GtkWidget *menuitem = gtk_menu_item_new_with_label("Remove");
+                gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+                g_signal_connect(menuitem, "activate", G_CALLBACK(signalMenuRemoveActivate), gameGridItemWidget);
+            }            
         }
         
         gtk_widget_show_all(menu);
