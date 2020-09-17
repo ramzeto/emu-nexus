@@ -35,6 +35,7 @@ const int GameImage::TYPE_BOX_BACK = 2;
 const int GameImage::TYPE_SCREENSHOT = 3;
 const int GameImage::TYPE_CLEAR_LOGO = 4;
 const int GameImage::TYPE_BANNER = 5;
+const int GameImage::TYPE_FANART = 6;
 
 const int GameImage::THUMBNAIL_WIDTH = 250;
 const int GameImage::THUMBNAIL_HEIGHT = 250;
@@ -59,7 +60,6 @@ GameImage::GameImage(const GameImage &orig)
 	this->fileName = orig.fileName;
 	this->external = orig.external;
 	this->apiId = orig.apiId;
-	this->apiItemId = orig.apiItemId;
 	this->url = orig.url;
 	this->downloaded = orig.downloaded;         
 }
@@ -100,12 +100,6 @@ GameImage::GameImage(json_t *json)
 	if(apiIdJson)
 	{
 		apiId = (int64_t)json_integer_value(apiIdJson);
-	}
-
-	json_t *apiItemIdJson = json_object_get(json, "apiItemId");
-	if(apiItemIdJson)
-	{
-		apiItemId = (int64_t)json_integer_value(apiItemIdJson);
 	}
         
 	json_t *urlJson = json_object_get(json, "url");
@@ -180,16 +174,6 @@ void GameImage::setApiId(int64_t apiId)
 	this->apiId = apiId;
 }
 
-int64_t GameImage::getApiItemId()
-{
-	return apiItemId;
-}
-
-void GameImage::setApiItemId(int64_t apiItemId)
-{
-	this->apiItemId = apiItemId;
-}
-
 string GameImage::getUrl()
 {
 	return url;
@@ -214,7 +198,7 @@ int GameImage::load()
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
-	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where  id = ?";
+	string query = "select id, gameId, type, fileName, external, apiId, url, downloaded from GameImage where  id = ?";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -227,9 +211,8 @@ int GameImage::load()
 			fileName = string((const char*) sqlite3_column_text(statement, 3));
 			external = (int64_t)sqlite3_column_int64(statement, 4);
 			apiId = (int64_t)sqlite3_column_int64(statement, 5);
-			apiItemId = (int64_t)sqlite3_column_int64(statement, 6);
-			url = string((const char*) sqlite3_column_text(statement, 7));
-			downloaded = (int64_t)sqlite3_column_int64(statement, 8);                        
+			url = string((const char*) sqlite3_column_text(statement, 6));
+			downloaded = (int64_t)sqlite3_column_int64(statement, 7);
 			result = 1;
 		}
 	}
@@ -250,7 +233,7 @@ int GameImage::save()
         sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
-		string insert = "insert into GameImage (gameId, type, fileName, external, apiId, apiItemId, url, downloaded) values(?, ?, ?, ?, ?, ?, ?, ?)";
+		string insert = "insert into GameImage (gameId, type, fileName, external, apiId, url, downloaded) values(?, ?, ?, ?, ?, ?, ?)";
 		sqlite3_stmt *statement;
 		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
@@ -259,9 +242,8 @@ int GameImage::save()
 			sqlite3_bind_text(statement, 3, fileName.c_str(), fileName.length(), NULL);
 			sqlite3_bind_int64(statement, 4, (sqlite3_int64)external);
 			sqlite3_bind_int64(statement, 5, (sqlite3_int64)apiId);
-			sqlite3_bind_int64(statement, 6, (sqlite3_int64)apiItemId);
-                        sqlite3_bind_text(statement, 7, url.c_str(), url.length(), NULL);
-                        sqlite3_bind_int64(statement, 8, (sqlite3_int64)downloaded);
+                        sqlite3_bind_text(statement, 6, url.c_str(), url.length(), NULL);
+                        sqlite3_bind_int64(statement, 7, (sqlite3_int64)downloaded);
                         
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
@@ -277,7 +259,7 @@ int GameImage::save()
 	}
 	else
 	{
-		string update = "update GameImage set gameId = ?, type = ?, fileName = ?, external = ?, apiId = ?, apiItemId = ?, url = ?, downloaded = ? where id = ?";
+		string update = "update GameImage set gameId = ?, type = ?, fileName = ?, external = ?, apiId = ?, url = ?, downloaded = ? where id = ?";
 		sqlite3_stmt *statement;
 		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
@@ -286,10 +268,9 @@ int GameImage::save()
 			sqlite3_bind_text(statement, 3, fileName.c_str(), fileName.length(), NULL);
 			sqlite3_bind_int64(statement, 4, (sqlite3_int64)external);
 			sqlite3_bind_int64(statement, 5, (sqlite3_int64)apiId);
-			sqlite3_bind_int64(statement, 6, (sqlite3_int64)apiItemId);
-                        sqlite3_bind_text(statement, 7, url.c_str(), url.length(), NULL);
-                        sqlite3_bind_int64(statement, 8, (sqlite3_int64)downloaded);
-			sqlite3_bind_int64(statement, 9, (sqlite3_int64)id);
+                        sqlite3_bind_text(statement, 6, url.c_str(), url.length(), NULL);
+                        sqlite3_bind_int64(statement, 7, (sqlite3_int64)downloaded);
+			sqlite3_bind_int64(statement, 8, (sqlite3_int64)id);
 			
 			result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
 		}
@@ -365,9 +346,6 @@ json_t *GameImage::toJson()
 	json_t *apiIdJson = json_integer((json_int_t)apiId);
 	json_object_set_new(json, "apiId", apiIdJson);
 
-	json_t *apiItemIdJson = json_integer((json_int_t)apiItemId);
-	json_object_set_new(json, "apiItemId", apiItemIdJson);
-
 	json_t *urlJson = json_string(url.c_str());
 	json_object_set_new(json, "url", urlJson);
 
@@ -381,7 +359,7 @@ GameImage* GameImage::getPrimaryImage(int64_t gameId)
 {
     GameImage *item = NULL;
     sqlite3 *db = Database::getInstance()->acquire();
-    string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where gameId = ?  and type = ? limit 1";
+    string query = "select id, gameId, type, fileName, external, apiId, url, downloaded from GameImage where gameId = ?  and type = ? limit 1";
     sqlite3_stmt *statement;
     if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {
@@ -397,9 +375,8 @@ GameImage* GameImage::getPrimaryImage(int64_t gameId)
                     item->fileName = string((const char*) sqlite3_column_text(statement, 3));
                     item->external = (int64_t)sqlite3_column_int64(statement, 4);
                     item->apiId = (int64_t)sqlite3_column_int64(statement, 5);
-                    item->apiItemId = (int64_t)sqlite3_column_int64(statement, 6);
-                    item->url = string((const char*) sqlite3_column_text(statement, 7));
-                    item->downloaded = (int64_t)sqlite3_column_int64(statement, 8);
+                    item->url = string((const char*) sqlite3_column_text(statement, 6));
+                    item->downloaded = (int64_t)sqlite3_column_int64(statement, 7);
             }
     }
     else
@@ -410,7 +387,7 @@ GameImage* GameImage::getPrimaryImage(int64_t gameId)
     
     if(!item)
     {
-        string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where gameId = ? limit 1";
+        string query = "select id, gameId, type, fileName, external, apiId, url, downloaded from GameImage where gameId = ? limit 1";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -425,9 +402,8 @@ GameImage* GameImage::getPrimaryImage(int64_t gameId)
 			item->fileName = string((const char*) sqlite3_column_text(statement, 3));
 			item->external = (int64_t)sqlite3_column_int64(statement, 4);
 			item->apiId = (int64_t)sqlite3_column_int64(statement, 5);
-			item->apiItemId = (int64_t)sqlite3_column_int64(statement, 6);
-                        item->url = string((const char*) sqlite3_column_text(statement, 7));
-                        item->downloaded = (int64_t)sqlite3_column_int64(statement, 8);
+                        item->url = string((const char*) sqlite3_column_text(statement, 6));
+                        item->downloaded = (int64_t)sqlite3_column_int64(statement, 7);
 		}
 	}
 	else
@@ -447,7 +423,7 @@ list<GameImage *> *GameImage::getItems(int64_t gameId)
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	list<GameImage *> *items = new list<GameImage *>;
-	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where gameId = ? order by type";
+	string query = "select id, gameId, type, fileName, external, apiId, url, downloaded from GameImage where gameId = ? order by type";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -462,9 +438,8 @@ list<GameImage *> *GameImage::getItems(int64_t gameId)
 			item->fileName = string((const char*) sqlite3_column_text(statement, 3));
 			item->external = (int64_t)sqlite3_column_int64(statement, 4);
 			item->apiId = (int64_t)sqlite3_column_int64(statement, 5);
-			item->apiItemId = (int64_t)sqlite3_column_int64(statement, 6);
-                        item->url = string((const char*) sqlite3_column_text(statement, 7));
-                        item->downloaded = (int64_t)sqlite3_column_int64(statement, 8);     
+                        item->url = string((const char*) sqlite3_column_text(statement, 6));
+                        item->downloaded = (int64_t)sqlite3_column_int64(statement, 7);
                     
 			items->push_back(item);
 		}
@@ -483,7 +458,7 @@ list<GameImage*>* GameImage::getItems(int64_t gameId, int64_t type)
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	list<GameImage *> *items = new list<GameImage *>;
-	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where gameId = ? and type = ?";
+	string query = "select id, gameId, type, fileName, external, apiId, url, downloaded from GameImage where gameId = ? and type = ?";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -499,9 +474,8 @@ list<GameImage*>* GameImage::getItems(int64_t gameId, int64_t type)
 			item->fileName = string((const char*) sqlite3_column_text(statement, 3));
 			item->external = (int64_t)sqlite3_column_int64(statement, 4);
 			item->apiId = (int64_t)sqlite3_column_int64(statement, 5);
-			item->apiItemId = (int64_t)sqlite3_column_int64(statement, 6);
-                        item->url = string((const char*) sqlite3_column_text(statement, 7));
-                        item->downloaded = (int64_t)sqlite3_column_int64(statement, 8);     
+                        item->url = string((const char*) sqlite3_column_text(statement, 6));
+                        item->downloaded = (int64_t)sqlite3_column_int64(statement, 7);
                     
 			items->push_back(item);
 		}
@@ -520,7 +494,7 @@ list<GameImage*>* GameImage::getPendingToDownloadItems()
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	list<GameImage *> *items = new list<GameImage *>;        
-	string query = "select id, gameId, type, fileName, external, apiId, apiItemId, url, downloaded from GameImage where downloaded = 0 and url <> ''";
+	string query = "select id, gameId, type, fileName, external, apiId, url, downloaded from GameImage where downloaded = 0 and url <> ''";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -533,9 +507,8 @@ list<GameImage*>* GameImage::getPendingToDownloadItems()
 			item->fileName = string((const char*) sqlite3_column_text(statement, 3));
 			item->external = (int64_t)sqlite3_column_int64(statement, 4);
 			item->apiId = (int64_t)sqlite3_column_int64(statement, 5);
-			item->apiItemId = (int64_t)sqlite3_column_int64(statement, 6);
-                        item->url = string((const char*) sqlite3_column_text(statement, 7));
-                        item->downloaded = (int64_t)sqlite3_column_int64(statement, 8);     
+                        item->url = string((const char*) sqlite3_column_text(statement, 6));
+                        item->downloaded = (int64_t)sqlite3_column_int64(statement, 7);
                     
 			items->push_back(item);
 		}

@@ -42,7 +42,6 @@ const string Game::DIRECTORY_PREFIX = "game_";
 Game::Game()
 {
     this->apiId = 0;
-    this->apiItemId = 0;
 }
 
 Game::Game(int64_t id)
@@ -60,7 +59,6 @@ Game::Game(int64_t id)
 	this->deflateFileExtensions = "";
 	this->timestamp = "";
 	this->apiId = 0;
-	this->apiItemId = 0;
 }
 
 Game::Game(const Game &orig)
@@ -78,7 +76,6 @@ Game::Game(const Game &orig)
 	this->deflateFileExtensions = orig.deflateFileExtensions;
 	this->timestamp = orig.timestamp;
 	this->apiId = orig.apiId;
-	this->apiItemId = orig.apiItemId;
 }
 
 Game::Game(json_t *json)
@@ -159,12 +156,6 @@ Game::Game(json_t *json)
 	if(apiIdJson)
 	{
 		apiId = (int64_t)json_integer_value(apiIdJson);
-	}
-
-	json_t *apiItemIdJson = json_object_get(json, "apiItemId");
-	if(apiItemIdJson)
-	{
-		apiItemId = (int64_t)json_integer_value(apiItemIdJson);
 	}
 
 }
@@ -298,22 +289,12 @@ void Game::setApiId(int64_t apiId)
 	this->apiId = apiId;
 }
 
-int64_t Game::getApiItemId()
-{
-	return apiItemId;
-}
-
-void Game::setApiItemId(int64_t apiItemId)
-{
-	this->apiItemId = apiItemId;
-}
-
 int Game::load()
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
 
-	string query = "select id, platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId, apiItemId from Game where  id = ?";
+	string query = "select id, platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId from Game where  id = ?";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -333,7 +314,6 @@ int Game::load()
 			deflateFileExtensions = string((const char*) sqlite3_column_text(statement, 10));
 			timestamp = string((const char*) sqlite3_column_text(statement, 11));
 			apiId = (int64_t)sqlite3_column_int64(statement, 12);
-			apiItemId = (int64_t)sqlite3_column_int64(statement, 13);
 			result = 1;
 		}
 	}
@@ -354,7 +334,7 @@ int Game::save()
         sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
-		string insert = "insert into Game (platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId, apiItemId) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		string insert = "insert into Game (platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 		sqlite3_stmt *statement;
 		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
@@ -370,7 +350,6 @@ int Game::save()
 			sqlite3_bind_text(statement, 10, deflateFileExtensions.c_str(), deflateFileExtensions.length(), NULL);
 			sqlite3_bind_text(statement, 11, timestamp.c_str(), timestamp.length(), NULL);
 			sqlite3_bind_int64(statement, 12, (sqlite3_int64)apiId);
-			sqlite3_bind_int64(statement, 13, (sqlite3_int64)apiItemId);
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
@@ -386,7 +365,7 @@ int Game::save()
 	}
 	else
 	{
-		string update = "update Game set platformId = ?, esrbRatingId = ?, name = ?, description = ?, releaseDate = ?, fileName = ?, notes = ?, command = ?, deflate = ?, deflateFileExtensions = ?, timestamp = ?, apiId = ?, apiItemId = ? where id = ?";
+		string update = "update Game set platformId = ?, esrbRatingId = ?, name = ?, description = ?, releaseDate = ?, fileName = ?, notes = ?, command = ?, deflate = ?, deflateFileExtensions = ?, timestamp = ?, apiId = ? where id = ?";
 		sqlite3_stmt *statement;
 		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
@@ -402,8 +381,7 @@ int Game::save()
 			sqlite3_bind_text(statement, 10, deflateFileExtensions.c_str(), deflateFileExtensions.length(), NULL);
 			sqlite3_bind_text(statement, 11, timestamp.c_str(), timestamp.length(), NULL);
 			sqlite3_bind_int64(statement, 12, (sqlite3_int64)apiId);
-			sqlite3_bind_int64(statement, 13, (sqlite3_int64)apiItemId);
-			sqlite3_bind_int64(statement, 14, (sqlite3_int64)id);
+			sqlite3_bind_int64(statement, 13, (sqlite3_int64)id);
 			
 			result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
 		}
@@ -521,9 +499,6 @@ json_t *Game::toJson()
 	json_t *apiIdJson = json_integer((json_int_t)apiId);
 	json_object_set_new(json, "apiId", apiIdJson);
 
-	json_t *apiItemIdJson = json_integer((json_int_t)apiItemId);
-	json_object_set_new(json, "apiItemId", apiItemIdJson);
-
 	return json;
 }
 
@@ -531,7 +506,7 @@ Game* Game::getGameWithFileName(int64_t platformId, string fileName)
 {
     sqlite3 *db = Database::getInstance()->acquire();
     Game *game = NULL;
-    string query = "select id, platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId, apiItemId from Game where platformId = ? and fileName = ?";
+    string query = "select id, platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId from Game where platformId = ? and fileName = ?";
     sqlite3_stmt *statement;
     if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {
@@ -554,7 +529,6 @@ Game* Game::getGameWithFileName(int64_t platformId, string fileName)
                     game->deflateFileExtensions = string((const char*) sqlite3_column_text(statement, 10));
                     game->timestamp = string((const char*) sqlite3_column_text(statement, 11));
                     game->apiId = (int64_t)sqlite3_column_int64(statement, 12);
-                    game->apiItemId = (int64_t)sqlite3_column_int64(statement, 13);
             }
     }
     else
@@ -575,7 +549,7 @@ list<Game *> *Game::getItems(int64_t platformId, string queryString)
 	list<Game *> *items = new list<Game *>;
 
 	//string query = "select id, platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId, apiItemId from Game where platformId = ? and name like ? order by name";
-        string query = "select Game.id, Game.platformId, Game.esrbRatingId, Game.name, Game.description, Game.releaseDate, Game.fileName, Game.notes, Game.command, Game.deflate, Game.deflateFileExtensions, Game.timestamp, Game.apiId, Game.apiItemId "; 
+        string query = "select Game.id, Game.platformId, Game.esrbRatingId, Game.name, Game.description, Game.releaseDate, Game.fileName, Game.notes, Game.command, Game.deflate, Game.deflateFileExtensions, Game.timestamp, Game.apiId "; 
         query += " from Game ";
         query += " left join GameDeveloper on GameDeveloper.gameId = Game.id ";
         query += " left join Developer on GameDeveloper.developerId = Developer.id ";
@@ -584,7 +558,7 @@ list<Game *> *Game::getItems(int64_t platformId, string queryString)
         query += " left join GameGenre on GameGenre.gameId = Game.id ";
         query += " left join Genre on GameGenre.genreId = Genre.id ";
         query += " where Game.platformId = ? and (Game.name like ? or Developer.name like ? or Publisher.name like ? or Genre.name like ?) ";
-        query += " group by Game.id order by Game.name";
+        query += " group by Game.id order by Game.name, Game.fileName";
         
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
@@ -611,7 +585,6 @@ list<Game *> *Game::getItems(int64_t platformId, string queryString)
                     item->deflateFileExtensions = string((const char*) sqlite3_column_text(statement, 10));
                     item->timestamp = string((const char*) sqlite3_column_text(statement, 11));
                     item->apiId = (int64_t)sqlite3_column_int64(statement, 12);
-                    item->apiItemId = (int64_t)sqlite3_column_int64(statement, 13);
 
                     items->push_back(item);
             }

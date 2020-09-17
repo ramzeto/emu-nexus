@@ -44,9 +44,9 @@ private:
     static const string TARGZ_FILE_NAME;
     static const string TAR_FILE_NAME;
     
-    int execute() override;
-    
-    static void httpConnectorProgressListener(void *setupDatabaseProcess, HttpConnector *httpConnector, size_t bytesToDownload, size_t downloadedBytes);
+    void execute() override;
+    void initialize();
+    void update();
 };
 
 #endif /* SETUPDATABASEPROCESS_H */

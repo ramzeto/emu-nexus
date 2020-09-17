@@ -55,6 +55,7 @@ MainBannerWidget::MainBannerWidget() : Widget("MainBannerWidget.ui", "mainBanner
     gameBannerOverlayWidget = NULL;    
     bannerWidth = 0;
     bannerHeight = 0;
+    updateHandlerId = 0;
     
     signalSizeAllocateHandlerId = g_signal_connect (widget, "size-allocate", G_CALLBACK(+[](GtkWidget *widget, GtkAllocation *allocation, gpointer mainBannerWidget) -> void {
         if(((MainBannerWidget *)mainBannerWidget)->bannerWidth != allocation->width || ((MainBannerWidget *)mainBannerWidget)->bannerHeight != allocation->height)
@@ -63,7 +64,11 @@ MainBannerWidget::MainBannerWidget() : Widget("MainBannerWidget.ui", "mainBanner
             ((MainBannerWidget *)mainBannerWidget)->bannerHeight = allocation->height;
 
             // Hacky reload
-            g_timeout_add(10, [](gpointer mainBannerWidget) -> gint{
+            if(((MainBannerWidget *)mainBannerWidget)->updateHandlerId) // If it is a valid id, then there is a call queued
+            {
+                return;
+            }
+            ((MainBannerWidget *)mainBannerWidget)->updateHandlerId = g_timeout_add(10, [](gpointer mainBannerWidget) -> gint{
                 if(((MainBannerWidget *)mainBannerWidget)->gameId)
                 {
                     ((MainBannerWidget *)mainBannerWidget)->setGameId(((MainBannerWidget *)mainBannerWidget)->gameId);
@@ -73,6 +78,7 @@ MainBannerWidget::MainBannerWidget() : Widget("MainBannerWidget.ui", "mainBanner
                     ((MainBannerWidget *)mainBannerWidget)->setBannerType(((MainBannerWidget *)mainBannerWidget)->bannerType, ((MainBannerWidget *)mainBannerWidget)->platformId);
                 }
 
+                ((MainBannerWidget *)mainBannerWidget)->updateHandlerId = 0;
                 return 0;
             }, mainBannerWidget);
         }
@@ -82,6 +88,11 @@ MainBannerWidget::MainBannerWidget() : Widget("MainBannerWidget.ui", "mainBanner
 MainBannerWidget::~MainBannerWidget()
 {
     g_signal_handler_disconnect(widget, signalSizeAllocateHandlerId);
+    
+    if(updateHandlerId)
+    {
+        g_source_remove(updateHandlerId);
+    }
 }
 
 int MainBannerWidget::getBannerType()

@@ -400,8 +400,11 @@ void GameBannerOverlayWidget::updateGameImagesGrid()
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(imagesBox), 1);
     
     int width = gtk_widget_get_allocated_width(GTK_WIDGET(imagesBox));
-    int columns = width / THUMBNAIL_IMAGE_WIDTH;    
-    //int rows = gameImages->size() / columns;
+    int columns = width / THUMBNAIL_IMAGE_WIDTH;
+    if(!columns)
+    {
+        return;
+    }
     int rows = 1;
 
     unsigned int index = 0;
@@ -465,6 +468,10 @@ void GameBannerOverlayWidget::updateGameImagesGrid()
                 else if(gameImage->getType() == GameImage::TYPE_BANNER)
                 {
                     gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Banner");
+                }
+                else if(gameImage->getType() == GameImage::TYPE_FANART)
+                {
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Fanart");
                 }
             }
             else
@@ -545,6 +552,10 @@ void GameBannerOverlayWidget::viewGameImage(GameImage* gameImage)
     {
         imageName += "Banner";
     }
+    else if(gameImage->getType() == GameImage::TYPE_FANART)
+    {
+        imageName += "Fanart";
+    }
     imageName += ")";
     imageName = tempDirectoryName + "/" + imageName;    
     
@@ -578,6 +589,10 @@ void GameBannerOverlayWidget::saveGameImage(GameImage* gameImage)
     else if(gameImage->getType() == GameImage::TYPE_BANNER)
     {
         imageName += "Banner";
+    }
+    else if(gameImage->getType() == GameImage::TYPE_FANART)
+    {
+        imageName += "Fanart";
     }
     imageName += ")";
 
@@ -649,25 +664,32 @@ void GameBannerOverlayWidget::updateGameDocumentsGrid()
                 gtk_widget_set_size_request(GTK_WIDGET(imageBox), THUMBNAIL_IMAGE_WIDTH, THUMBNAIL_IMAGE_HEIGHT);
                 gtk_box_pack_start(rowBox, GTK_WIDGET(imageBox), 1, 1, 0);
                 
-                if(gameDocument->getType() == GameDocument::TYPE_BOOK)
+                if(gameDocument->getName().length() > 0)
                 {
-                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Book");
+                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), gameDocument->getName().c_str());
                 }
-                else if(gameDocument->getType() == GameDocument::TYPE_GUIDE)
+                else
                 {
-                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Guide");
-                }
-                else if(gameDocument->getType() == GameDocument::TYPE_MAGAZINE)
-                {
-                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Magazine");
-                }
-                else if(gameDocument->getType() == GameDocument::TYPE_MANUAL)
-                {
-                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Manual");
-                }
-                else if(gameDocument->getType() == GameDocument::TYPE_OTHER)
-                {
-                    gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Other");
+                    if(gameDocument->getType() == GameDocument::TYPE_BOOK)
+                    {
+                        gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Book");
+                    }
+                    else if(gameDocument->getType() == GameDocument::TYPE_GUIDE)
+                    {
+                        gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Guide");
+                    }
+                    else if(gameDocument->getType() == GameDocument::TYPE_MAGAZINE)
+                    {
+                        gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Magazine");
+                    }
+                    else if(gameDocument->getType() == GameDocument::TYPE_MANUAL)
+                    {
+                        gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Manual");
+                    }
+                    else if(gameDocument->getType() == GameDocument::TYPE_OTHER)
+                    {
+                        gtk_widget_set_tooltip_text(GTK_WIDGET(imageBox), "Other");
+                    }                    
                 }
             }
             else
@@ -710,13 +732,38 @@ void GameBannerOverlayWidget::viewGameDocument(GameDocument *gameDocument)
     string tempDirectoryName = Utils::getInstance()->getTempFileName();
     Utils::getInstance()->makeDirectory(tempDirectoryName);
     
-    string imageName = game->getName() + " (" + gameDocument->getName() + ")";
-    imageName = Utils::getInstance()->strReplace(imageName, "/", "_");
-    imageName = tempDirectoryName + "/" + imageName;    
-    
-    if(!Utils::getInstance()->copyFile(gameDocument->getFileName(), imageName))
+    string name = gameDocument->getName();
+    if(name.length() == 0)
     {
-        Utils::getInstance()->openFileWithDefaultApplication(imageName);
+        if(gameDocument->getType() == GameDocument::TYPE_BOOK)
+        {
+            name = "Book";
+        }
+        else if(gameDocument->getType() == GameDocument::TYPE_GUIDE)
+        {
+            name = "Guide";
+        }
+        else if(gameDocument->getType() == GameDocument::TYPE_MAGAZINE)
+        {
+            name = "Magazine";
+        }
+        else if(gameDocument->getType() == GameDocument::TYPE_MANUAL)
+        {
+            name = "Manual";
+        }
+        else if(gameDocument->getType() == GameDocument::TYPE_OTHER)
+        {
+            name = "Other";
+        }
+    }
+    
+    string documentName = game->getName() + " (" + gameDocument->getName() + ")";
+    documentName = Utils::getInstance()->strReplace(documentName, "/", "_");
+    documentName = tempDirectoryName + "/" + documentName;    
+    
+    if(!Utils::getInstance()->copyFile(gameDocument->getFileName(), documentName))
+    {
+        Utils::getInstance()->openFileWithDefaultApplication(documentName);
     }
 }
 
@@ -893,6 +940,15 @@ void GameBannerOverlayWidget::onNotification(Notification *notification)
         if(gameBannerOverlayWidget->game->getId() == game->getId())
         {
             gameBannerOverlayWidget->game->load();
+
+            gameBannerOverlayWidget->selectedGameImage = NULL;
+            GameImage::releaseItems(gameBannerOverlayWidget->gameImages);
+            gameBannerOverlayWidget->gameImages = GameImage::getItems(game->getId());
+            
+            gameBannerOverlayWidget->selectedGameDocument = NULL;
+            GameDocument::releaseItems(gameBannerOverlayWidget->gameDocuments);
+            gameBannerOverlayWidget->gameDocuments = GameDocument::getItems(game->getId());
+            
             gameBannerOverlayWidget->update();
         }
     }

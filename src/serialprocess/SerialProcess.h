@@ -58,13 +58,9 @@ protected:
     int status;
     
     /**
-     * Executes the process. It should be called only by SerialProcessExecutor. 
-     * If the process executes atomically, it should return STATUS_SUCCEED or STATUS_FAILED so SerialProcessExecutor acknowledges that the process finished and can execute the next one.
-     * If the process executes in a different thread, it should return STATUS_RUNNING so SerialProcessExecutor acknowledges that the process is running. When finished, this object has to set status=STATUS_SUCCEED or status=STATUS_FAILED and call the SerialProcessExecutor::finish method so SerialProcessExecutor acknowledges that the process finished. SerialProcessExecutor will execute a final postStatus to announce that the process has finished.
-     * This method has to assign the status value.
-     * @return status
+     * Executes the process in a background thread. It should be called only by SerialProcessExecutor.
      */
-    virtual int execute();    
+    virtual void execute();    
 };
 
 #endif /* SERIALPROCESS_H */

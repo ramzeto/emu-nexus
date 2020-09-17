@@ -50,6 +50,12 @@ public:
      * @param platformId Id of the platform to configure. If is 0, a new platform will be created.
      */
     PlatformEditDialog(GtkWindow *parent, int64_t platformId);
+
+    /**
+     * 
+     * @return platform.
+     */
+    Platform *getPlatform();
     
     /**
      * This method should be called to dismiss the dialog. Explicitely deleting the dialog is forbidden. The dialog downloads the platform images when required and the download process may continue after the dialog is dismissed.

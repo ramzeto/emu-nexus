@@ -48,7 +48,6 @@ private:
 	string deflateFileExtensions;
 	string timestamp;
 	int64_t apiId;
-	int64_t apiItemId;
 
 	Game();
 
@@ -86,8 +85,6 @@ public:
 	void setTimestamp(string timestamp);
 	int64_t getApiId();
 	void setApiId(int64_t apiId);
-	int64_t getApiItemId();
-	void setApiItemId(int64_t apiItemId);
 
 	int load();
 	int save();

@@ -28,7 +28,6 @@
 #include "Game.h"
 #include "Utils.h"
 #include "Platform.h"
-#include "thegamesdb.h"
 #include "SerialProcessExecutor.h"
 #include "Developer.h"
 #include "GameDeveloper.h"
@@ -39,12 +38,15 @@
 #include "GameImage.h"
 #include "Notifications.h"
 #include "NotificationManager.h"
+#include "Logger.h"
+#include "EsrbRating.h"
 
 //For Ubuntu: ln -s /usr/include/libxml2/libxml/ /usr/include/libxml
 #include <libxml/parser.h>
 #include <dirent.h>
 #include <cstring>
 #include <iostream>
+#include <regex>
 
 const string ParseDirectoryProcess::TYPE = "ParseDirectoryProcess";
 
@@ -52,7 +54,6 @@ const string ParseDirectoryProcess::TYPE = "ParseDirectoryProcess";
 ParseDirectoryProcess::ParseDirectoryProcess() : SerialProcess(TYPE)
 {
     parseDirectory = NULL;
-    parseDirectoryGames = NULL;
 }
 
 ParseDirectoryProcess::~ParseDirectoryProcess()
@@ -61,40 +62,44 @@ ParseDirectoryProcess::~ParseDirectoryProcess()
     {
         delete parseDirectory;
     }
-    
-    if(parseDirectoryGames)
-    {
-        ParseDirectoryGame::releaseItems(parseDirectoryGames);
-    }
 }
 
-int ParseDirectoryProcess::execute()
+void ParseDirectoryProcess::execute()
 {
     status = STATUS_RUNNING;
         
-    parseDirectory = ParseDirectory::getPengingItem();
-    
+    parseDirectory = ParseDirectory::getPengingItem();    
     if(parseDirectory)
-    {
+    {                
         NotificationManager::getInstance()->notify(TYPE, parseDirectory->getDirectory(), status);        
         
-        parseDirectory->setStart(Utils::getInstance()->nowIsoDateTime());        
+        parseDirectory->setStart(Utils::getInstance()->nowIsoDateTime());
         parseDirectory->save();
     
         parseGameFiles(Utils::getInstance()->strSplitByWhiteSpace(parseDirectory->getFileExtensions()), parseDirectory->getDirectory());
         
-        parseDirectoryGames = ParseDirectoryGame::getPendingItems(parseDirectory->getId());
+        list<ParseDirectoryGame *> *parseDirectoryGames = ParseDirectoryGame::getPendingItems(parseDirectory->getId());
+        for(unsigned int index = 0; index < parseDirectoryGames->size(); index++)
+        {
+            ParseDirectoryGame *parseDirectoryGame = ParseDirectoryGame::getItem(parseDirectoryGames, index);
+            
+            int progress = ((double)index / (double)parseDirectoryGames->size()) * 100.0;
+            NotificationManager::getInstance()->notify(TYPE, parseDirectoryGame->getFileName(), status, 0, NULL, progress);
+                
+            fetch(parseDirectoryGame);
+        }
+        ParseDirectoryGame::releaseItems(parseDirectoryGames);
+                
+        parseDirectory->setEnd(Utils::getInstance()->nowIsoDateTime());
+        parseDirectory->save();
         
-        parseDirectoryGamesIndex = 0;
-        fetchGameInformation();
-    }
-    else
-    {
-        status = STATUS_SUCCESS;
-        NotificationManager::getInstance()->notify(TYPE, "", status);
+        Platform *platform = new Platform(parseDirectory->getPlatformId());
+        platform->load();        
+        NotificationManager::getInstance()->notify(NOTIFICATION_PLATFORM_UPDATED, "", 0, 0, platform);
     }
     
-    return status;
+    status = STATUS_SUCCESS;
+    NotificationManager::getInstance()->notify(TYPE, "", status);
 }
 
 ParseDirectory* ParseDirectoryProcess::getParseDirectory()
@@ -158,8 +163,7 @@ void ParseDirectoryProcess::parseGameFiles(list<string> extensions, string direc
                             }
 
                             parseDirectoryGame->save();
-                        }
-                        
+                        }                        
                         NotificationManager::getInstance()->notify(TYPE, parseDirectoryGame->getFileName(), status);
                         
                         delete parseDirectoryGame;
@@ -202,6 +206,16 @@ string ParseDirectoryProcess::sanitizeName(string rawName, string extension)
             name += letter;
         }
     }
+    
+    // Sometimes ROM names have the version not in parenthesis, it should be removed
+    regex regEx("[a-zA-Z0-9_+?/!\\.(),&:;' -]*[\n\r\f\t ]\\{1,\\}\\(v[0-9]\\{1,\\}\\.\\{1,\\}[0-9]\\{1,\\}\\).*", regex_constants::basic);
+    cmatch matches;
+    regex_match(name.c_str(), matches, regEx, regex_constants::match_default);
+    if(matches.size() == 2)
+    {
+        name = Utils::getInstance()->strReplace(name, matches.str(1), "");
+    }
+    //_________
     
     return Utils::getInstance()->trim(name);
 }
@@ -261,16 +275,24 @@ list<string> ParseDirectoryProcess::tokenizeName(string name)
     purgedName = Utils::getInstance()->strReplace(purgedName, ";", " ");
     purgedName = Utils::getInstance()->strReplace(purgedName, ".", " ");
     purgedName = Utils::getInstance()->strReplace(purgedName, "~", " ");
-    purgedName = Utils::getInstance()->strReplace(purgedName, "'", "");
-    purgedName = Utils::getInstance()->strReplace(purgedName, "\"", "");
-    purgedName = Utils::getInstance()->strReplace(purgedName, "!", "");
-    purgedName = Utils::getInstance()->strReplace(purgedName, "?", "");
-    purgedName = Utils::getInstance()->strReplace(purgedName, "*", "");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "'", " ");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "\"", " ");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "!", " ");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "?", " ");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "*", " ");
     purgedName = Utils::getInstance()->strReplace(purgedName, "+", " ");
-    purgedName = Utils::getInstance()->strReplace(purgedName, "=", "");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "=", " ");
     purgedName = Utils::getInstance()->strReplace(purgedName, "(", " ");
     purgedName = Utils::getInstance()->strReplace(purgedName, ")", " ");
     purgedName = Utils::getInstance()->strReplace(purgedName, "/", " ");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "°", " ");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "á", "a");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "é", "e");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "í", "i");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "ó", "o");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "ú", "u");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "&", " and ");
+    purgedName = Utils::getInstance()->strReplace(purgedName, "...", " ");
     
     return Utils::getInstance()->strSplitByWhiteSpace(purgedName);
 }
@@ -400,6 +422,96 @@ int ParseDirectoryProcess::compareNumerals(string token1, string token2)
         return 1;
     }
     
+    else if(token1.compare("0") == 0 && token2.compare("zero") == 0)
+    {
+        return 1;
+    }
+    else if(token1.compare("1") == 0 && token2.compare("one") == 0)
+    {
+        return 1;
+    }
+    else if(token1.compare("2") == 0 && token2.compare("two") == 0)
+    {
+        return 1;
+    }
+    else if(token1.compare("3") == 0 && token2.compare("three") == 0)
+    {
+        return 1;
+    }
+    else if(token1.compare("4") == 0 && token2.compare("four") == 0)
+    {
+        return 1;
+    }
+    else if(token1.compare("5") == 0 && token2.compare("five") == 0)
+    {
+        return 1;
+    }
+    else if(token1.compare("6") == 0 && token2.compare("six") == 0)
+    {
+        return 1;
+    }
+    else if(token1.compare("7") == 0 && token2.compare("seven") == 0)
+    {
+        return 1;
+    }
+    else if(token1.compare("8") == 0 && token2.compare("eight") == 0)
+    {
+        return 1;
+    }
+    else if(token1.compare("9") == 0 && token2.compare("nine") == 0)
+    {
+        return 1;
+    }
+    else if(token1.compare("10") == 0 && token2.compare("ten") == 0)
+    {
+        return 1;
+    }
+    
+    else if(token2.compare("0") == 0 && token1.compare("zero") == 0)
+    {
+        return 1;
+    }
+    else if(token2.compare("1") == 0 && token1.compare("one") == 0)
+    {
+        return 1;
+    }
+    else if(token2.compare("2") == 0 && token1.compare("two") == 0)
+    {
+        return 1;
+    }
+    else if(token2.compare("3") == 0 && token1.compare("three") == 0)
+    {
+        return 1;
+    }
+    else if(token2.compare("4") == 0 && token1.compare("four") == 0)
+    {
+        return 1;
+    }
+    else if(token2.compare("5") == 0 && token1.compare("five") == 0)
+    {
+        return 1;
+    }
+    else if(token2.compare("6") == 0 && token1.compare("six") == 0)
+    {
+        return 1;
+    }
+    else if(token2.compare("7") == 0 && token1.compare("seven") == 0)
+    {
+        return 1;
+    }
+    else if(token2.compare("8") == 0 && token1.compare("eight") == 0)
+    {
+        return 1;
+    }
+    else if(token2.compare("9") == 0 && token1.compare("nine") == 0)
+    {
+        return 1;
+    }
+    else if(token2.compare("10") == 0 && token1.compare("ten") == 0)
+    {
+        return 1;
+    }
+    
     return 0;
 }
 
@@ -431,7 +543,6 @@ void ParseDirectoryProcess::getGameImagesFromDirectory(Game *game, string gameFi
                 {
                     GameImage *gameImage = new GameImage((int64_t)0);
                     gameImage->setApiId(0);
-                    gameImage->setApiItemId(0);
                     gameImage->setGameId(game->getId());
                     gameImage->setType(gameImageType);
                     gameImage->setExternal(0);
@@ -465,356 +576,345 @@ void ParseDirectoryProcess::getGameImagesFromDirectory(Game *game, string gameFi
     }
 }
 
-void ParseDirectoryProcess::fetchGameInformation()
+void ParseDirectoryProcess::fetch(ParseDirectoryGame* parseDirectoryGame)
 {
-    if(parseDirectoryGamesIndex < parseDirectoryGames->size())
+    Platform *platform = new Platform(parseDirectory->getPlatformId());
+    platform->load();
+
+    string gameName = parseDirectoryGame->getName();
+    if(parseDirectory->getUseMame())
     {
-        status = STATUS_RUNNING;
-        
-        Platform *platform = new Platform(parseDirectory->getPlatformId());
-        platform->load();
-        
-        ParseDirectoryGame *parseDirectoryGame = ParseDirectoryGame::getItem(parseDirectoryGames, parseDirectoryGamesIndex);
-    
-        string gameName = parseDirectoryGame->getName();
-        if(parseDirectory->getUseMame())
+        gameName = parseDirectoryGame->getMameName();
+    }
+
+    TheGamesDB::Elasticsearch::getInstance()->getGames(platform->getApiId(), gameName, [this, parseDirectoryGame](list<TheGamesDB::Game *> *apiGames) -> void {
+        string gameName = parseDirectory->getUseMame() ? parseDirectoryGame->getMameName() : parseDirectoryGame->getName();
+        list<string> gameNameTokens = tokenizeName(gameName);
+        Game *game = NULL;
+
+        GameEvaluation_t gameEvaluations[apiGames->size()];
+        for(unsigned int index = 0; index < apiGames->size(); index++)
         {
-            gameName = parseDirectoryGame->getMameName();
-        }
-        
-        TheGamesDB::Elasticsearch::getInstance()->getGames(platform->getApiItemId(), gameName, [this](list<TheGamesDB::Game *> *apiGames) -> void {
-            ParseDirectoryGame *parseDirectoryGame = ParseDirectoryGame::getItem(parseDirectoryGames, parseDirectoryGamesIndex);
-            string gameName = parseDirectory->getUseMame() ? parseDirectoryGame->getMameName() : parseDirectoryGame->getName();
-            list<string> gameNameTokens = tokenizeName(gameName);
-            Game *game = NULL;
+            TheGamesDB::Game *apiGame = TheGamesDB::Game::getItem(apiGames, index);   
 
-            typedef struct{
-                TheGamesDB::Game *apiGame;
-                list<string> nameTokens;
-                unsigned int coincidences;
-                unsigned int notCoincidences;
-            }GameItem_t;
+            gameEvaluations[index].apiGame = apiGame;
+            gameEvaluations[index].nameTokens = tokenizeName(apiGame->getName());
+            gameEvaluations[index].coincidences = 0;
+            gameEvaluations[index].notCoincidences = 0;
+            gameEvaluations[index].points = 0;
 
-            GameItem_t gameItems[apiGames->size()];
-            unsigned int maxCoincidences = 0;
-            for(unsigned int index = 0; index < apiGames->size(); index++)
+            list<string> *primaryNameTokens = NULL;
+            list<string> *secondaryNameTokens = NULL;
+            if(gameEvaluations[index].nameTokens.size() > gameNameTokens.size())
             {
-                TheGamesDB::Game *apiGame = TheGamesDB::Game::getItem(apiGames, index);   
+                primaryNameTokens = &gameEvaluations[index].nameTokens;
+                secondaryNameTokens = &gameNameTokens;
+            }
+            else
+            {
+                primaryNameTokens = &gameNameTokens;
+                secondaryNameTokens = &gameEvaluations[index].nameTokens;
+            }
 
-                gameItems[index].apiGame = apiGame;
-                gameItems[index].nameTokens = tokenizeName(apiGame->getName());
-                gameItems[index].coincidences = 0;
-                gameItems[index].notCoincidences = 0;
-
-
-                // Checks the number of words that are in both, the game file name and in the api game name
-                if(gameNameTokens.size() > gameItems[index].nameTokens.size())
+            for(list<string>::iterator primaryNameToken = primaryNameTokens->begin(); primaryNameToken != primaryNameTokens->end(); primaryNameToken++)
+            {
+                int is = 0;
+                for(list<string>::iterator secondaryNameToken = secondaryNameTokens->begin(); secondaryNameToken != secondaryNameTokens->end(); secondaryNameToken++)
                 {
-                    for(list<string>::iterator gameNameToken = gameNameTokens.begin(); gameNameToken != gameNameTokens.end(); gameNameToken++)
+                    if((*secondaryNameToken).compare((*primaryNameToken)) == 0)
                     {
-                        int is = 0;
-                        for(list<string>::iterator gameItemNameToken = gameItems[index].nameTokens.begin(); gameItemNameToken != gameItems[index].nameTokens.end(); gameItemNameToken++)
-                        {
-                            if((*gameNameToken).compare((*gameItemNameToken)) == 0)
-                            {
-                                is = 1;
-                                break;
-                            }
-                            else if(compareNumerals(*gameNameToken, *gameItemNameToken))
-                            {
-                                is = 1;
-                                break;
-                            }
-                        }
+                        is = 1;
+                        break;
+                    }
+                    else if(compareNumerals(*secondaryNameToken, *primaryNameToken))
+                    {
+                        is = 1;
+                        break;
+                    }
+                }
 
-                        if(is)
-                        {
-                            gameItems[index].coincidences++;
-                            if(gameItems[index].coincidences > maxCoincidences)
-                            {
-                                maxCoincidences = gameItems[index].coincidences;
-                            }
-                        }
-                        else
-                        {
-                            gameItems[index].notCoincidences++;
-                        }
-                    }            
+                if(is)
+                {
+                    gameEvaluations[index].coincidences++;
                 }
                 else
                 {
-                    for(list<string>::iterator gameItemNameToken = gameItems[index].nameTokens.begin(); gameItemNameToken != gameItems[index].nameTokens.end(); gameItemNameToken++)            
-                    {
-                        int is = 0;
-                        for(list<string>::iterator gameNameToken = gameNameTokens.begin(); gameNameToken != gameNameTokens.end(); gameNameToken++)
-                        {
-                            if((*gameNameToken).compare((*gameItemNameToken)) == 0)
-                            {
-                                is = 1;
-                                break;
-                            }
-                            else if(compareNumerals(*gameNameToken, *gameItemNameToken))
-                            {
-                                is = 1;
-                                break;
-                            }
-                        }
-
-                        if(is)
-                        {
-                            gameItems[index].coincidences++;
-                            if(gameItems[index].coincidences > maxCoincidences)
-                            {
-                                maxCoincidences = gameItems[index].coincidences;
-                            }
-                        }
-                        else
-                        {
-                            gameItems[index].notCoincidences++;
-                        }
-                    }
+                    gameEvaluations[index].notCoincidences++;
                 }
             }
 
-            GameItem_t *matchGameItem = NULL;
-            if(maxCoincidences > 0)
+            if(gameEvaluations[index].nameTokens.size() == gameEvaluations[index].coincidences && gameEvaluations[index].notCoincidences == 0)
             {
-                unsigned int minNotCoincidences = UINT_MAX;
-                for(unsigned int index = 0; index < apiGames->size(); index++)
+                gameEvaluations[index].points = 100;
+            }
+            else
+            {                    
+                gameEvaluations[index].points = gameEvaluations[index].coincidences - gameEvaluations[index].notCoincidences;
+
+                if(gameEvaluations[index].coincidences > 0 && primaryNameTokens->size() == secondaryNameTokens->size())
                 {
-                    if(gameItems[index].coincidences == maxCoincidences)
+                    gameEvaluations[index].points++;
+                }
+            }                
+        }
+
+        /*string aux = "";
+        for(list<string>::iterator it = gameNameTokens.begin(); it != gameNameTokens.end(); it++)
+        {
+            if(aux.length() > 0)
+            {
+                aux += " | ";
+            }
+            aux += (*it);
+        }
+        Logger::getInstance()->debug("PareDirectoryProcess", __FUNCTION__, "gameNameTokens: " + aux);            
+        for(unsigned int index = 0; index < apiGames->size(); index++)
+        {
+            aux = "";
+            for(list<string>::iterator it = gameEvaluations[index].nameTokens.begin(); it != gameEvaluations[index].nameTokens.end(); it++)
+            {
+                if(aux.length() > 0)
+                {
+                    aux += " | ";
+                }
+                aux += (*it);
+            }
+
+            Logger::getInstance()->debug("PareDirectoryProcess", __FUNCTION__, "apiGame: " + gameEvaluations[index].apiGame->getName() + " coincidences: " + to_string(gameEvaluations[index].coincidences) + " notCoincidences: " + to_string(gameEvaluations[index].notCoincidences) + " nameTokens: " + aux + " points: " + to_string(gameEvaluations[index].points));
+        }*/
+
+        GameEvaluation_t *bestGameEvaluation = NULL;
+        GameEvaluation_t *winnerGameEvaluation = NULL;
+        for(unsigned int index = 0; index < apiGames->size(); index++)
+        {
+            if(gameEvaluations[index].points <= 0)
+            {
+                continue;
+            }
+
+            if(!bestGameEvaluation)
+            {
+                bestGameEvaluation = &gameEvaluations[index];
+            }
+            else if(gameEvaluations[index].points > bestGameEvaluation->points)
+            {
+                bestGameEvaluation = &gameEvaluations[index];
+            }
+        }
+
+        // @TODO.- Make additional checks
+        if(bestGameEvaluation)
+        {
+            double percentAccuracy = (bestGameEvaluation->coincidences * 100) / bestGameEvaluation->nameTokens.size();
+            if(percentAccuracy >= 70.0)
+            {
+                winnerGameEvaluation = bestGameEvaluation;
+            }
+        }
+
+
+        if(winnerGameEvaluation)
+        {
+            /*aux = "";
+            for(list<string>::iterator it = winnerGameEvaluation->nameTokens.begin(); it != winnerGameEvaluation->nameTokens.end(); it++)
+            {
+                if(aux.length() > 0)
+                {
+                    aux += " | ";
+                }
+                aux += (*it);
+            }
+            Logger::getInstance()->debug("PareDirectoryProcess", __FUNCTION__, "winnerGameEvaluation.apiGame: " + winnerGameEvaluation->apiGame->getName() + " coincidences: " + to_string(winnerGameEvaluation->coincidences) + " notCoincidences: " + to_string(winnerGameEvaluation->notCoincidences) + " nameTokens: " + aux+ " points: " + to_string(winnerGameEvaluation->points));*/
+
+            int64_t esrbRatingId = 0;
+            if(winnerGameEvaluation->apiGame->getEsrbRatingId())
+            {
+                EsrbRating *esrbRating = EsrbRating::getEsrbRating(winnerGameEvaluation->apiGame->getEsrbRatingId());
+                esrbRatingId = esrbRating->getId();
+
+                delete esrbRating;
+            }
+
+            game = new Game((int64_t)0);
+            game->setApiId(winnerGameEvaluation->apiGame->getId());
+            game->setPlatformId(parseDirectory->getPlatformId());
+            game->setTimestamp(Utils::getInstance()->nowIsoDateTime());
+            game->setName(winnerGameEvaluation->apiGame->getName());
+            game->setFileName(parseDirectoryGame->getFileName());
+            game->setDescription(winnerGameEvaluation->apiGame->getDescription());
+            game->setEsrbRatingId(esrbRatingId);
+            game->setReleaseDate(winnerGameEvaluation->apiGame->getReleaseDate());                
+            game->save();
+
+            list<TheGamesDB::GameGenre *> *apiGameGenres = bestGameEvaluation->apiGame->getGameGenres();
+            for(unsigned int index = 0; index < apiGameGenres->size(); index++)
+            {
+                TheGamesDB::GameGenre *apiGameGenre = TheGamesDB::GameGenre::getItem(apiGameGenres, index);                    
+                Genre *genre = Genre::getGenre(apiGameGenre->getGenreId());
+
+                if(genre)
+                {
+                    GameGenre *gameGenre = new GameGenre(game->getId(), genre->getId());                        
+                    gameGenre->save();
+
+                    delete gameGenre;
+                    delete genre;
+                }
+            }
+
+            list<TheGamesDB::GamePublisher *> *apiGamePublishers = bestGameEvaluation->apiGame->getGamePublishers();
+            for(unsigned int index = 0; index < apiGamePublishers->size(); index++)
+            {
+                TheGamesDB::GamePublisher *apiGamePublisher = TheGamesDB::GamePublisher::getItem(apiGamePublishers, index);                    
+                Publisher *publisher = Publisher::getPublisher(apiGamePublisher->getPublisherId());
+
+                if(publisher)
+                {
+                    GamePublisher *gamePublisher = new GamePublisher(game->getId(), publisher->getId());                        
+                    gamePublisher->save();
+
+                    delete gamePublisher;
+                    delete publisher;
+                }
+            }                
+
+            list<TheGamesDB::GameDeveloper *> *apiGameDevelopers = bestGameEvaluation->apiGame->getGameDevelopers();
+            for(unsigned int index = 0; index < apiGameDevelopers->size(); index++)
+            {
+                TheGamesDB::GameDeveloper *apiGameDeveloper = TheGamesDB::GameDeveloper::getItem(apiGameDevelopers, index);                    
+                Developer *developer = Developer::getDeveloper(apiGameDeveloper->getDeveloperId());
+
+                if(developer)
+                {
+                    GameDeveloper *gameDeveloper = new GameDeveloper(game->getId(), developer->getId());                        
+                    gameDeveloper->save();
+
+                    delete gameDeveloper;
+                    delete developer;
+                }
+            }
+        }
+
+
+        // If no game data is found, saves it with the basics
+        if(!game)
+        {
+            game = new Game((int64_t)0);
+            game->setApiId(0);
+            game->setPlatformId(parseDirectory->getPlatformId());
+            game->setTimestamp(Utils::getInstance()->nowIsoDateTime());
+            game->setName(gameName);
+            game->setFileName(parseDirectoryGame->getFileName());
+            game->save();
+        }
+
+
+        // Loads the images from the filesystem if applies
+        int areBoxFrontImages = 0;                
+        if(parseDirectory->getBoxFrontImagesDirectory().length() > 0)
+        {
+            getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectory->getBoxFrontImagesDirectory(), GameImage::TYPE_BOX_FRONT);
+
+            list<GameImage *> *boxFrontGameImages = GameImage::getItems(game->getId(), GameImage::TYPE_BOX_FRONT);
+
+            areBoxFrontImages = boxFrontGameImages->size() > 0;
+            GameImage::releaseItems(boxFrontGameImages);
+        }
+
+        int areBoxBackImages = 0;
+        if(parseDirectory->getBoxBackImagesDirectory().length() > 0)
+        {
+            getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectory->getBoxBackImagesDirectory(), GameImage::TYPE_BOX_BACK);
+
+            list<GameImage *> *boxFrontGameImages = GameImage::getItems(game->getId(), GameImage::TYPE_BOX_BACK);                
+
+            areBoxBackImages = boxFrontGameImages->size() > 0;
+            GameImage::releaseItems(boxFrontGameImages);
+        }            
+        if(parseDirectory->getScreenshotImagesDirectory().length() > 0)
+        {
+            getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectory->getScreenshotImagesDirectory(), GameImage::TYPE_SCREENSHOT);
+        }
+        if(parseDirectory->getLogoImagesDirectory().length() > 0)
+        {
+            getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectory->getLogoImagesDirectory(), GameImage::TYPE_CLEAR_LOGO);
+        }
+        if(parseDirectory->getBannerImagesDirectory().length() > 0)
+        {
+            getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectory->getBannerImagesDirectory(), GameImage::TYPE_BANNER);
+        }
+
+
+        // If there is a match, gets the images.
+        if(winnerGameEvaluation)
+        {
+            list<TheGamesDB::GameImage *> *apiGameImages = winnerGameEvaluation->apiGame->getGameImages();
+            for(unsigned int index = 0; index < apiGameImages->size(); index++)
+            {
+                TheGamesDB::GameImage *apiGameImage = TheGamesDB::GameImage::getItem(apiGameImages, index);
+
+                int64_t type = 0;
+                if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_BOXART) == 0)
+                {
+                    if(apiGameImage->getSide().compare(TheGamesDB::GameImage::SIDE_FRONT) == 0)
                     {
-                        if(gameItems[index].notCoincidences < minNotCoincidences)
+                        if(areBoxFrontImages)
                         {
-                            minNotCoincidences = gameItems[index].notCoincidences;
-                            matchGameItem = &gameItems[index];
+                            continue;
                         }
+                        type = GameImage::TYPE_BOX_FRONT;
+                    }
+                    else if(apiGameImage->getSide().compare(TheGamesDB::GameImage::SIDE_BACK) == 0)
+                    {
+                        if(areBoxBackImages)
+                        {
+                            continue;
+                        }
+
+                        type = GameImage::TYPE_BOX_BACK;
                     }
                 }
-
-                if(matchGameItem)
+                else if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_BANNER) == 0)
                 {
-                    int matches = 0;
-
-                    // @TODO Find a more elegant way to validate. Right now it is required 60% of tokens to match
-                    if(matchGameItem->coincidences > matchGameItem->nameTokens.size())
-                    {
-                        if((double)matchGameItem->nameTokens.size() / (double)matchGameItem->coincidences > 0.6)
-                        {
-                            matches = 1;
-                        }
-                    }
-                    else
-                    {
-                        if((double)matchGameItem->coincidences / (double)matchGameItem->nameTokens.size() > 0.6)
-                        {
-                            matches = 1;
-                        }
-                    }
-
-                    if(matches)
-                    {                
-                        game = new Game((int64_t)0);
-                        game->setApiId(TheGamesDB::API_ID);
-                        game->setApiItemId(matchGameItem->apiGame->getId());
-                        game->setPlatformId(parseDirectory->getPlatformId());
-                        game->setTimestamp(Utils::getInstance()->nowIsoDateTime());
-                        game->setName(matchGameItem->apiGame->getName());
-                        game->setFileName(parseDirectoryGame->getFileName());
-                        game->setDescription(matchGameItem->apiGame->getDescription());
-                        game->setEsrbRatingId(matchGameItem->apiGame->getEsrbRatingId());
-                        game->setReleaseDate(matchGameItem->apiGame->getReleaseDate());                
-                        game->save();
-
-                        list<TheGamesDB::GameGenre *> *apiGameGenres = matchGameItem->apiGame->getGameGenres();
-                        for(unsigned int index = 0; index < apiGameGenres->size(); index++)
-                        {
-                            TheGamesDB::GameGenre *apiGameGenre = TheGamesDB::GameGenre::getItem(apiGameGenres, index);                    
-                            Genre *genre = Genre::getGenre(TheGamesDB::API_ID, apiGameGenre->getGenreId());
-
-                            if(genre)
-                            {
-                                GameGenre *gameGenre = new GameGenre(game->getId(), genre->getId());                        
-                                gameGenre->save();
-
-                                delete gameGenre;
-                                delete genre;
-                            }
-                        }
-
-                        list<TheGamesDB::GamePublisher *> *apiGamePublishers = matchGameItem->apiGame->getGamePublishers();
-                        for(unsigned int index = 0; index < apiGamePublishers->size(); index++)
-                        {
-                            TheGamesDB::GamePublisher *apiGamePublisher = TheGamesDB::GamePublisher::getItem(apiGamePublishers, index);                    
-                            Publisher *publisher = Publisher::getPublisher(TheGamesDB::API_ID, apiGamePublisher->getPublisherId());
-
-                            if(publisher)
-                            {
-                                GamePublisher *gamePublisher = new GamePublisher(game->getId(), publisher->getId());                        
-                                gamePublisher->save();
-
-                                delete gamePublisher;
-                                delete publisher;
-                            }
-                        }                
-
-                        list<TheGamesDB::GameDeveloper *> *apiGameDevelopers = matchGameItem->apiGame->getGameDevelopers();
-                        for(unsigned int index = 0; index < apiGameDevelopers->size(); index++)
-                        {
-                            TheGamesDB::GameDeveloper *apiGameDeveloper = TheGamesDB::GameDeveloper::getItem(apiGameDevelopers, index);                    
-                            Developer *developer = Developer::getDeveloper(TheGamesDB::API_ID, apiGameDeveloper->getDeveloperId());
-
-                            if(developer)
-                            {
-                                GameDeveloper *gameDeveloper = new GameDeveloper(game->getId(), developer->getId());                        
-                                gameDeveloper->save();
-
-                                delete gameDeveloper;
-                                delete developer;
-                            }
-                        }                                                                                                
-                    }
-                    else
-                    {
-                        matchGameItem = NULL;
-                    }
+                    type = GameImage::TYPE_BANNER;
                 }
-            }
-
-
-            // If no game data is found, saves it with the basics
-            if(!game)
-            {
-                game = new Game((int64_t)0);
-                game->setApiId(0);
-                game->setApiItemId(0);
-                game->setPlatformId(parseDirectory->getPlatformId());
-                game->setTimestamp(Utils::getInstance()->nowIsoDateTime());
-                game->setName(gameName);
-                game->setFileName(parseDirectoryGame->getFileName());
-                game->save();
-            }
-
-
-            // Loads the images from the filesystem if applies
-            int areBoxFrontImages = 0;                
-            if(parseDirectory->getBoxFrontImagesDirectory().length() > 0)
-            {
-                getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectory->getBoxFrontImagesDirectory(), GameImage::TYPE_BOX_FRONT);
-
-                list<GameImage *> *boxFrontGameImages = GameImage::getItems(game->getId(), GameImage::TYPE_BOX_FRONT);
-
-                areBoxFrontImages = boxFrontGameImages->size() > 0;
-                GameImage::releaseItems(boxFrontGameImages);
-            }
-
-            int areBoxBackImages = 0;
-            if(parseDirectory->getBoxBackImagesDirectory().length() > 0)
-            {
-                getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectory->getBoxBackImagesDirectory(), GameImage::TYPE_BOX_BACK);
-
-                list<GameImage *> *boxFrontGameImages = GameImage::getItems(game->getId(), GameImage::TYPE_BOX_BACK);                
-
-                areBoxBackImages = boxFrontGameImages->size() > 0;
-                GameImage::releaseItems(boxFrontGameImages);
-            }
-            if(parseDirectory->getScreenshotImagesDirectory().length() > 0)
-            {
-                getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectory->getScreenshotImagesDirectory(), GameImage::TYPE_SCREENSHOT);
-            }
-            if(parseDirectory->getLogoImagesDirectory().length() > 0)
-            {
-                getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectory->getLogoImagesDirectory(), GameImage::TYPE_CLEAR_LOGO);
-            }
-            if(parseDirectory->getBannerImagesDirectory().length() > 0)
-            {
-                getGameImagesFromDirectory(game, parseDirectoryGame->getName(), parseDirectory->getBannerImagesDirectory(), GameImage::TYPE_BANNER);
-            }
-
-
-            // If there is a match, gets the images. If there are box front and box back images already loaded from the filesystem, then no more images are acquired.
-            if(matchGameItem)
-            {
-                list<TheGamesDB::GameImage *> *apiGameImages = matchGameItem->apiGame->getGameImages();
-                for(unsigned int index = 0; index < apiGameImages->size(); index++)
+                else if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_FANART) == 0)
                 {
-                    TheGamesDB::GameImage *apiGameImage = TheGamesDB::GameImage::getItem(apiGameImages, index);
+                    type = GameImage::TYPE_FANART;
+                }
+                else if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_SCREENSHOT) == 0)
+                {
+                    type = GameImage::TYPE_SCREENSHOT;
+                }
+                else if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_CLEAR_LOGO) == 0)
+                {
+                    type = GameImage::TYPE_CLEAR_LOGO;
+                }                    
 
-                    if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_BOXART) == 0)
-                    {
-                        if(apiGameImage->getSide().compare(TheGamesDB::GameImage::SIDE_FRONT) == 0)
-                        {
-                            if(!areBoxFrontImages)
-                            {
-                                GameImage *gameImage = new GameImage((int64_t)0);
-                                gameImage->setApiId(TheGamesDB::API_ID);
-                                gameImage->setApiItemId(apiGameImage->getId());
-                                gameImage->setGameId(game->getId());
-                                gameImage->setType(GameImage::TYPE_BOX_FRONT);
-                                gameImage->setExternal(0);
-                                gameImage->setDownloaded(0);
-                                gameImage->setUrl(apiGameImage->getOriginal());
+                GameImage *gameImage = new GameImage((int64_t)0);
+                gameImage->setApiId(apiGameImage->getId());
+                gameImage->setGameId(game->getId());
+                gameImage->setType(type);
+                gameImage->setExternal(0);
+                gameImage->setDownloaded(0);
+                gameImage->setUrl(apiGameImage->getOriginal());
 
-                                // Saves before to generate the id
-                                gameImage->save();
+                // Saves before to generate the id
+                gameImage->save();
 
-                                gameImage->setFileName(game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId()));
-                                gameImage->save();
+                gameImage->setFileName(game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId()));
+                gameImage->save();
 
-                                delete gameImage;
-                            }
-                        }
-                        else if(apiGameImage->getSide().compare(TheGamesDB::GameImage::SIDE_BACK) == 0)
-                        {
-                            if(!areBoxBackImages)
-                            {
-                                GameImage *gameImage = new GameImage((int64_t)0);
-                                gameImage->setApiId(TheGamesDB::API_ID);
-                                gameImage->setApiItemId(apiGameImage->getId());
-                                gameImage->setGameId(game->getId());
-                                gameImage->setType(GameImage::TYPE_BOX_BACK);
-                                gameImage->setExternal(0);
-                                gameImage->setDownloaded(0);
-                                gameImage->setUrl(apiGameImage->getOriginal());
+                delete gameImage;
+            }        
+        }
 
-                                // Saves before to generate the id
-                                gameImage->save();
+        delete game;
 
-                                gameImage->setFileName(game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId()));
-                                gameImage->save();
+        parseDirectoryGame->setProcessed(1);
+        parseDirectoryGame->save();
+    });
 
-                                delete gameImage;
-                            }
-                        }
-                    }
-                }        
-            }
-
-
-            delete game;
-
-            parseDirectoryGamesIndex++;
-            fetchGameInformation();
-        });
-        
-        
-        int progress = ((double)parseDirectoryGamesIndex / (double)parseDirectoryGames->size()) * 100.0;        
-        NotificationManager::getInstance()->notify(TYPE, parseDirectoryGame->getFileName(), status, 0, NULL, progress);
-        
-        delete platform;
-    }
-    else
-    {
-        parseDirectory->setEnd(Utils::getInstance()->nowIsoDateTime());
-        parseDirectory->save();
-        
-        Platform *platform = new Platform(parseDirectory->getPlatformId());
-        platform->load();        
-        NotificationManager::getInstance()->notify(NOTIFICATION_PLATFORM_UPDATED, "", 0, 0, platform);
-        
-        status = STATUS_SUCCESS;
-        NotificationManager::getInstance()->notify(TYPE, "", status);
-        SerialProcessExecutor::getInstance()->finish(this);
-    }
+    delete platform;
 }
 

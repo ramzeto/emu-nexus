@@ -126,20 +126,20 @@ void Database::init()
         commands.push_back("CREATE TABLE IF NOT EXISTS ApplicationVersion(version text, timestamp text, unique(version))");
         
         commands.push_back("CREATE TABLE IF NOT EXISTS Preferences(maximized integer, windowWidth integer, windowHeight integer, lastPath text, cacheSize integer, mameExecutable text, elasticsearchPort integer)");        
-        commands.push_back("CREATE TABLE IF NOT EXISTS ApiDatabase(apiId integer, md5sum text, timestamp text, unique(apiId, md5sum) on conflict replace)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS ApiDatabase(md5sum text, timestamp text, unique(md5sum) on conflict replace)");
         
-        commands.push_back("CREATE TABLE IF NOT EXISTS Platform(id integer primary key, name text, description text, command text, deflate integer, deflateFileExtensions text, apiId integer, apiItemId integer)");
-        commands.push_back("CREATE TABLE IF NOT EXISTS PlatformImage(id integer primary key, platformId integer, type integer, fileName text, external integer, apiId integer, apiItemId integer, url text, downloaded integer)");
-        commands.push_back("CREATE TABLE IF NOT EXISTS Genre(id integer primary key, name text, apiId integer, apiItemId integer)");
-        commands.push_back("CREATE TABLE IF NOT EXISTS Developer(id integer primary key, name text, apiId integer, apiItemId integer)");
-        commands.push_back("CREATE TABLE IF NOT EXISTS Publisher(id integer primary key, name text, apiId integer, apiItemId integer)");
-        commands.push_back("CREATE TABLE IF NOT EXISTS EsrbRating(id integer primary key, name text, apiId integer, apiItemId integer)");
-        commands.push_back("CREATE TABLE IF NOT EXISTS Game(id integer primary key, platformId integer, esrbRatingId integer, name text, description text, releaseDate text, fileName text, notes text, command text, deflate integer, deflateFileExtensions text, timestamp text, apiId integer, apiItemId integer)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS Platform(id integer primary key, name text, description text, command text, deflate integer, deflateFileExtensions text, apiId integer)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS PlatformImage(id integer primary key, platformId integer, type integer, fileName text, external integer, apiId integer, url text, downloaded integer)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS Genre(id integer primary key, name text, apiId integer)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS Developer(id integer primary key, name text, apiId integer)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS Publisher(id integer primary key, name text, apiId integer)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS EsrbRating(id integer primary key, name text, apiId integer)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS Game(id integer primary key, platformId integer, esrbRatingId integer, name text, description text, releaseDate text, fileName text, notes text, command text, deflate integer, deflateFileExtensions text, timestamp text, apiId integer)");
         commands.push_back("CREATE TABLE IF NOT EXISTS GameGenre(gameId integer, genreId integer, unique(gameId, genreId) on conflict replace)");
         commands.push_back("CREATE TABLE IF NOT EXISTS GameDeveloper(gameId integer, developerId integer, unique(gameId, developerId) on conflict replace)");
         commands.push_back("CREATE TABLE IF NOT EXISTS GamePublisher(gameId integer, publisherId integer, unique(gameId, publisherId) on conflict replace)");        
-        commands.push_back("CREATE TABLE IF NOT EXISTS GameImage(id integer primary key, gameId integer, type integer, fileName text, external integer, apiId integer, apiItemId integer, url text, downloaded integer)");
-        commands.push_back("CREATE TABLE IF NOT EXISTS GameDocument(id integer primary key, gameId integer, type integer, name text, fileName text, apiId integer, apiItemId integer)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS GameImage(id integer primary key, gameId integer, type integer, fileName text, external integer, apiId integer, url text, downloaded integer)");
+        commands.push_back("CREATE TABLE IF NOT EXISTS GameDocument(id integer primary key, gameId integer, type integer, name text, fileName text, apiId integer)");
         
         commands.push_back("CREATE TABLE IF NOT EXISTS GameActivity(id integer primary key, gameId integer, timestamp text, duration integer)");
         commands.push_back("CREATE TABLE IF NOT EXISTS GameCache(id integer primary key, gameId integer, timestamp text)");

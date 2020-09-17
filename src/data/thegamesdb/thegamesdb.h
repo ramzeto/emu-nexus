@@ -42,8 +42,6 @@ extern "C" {
  */
 namespace TheGamesDB
 {
-    static const int API_ID = 1;
-
     class PlatformImage
     {
     private:
@@ -232,8 +230,13 @@ namespace TheGamesDB
 
             GameImage();
 
-    public:
+    public:        
         static const string TYPE_BOXART;
+        static const string TYPE_SCREENSHOT;
+        static const string TYPE_BANNER;
+        static const string TYPE_FANART;
+        static const string TYPE_CLEAR_LOGO;
+        
         static const string SIDE_FRONT;
         static const string SIDE_BACK;
         

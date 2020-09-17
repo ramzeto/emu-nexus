@@ -26,7 +26,7 @@ EMU-nexus stores all its data in **$HOME/.config/emu-nexus/**. Inside this direc
 
 * **cache/**    Uncompressed ROMs are stored here. By default has a max limit of 9GB. When this limit is reached, the oldest files are deleted.
 * **elasticseach/**    Contains the Elasticsearch binary and TheGamesDB concise database.
-* **media/**    Contains the images of your ROM collection.
+* **media/**    Contains the images and documents of your ROM collection.
 * **emu-nexus.sqlite**    SQLite database containing the data of your collection.
 
 
@@ -52,7 +52,7 @@ The icon is based in the work of [Pixel perfect](https://www.flaticon.com/author
 
 Install the required libraries:
 
-    sudo apt-get install libgtk-3-dev libsqlite3-dev libjansson-dev libcurl4-gnutls-dev libxml2-dev libdlib-dev libarchive-dev libpoppler-cpp-dev
+    sudo apt install libgtk-3-dev libsqlite3-dev libjansson-dev libcurl4-gnutls-dev libxml2-dev libdlib-dev libarchive-dev libpoppler-cpp-dev
 
 Download the source code or clone the repository and run these commands:
 

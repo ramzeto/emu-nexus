@@ -52,10 +52,8 @@ int SerialProcess::getStatus()
     return status;
 }
 
-int SerialProcess::execute()
+void SerialProcess::execute()
 {
-    status = STATUS_SUCCESS;
-    return status;
 }
 
 

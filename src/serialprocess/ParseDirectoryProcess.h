@@ -29,6 +29,7 @@
 #include "ParseDirectory.h"
 #include "ParseDirectoryGame.h"
 #include "Game.h"
+#include "thegamesdb.h"
 
 #include <list>
 
@@ -46,11 +47,16 @@ public:
     ParseDirectory *getParseDirectory();
         
 private:
-    ParseDirectory *parseDirectory;
-    list<ParseDirectoryGame *> *parseDirectoryGames;
-    unsigned int parseDirectoryGamesIndex;
+    typedef struct{
+        TheGamesDB::Game *apiGame;
+        list<string> nameTokens;
+        unsigned int coincidences;
+        unsigned int notCoincidences;
+        int points;
+    }GameEvaluation_t;
     
-    int execute() override;
+    ParseDirectory *parseDirectory;    
+    void execute() override;
     
     /**
      * Parses the files from a directory.
@@ -82,7 +88,7 @@ private:
     list<string> tokenizeName(string name);
     
     /**
-     * Compares two tokens (words) looking for numerals (4 == iv).
+     * Compares two tokens (words) looking for numerals (4 == iv, 4 == four).
      * @param token1
      * @param token2
      * @return 1 if numerals are the same, 0 otherwise
@@ -97,11 +103,12 @@ private:
      * @param gameImageType Constant type from GameImage.
      */
     void getGameImagesFromDirectory(Game *game, string gameFileName, string directory, int64_t gameImageType);
-    
+        
     /**
-     * Fetches the information of the current ParseDirectoryGame object.
+     * Fetches the information of the game from the ParseDirectoryGame object.
+     * @param parseDirectoryGame
      */
-    void fetchGameInformation();    
+    void fetch(ParseDirectoryGame *parseDirectoryGame);    
 
 };
 

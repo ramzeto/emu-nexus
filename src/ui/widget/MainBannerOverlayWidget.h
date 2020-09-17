@@ -38,6 +38,7 @@ protected:
     int bannerWidth;
     int bannerHeight;    
     gulong signalSizeAllocateHandlerId;
+    gulong updateHandlerId;
     
     virtual void update();
 };

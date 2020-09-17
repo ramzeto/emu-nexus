@@ -55,7 +55,6 @@ GameDocument::GameDocument(const GameDocument &orig)
 	this->name = orig.name;
 	this->fileName = orig.fileName;
 	this->apiId = orig.apiId;
-	this->apiItemId = orig.apiItemId;
         this->previewImageFileName = orig.previewImageFileName;
 }
 
@@ -95,12 +94,6 @@ GameDocument::GameDocument(json_t *json)
 	if(apiIdJson)
 	{
 		apiId = (int64_t)json_integer_value(apiIdJson);
-	}
-
-	json_t *apiItemIdJson = json_object_get(json, "apiItemId");
-	if(apiItemIdJson)
-	{
-		apiItemId = (int64_t)json_integer_value(apiItemIdJson);
 	}
         
         previewImageFileName = "";
@@ -165,16 +158,6 @@ void GameDocument::setApiId(int64_t apiId)
 	this->apiId = apiId;
 }
 
-int64_t GameDocument::getApiItemId()
-{
-	return apiItemId;
-}
-
-void GameDocument::setApiItemId(int64_t apiItemId)
-{
-	this->apiItemId = apiItemId;
-}
-
 void GameDocument::setPreviewImageFileName(string previewImageFileName)
 {
     this->previewImageFileName = previewImageFileName;
@@ -193,7 +176,7 @@ int GameDocument::load()
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
-	string query = "select id, gameId, type, name, fileName, apiId, apiItemId from GameDocument where  id = ?";
+	string query = "select id, gameId, type, name, fileName, apiId from GameDocument where  id = ?";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -206,7 +189,6 @@ int GameDocument::load()
 			name = string((const char*) sqlite3_column_text(statement, 3));
 			fileName = string((const char*) sqlite3_column_text(statement, 4));
 			apiId = (int64_t)sqlite3_column_int64(statement, 5);
-			apiItemId = (int64_t)sqlite3_column_int64(statement, 6);
 			result = 1;
 		}
 	}
@@ -227,7 +209,7 @@ int GameDocument::save()
         sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
-		string insert = "insert into GameDocument (gameId, type, name, fileName, apiId, apiItemId) values(?, ?, ?, ?, ?, ?)";
+		string insert = "insert into GameDocument (gameId, type, name, fileName, apiId) values(?, ?, ?, ?, ?)";
 		sqlite3_stmt *statement;
 		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
@@ -236,7 +218,6 @@ int GameDocument::save()
 			sqlite3_bind_text(statement, 3, name.c_str(), name.length(), NULL);
 			sqlite3_bind_text(statement, 4, fileName.c_str(), fileName.length(), NULL);
 			sqlite3_bind_int64(statement, 5, (sqlite3_int64)apiId);
-			sqlite3_bind_int64(statement, 6, (sqlite3_int64)apiItemId);
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
@@ -252,7 +233,7 @@ int GameDocument::save()
 	}
 	else
 	{
-		string update = "update GameDocument set gameId = ?, type = ?, name = ?, fileName = ?, apiId = ?, apiItemId = ? where id = ?";
+		string update = "update GameDocument set gameId = ?, type = ?, name = ?, fileName = ?, apiId = ? where id = ?";
 		sqlite3_stmt *statement;
 		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
@@ -261,8 +242,7 @@ int GameDocument::save()
 			sqlite3_bind_text(statement, 3, name.c_str(), name.length(), NULL);
 			sqlite3_bind_text(statement, 4, fileName.c_str(), fileName.length(), NULL);
 			sqlite3_bind_int64(statement, 5, (sqlite3_int64)apiId);
-			sqlite3_bind_int64(statement, 6, (sqlite3_int64)apiItemId);
-			sqlite3_bind_int64(statement, 7, (sqlite3_int64)id);
+			sqlite3_bind_int64(statement, 6, (sqlite3_int64)id);
 			
 			result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
 		}
@@ -330,8 +310,6 @@ json_t *GameDocument::toJson()
 	json_t *apiIdJson = json_integer((json_int_t)apiId);
 	json_object_set_new(json, "apiId", apiIdJson);
 
-	json_t *apiItemIdJson = json_integer((json_int_t)apiItemId);
-	json_object_set_new(json, "apiItemId", apiItemIdJson);
 
 	return json;
 }
@@ -340,7 +318,7 @@ list<GameDocument *> *GameDocument::getItems(int64_t gameId)
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	list<GameDocument *> *items = new list<GameDocument *>;
-	string query = "select id, gameId, type, name, fileName, apiId, apiItemId from GameDocument where gameId = ?";
+	string query = "select id, gameId, type, name, fileName, apiId from GameDocument where gameId = ?";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -355,7 +333,6 @@ list<GameDocument *> *GameDocument::getItems(int64_t gameId)
 			item->name = string((const char*) sqlite3_column_text(statement, 3));
 			item->fileName = string((const char*) sqlite3_column_text(statement, 4));
 			item->apiId = (int64_t)sqlite3_column_int64(statement, 5);
-			item->apiItemId = (int64_t)sqlite3_column_int64(statement, 6);
 
 			items->push_back(item);
 		}

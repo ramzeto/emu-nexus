@@ -41,7 +41,6 @@ private:
 	string fileName;
 	int64_t external;
 	int64_t apiId;
-	int64_t apiItemId;
 	string url;
 	int64_t downloaded;
 
@@ -77,8 +76,6 @@ public:
 	void setExternal(int64_t external);
 	int64_t getApiId();
 	void setApiId(int64_t apiId);
-	int64_t getApiItemId();
-	void setApiItemId(int64_t apiItemId);
 	string getUrl();
 	void setUrl(string url);
 	int64_t getDownloaded();

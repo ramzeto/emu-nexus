@@ -40,7 +40,6 @@ private:
 	int64_t id;
 	string name;
 	int64_t apiId;
-	int64_t apiItemId;
 
 	Publisher();
 
@@ -56,19 +55,17 @@ public:
 	void setName(string name);
 	int64_t getApiId();
 	void setApiId(int64_t apiId);
-	int64_t getApiItemId();
-	void setApiItemId(int64_t apiItemId);
 
 	int load();
 	int save();
 
 	json_t *toJson();
 
-	static list<Publisher *> *getItems(string name);
+	static list<Publisher *> *getItems(string name = "");
 	static Publisher *getItem(list<Publisher *> *items, unsigned int index);
 	static void releaseItems(list<Publisher *> *items);
 	static json_t *toJsonArray(list<Publisher *> *items);
-        static Publisher *getPublisher(int64_t apiId, int64_t apiItemId);
+        static Publisher *getPublisher(int64_t apiId);
         
         /**
          * Inserts every item in the list. It assumes that every item is a new item and generates a new id for each one.

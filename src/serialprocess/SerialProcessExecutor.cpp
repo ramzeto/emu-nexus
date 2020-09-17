@@ -28,6 +28,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <unistd.h>
 
 SerialProcessExecutor *SerialProcessExecutor::instance = NULL;
 
@@ -35,7 +36,8 @@ SerialProcessExecutor::SerialProcessExecutor()
 {
     serialProcessesMutex = PTHREAD_MUTEX_INITIALIZER;
     serialProcesses = new list<SerialProcess *>;
-    currentSerialProcess = NULL;
+    
+    isExecuting = 0;
 }
 
 SerialProcessExecutor::~SerialProcessExecutor()
@@ -50,44 +52,43 @@ void SerialProcessExecutor::schedule(SerialProcess* serialProcess)
     serialProcesses->push_back(serialProcess);
     pthread_mutex_unlock(&serialProcessesMutex);
     
-    executeNext();
-}
-
-void SerialProcessExecutor::finish(SerialProcess* serialProcess)
-{
-    pthread_mutex_lock(&serialProcessesMutex);
-    if(serialProcess == currentSerialProcess)
+    if(isExecuting)
     {
-        serialProcesses->remove(currentSerialProcess);        
-        currentSerialProcess = NULL;
-                
-        delete serialProcess;
-    }
-    pthread_mutex_unlock(&serialProcessesMutex);
-    
-    executeNext();
-}
-
-void SerialProcessExecutor::executeNext()
-{
-    pthread_mutex_lock(&serialProcessesMutex);
-    if(!currentSerialProcess && serialProcesses->size() > 0)
-    {
-        currentSerialProcess = serialProcesses->front();
-        ThreadManager::getInstance()->execute(0, [this]() -> void {
-            SerialProcess *serialProcess = currentSerialProcess;
-            int status = serialProcess->execute();
-
-            if(status != SerialProcess::STATUS_RUNNING)
+        return;
+    }    
+    isExecuting = 1;
+ 
+    ThreadManager::getInstance()->execute(0, [this]() -> void {
+        while(1)
+        {
+            list<SerialProcess *> *safeSerialProcesses = new list<SerialProcess *>;
+            
+            pthread_mutex_lock(&serialProcessesMutex);
+            for(list<SerialProcess *>::iterator serialProcess = serialProcesses->begin(); serialProcess != serialProcesses->end(); serialProcess++)
             {
-                finish(serialProcess);
+                safeSerialProcesses->push_back(*serialProcess);
             }
-        }, [this]() -> void {
-        });
-    }
-    pthread_mutex_unlock(&serialProcessesMutex);
+            pthread_mutex_unlock(&serialProcessesMutex);
+            
+            for(list<SerialProcess *>::iterator serialProcess = safeSerialProcesses->begin(); serialProcess != safeSerialProcesses->end(); serialProcess++)
+            {
+                (*serialProcess)->execute();
+            
+                pthread_mutex_lock(&serialProcessesMutex);
+                serialProcesses->remove(*serialProcess);
+                delete *serialProcess;
+                pthread_mutex_unlock(&serialProcessesMutex);                
+            }
+            
+            safeSerialProcesses->clear();
+            delete safeSerialProcesses;
+            
+            sleep(1);
+        }
+    });
+    
+        
 }
-
 
 SerialProcessExecutor* SerialProcessExecutor::getInstance()
 {

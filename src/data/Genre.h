@@ -40,7 +40,6 @@ private:
 	int64_t id;
 	string name;
 	int64_t apiId;
-	int64_t apiItemId;
 
 	Genre();
 
@@ -56,19 +55,17 @@ public:
 	void setName(string name);
 	int64_t getApiId();
 	void setApiId(int64_t apiId);
-	int64_t getApiItemId();
-	void setApiItemId(int64_t apiItemId);
 
 	int load();
 	int save();
 
 	json_t *toJson();
 
-	static list<Genre *> *getItems(string name);	
+	static list<Genre *> *getItems(string name = "");	
         static Genre *getItem(list<Genre *> *items, unsigned int index);	
         static void releaseItems(list<Genre *> *items);                        
 	static json_t *toJsonArray(list<Genre *> *items);
-        static Genre *getGenre(int64_t apiId, int64_t apiItemId);
+        static Genre *getGenre(int64_t apiId);
         
         /**
          * Inserts every item in the list. It assumes that every item is a new item and generates a new id for each one.

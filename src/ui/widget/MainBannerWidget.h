@@ -61,6 +61,7 @@ private:
     int64_t gameId;
     int64_t platformId;
     gulong signalSizeAllocateHandlerId;
+    gulong updateHandlerId;
     
     SetupBannerOverlayWidget *setupBannerOverlayWidget;
     WelcomeBannerOverlayWidget *welcomeBannerOverlayWidget;

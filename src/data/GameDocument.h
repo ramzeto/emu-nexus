@@ -41,7 +41,6 @@ private:
 	string name;
 	string fileName;
 	int64_t apiId;
-	int64_t apiItemId;
         
         /**
          * Used for convenience. It is not part of the sqlite table.
@@ -76,8 +75,6 @@ public:
 	void setFileName(string fileName);
 	int64_t getApiId();
 	void setApiId(int64_t apiId);
-	int64_t getApiItemId();
-	void setApiItemId(int64_t apiItemId);
         
         void setPreviewImageFileName(string previewImageFileName);
         string getPreviewImageFileName();

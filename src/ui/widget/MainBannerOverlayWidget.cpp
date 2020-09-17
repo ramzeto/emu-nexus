@@ -28,6 +28,7 @@ MainBannerOverlayWidget::MainBannerOverlayWidget(string widgetFileName, string w
 {
     bannerWidth = 0;
     bannerHeight = 0;
+    updateHandlerId = 0;
     
     signalSizeAllocateHandlerId = g_signal_connect (widget, "size-allocate", G_CALLBACK(+[](GtkWidget* widget, GtkAllocation* allocation, gpointer mainBannerOverlayWidget) -> void {
         if(((MainBannerOverlayWidget *)mainBannerOverlayWidget)->bannerWidth != allocation->width || ((MainBannerOverlayWidget *)mainBannerOverlayWidget)->bannerHeight != allocation->height)
@@ -36,8 +37,14 @@ MainBannerOverlayWidget::MainBannerOverlayWidget(string widgetFileName, string w
             ((MainBannerOverlayWidget *)mainBannerOverlayWidget)->bannerHeight = allocation->height;
 
             // Hacky reload
-            g_timeout_add(10, [](gpointer mainBannerOverlayWidget) -> gint {
-                ((MainBannerOverlayWidget *)mainBannerOverlayWidget)->update();    
+            if(((MainBannerOverlayWidget *)mainBannerOverlayWidget)->updateHandlerId) // If it is a valid id, then there is a call queued
+            {
+                return;
+            }
+            ((MainBannerOverlayWidget *)mainBannerOverlayWidget)->updateHandlerId = g_timeout_add(10, [](gpointer mainBannerOverlayWidget) -> gint {
+                ((MainBannerOverlayWidget *)mainBannerOverlayWidget)->update();
+                
+                ((MainBannerOverlayWidget *)mainBannerOverlayWidget)->updateHandlerId = 0;
                 return 0;
             }, mainBannerOverlayWidget);
         }
@@ -47,6 +54,11 @@ MainBannerOverlayWidget::MainBannerOverlayWidget(string widgetFileName, string w
 MainBannerOverlayWidget::~MainBannerOverlayWidget()
 {
     g_signal_handler_disconnect(widget, signalSizeAllocateHandlerId);
+    
+    if(updateHandlerId)
+    {
+        g_source_remove(updateHandlerId);
+    }    
 }
 
 void MainBannerOverlayWidget::update()

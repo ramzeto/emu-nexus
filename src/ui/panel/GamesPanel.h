@@ -70,6 +70,8 @@ protected:
     int64_t selectedGameId;
     gulong signalSizeAllocateHandlerId;
     gulong signalSizeEdgeReachedHandlerId;
+    gulong loadGridHandlerId;
+    gulong gameSelectHandlerId;
     
     /**
      * Loads the game list

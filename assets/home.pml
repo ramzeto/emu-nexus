@@ -19,24 +19,24 @@
 <span size="large"><b>EMU-nexus</b> stores all its data in <i>$HOME/.config/emu-nexus/</i>. Inside this directory, you will find the next items:</span>
 
 
-<span size="large">     * <i>cache/</i>    Uncompressed ROMs are stored here. By default has a max limit of 9GB. When this limit is reached, the oldest files are deleted.</span>
-<span size="large">     * <i>elasticseach/</i>    Contains the Elasticsearch binary and TheGamesDB concise database.</span>
-<span size="large">     * <i>media/</i>    Contains the images of your ROM collection.</span>
-<span size="large">     * <i>emu-nexus.sqlite</i>    SQLite database containing the data of your collection.</span>
+<span size="large">* <b><i>cache</i></b>  Uncompressed ROMs are stored here. By default has a max limit of 9GB. When this limit is reached, the oldest files are deleted.</span>
+<span size="large">* <b><i>elasticseach</i></b>  Contains the Elasticsearch binary and TheGamesDB concise database.</span>
+<span size="large">* <b><i>media</i></b>  Contains the images and documents of your ROM collection.</span>
+<span size="large">* <b><i>emu-nexus.sqlite</i></b>  SQLite database containing the data of your collection.</span>
 
 
 <span size="large"><b>EMU-nexus</b> source code is available in its <a href="https://github.com/ramzeto/emu-nexus">Github repository</a>. These are the libraries on which <b>EMU-nexus</b> was built on:</span>
 
 
-<span size="large">     * <a href="http://www.digip.org/jansson/"><i>Jansson</i></a>    Library for encoding, decoding and manipulating JSON data. It is used to process the Elasticseach responses.</span>
-<span size="large">     * <a href="https://www.sqlite.org/index.html"><i>SQLite</i></a>    SQL database engine. Is used for managing your collection data.</span>
-<span size="large">     * <a href="https://curl.haxx.se/libcurl/"><i>cURL</i></a>    Free and easy-to-use client-side URL transfer library. Used for making HTTP request. A libcurl version with SSL support is required <i>(libcurl4-openssl-dev, libcurl-nss-dev or libcurl4-gnutls-dev)</i>.</span>
-<span size="large">     * <a href="http://man7.org/linux/man-pages/man7/pthreads.7.html"><i>pthread (POSIX thread)</i></a>    Set of interfaces (functions, header files) for threaded programming. <b>EMU-nexus</b> uses multiple threads to smooth its performance.</span>
-<span size="large">     * <a href="http://www.xmlsoft.org/"><i>libxml2</i></a>    XML C parser and toolkit developed for the Gnome project. Used to process MAME response data when processing ROMs that use MAME filenames.</span>
-<span size="large">     * <a href="http://dlib.net/"><i>Dlib</i></a>    Modern C++ toolkit containing machine learning algorithms and tools for creating complex software in C++ to solve real world problems. <b>EMU-nexus</b> only uses a small set of Dlib to create thumbnails of the platforms and games artwork.</span>
-<span size="large">     * <a href="https://poppler.freedesktop.org/"><i>Poppler</i></a>    PDF rendering library based on the xpdf-3.0 code base. Used for creating the thumbnails of game documents.</span>
-<span size="large">     * <a href="https://www.libarchive.org/"><i>libarchive</i></a>    Multi-format archive and compression library. Used to uncompress ROM archives on the go.</span>
-<span size="large">     * <a href="https://www.gtk.org/"><i>GTK+ 3</i></a>    Multi-platform toolkit for creating graphical user interfaces.</span>
+<span size="large">* <a href="http://www.digip.org/jansson/"><i>Jansson</i></a>  Library for encoding, decoding and manipulating JSON data. It is used to process the Elasticseach responses.</span>
+<span size="large">* <a href="https://www.sqlite.org/index.html"><i>SQLite</i></a>  SQL database engine. Is used for managing your collection data.</span>
+<span size="large">* <a href="https://curl.haxx.se/libcurl/"><i>cURL</i></a>  Free and easy-to-use client-side URL transfer library. Used for making HTTP request. A libcurl version with SSL support is required <i>(libcurl4-openssl-dev, libcurl-nss-dev or libcurl4-gnutls-dev)</i>.</span>
+<span size="large">* <a href="http://man7.org/linux/man-pages/man7/pthreads.7.html"><i>pthread  (POSIX thread)</i></a> Set of interfaces (functions, header files) for threaded programming. <b>EMU-nexus</b> uses multiple threads to smooth its performance.</span>
+<span size="large">* <a href="http://www.xmlsoft.org/"><i>libxml2</i></a>  XML C parser and toolkit developed for the Gnome project. Used to process MAME response data when processing ROMs that use MAME filenames.</span>
+<span size="large">* <a href="http://dlib.net/"><i>Dlib</i></a>  Modern C++ toolkit containing machine learning algorithms and tools for creating complex software in C++ to solve real world problems. <b>EMU-nexus</b> only uses a small set of Dlib to create thumbnails of the platforms and games artwork.</span>
+<span size="large">* <a href="https://poppler.freedesktop.org/"><i>Poppler</i></a>  PDF rendering library based on the xpdf-3.0 code base. Used for creating the thumbnails of game documents.</span>
+<span size="large">* <a href="https://www.libarchive.org/"><i>libarchive</i></a>  Multi-format archive and compression library. Used to uncompress ROM archives on the go.</span>
+<span size="large">* <a href="https://www.gtk.org/"><i>GTK+ 3</i></a>  Multi-platform toolkit for creating graphical user interfaces.</span>
 
 
 <span size="large">Few custom styles are used, the appearance relies on the system theme.</span>

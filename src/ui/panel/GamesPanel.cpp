@@ -43,6 +43,8 @@ GamesPanel::GamesPanel(GtkWindow *parentWindow)  : Panel(parentWindow, "GamesPan
     panelHeight = 0;
     gameGridItemIndex = 0;
     selectedGameId = 0;
+    loadGridHandlerId = 0;
+    gameSelectHandlerId = 0;
     gameGridItems = new map<int64_t, GameGridItemWidget *>;
     games = NULL;    
     
@@ -52,11 +54,15 @@ GamesPanel::GamesPanel(GtkWindow *parentWindow)  : Panel(parentWindow, "GamesPan
             ((GamesPanel *)gamesPanel)->panelWidth = allocation->width;
             ((GamesPanel *)gamesPanel)->panelHeight = allocation->height;
 
-            // Hacky load to force displaying the widget correctly. There is a small delay before the reported dimensions are actually set in the widget.
-            g_timeout_add(10, [](gpointer gamesPanel) -> gint {
+            // Hacky load to force displaying the widget correctly. There is a small delay before the reported dimensions are actually set in the widget.            
+            if(((GamesPanel *)gamesPanel)->loadGridHandlerId) // If it is a valid id, then there is a call queued
+            {
+                return;
+            }
+            ((GamesPanel *)gamesPanel)->loadGridHandlerId = g_timeout_add(10, [](gpointer gamesPanel) -> gint {
                 ((GamesPanel *)gamesPanel)->gameGridItemIndex = 0;
                 ((GamesPanel *)gamesPanel)->loadGridPage();    
-
+                ((GamesPanel *)gamesPanel)->loadGridHandlerId = 0;
                 return 0;
             }, gamesPanel);
         }
@@ -83,6 +89,15 @@ GamesPanel::~GamesPanel()
 {
     g_signal_handler_disconnect(getPanelBox(), signalSizeAllocateHandlerId);
     g_signal_handler_disconnect(gameGridScrolledWindow, signalSizeEdgeReachedHandlerId);
+    
+    if(loadGridHandlerId)
+    {
+        g_source_remove(loadGridHandlerId);
+    }
+    if(gameSelectHandlerId)
+    {
+        g_source_remove(gameSelectHandlerId);
+    }
     
     NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_UPDATED, this);
     NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_FAVORITE_UPDATED, this);
@@ -211,13 +226,18 @@ void GamesPanel::loadGridPage()
     if(selectedGameId)
     {
         // @TODO .- Hacky wait to reselect the current selected game to force the selected background
-        g_timeout_add(10, [](gpointer gamesPanel) -> gint {
+        if(gameSelectHandlerId) // If it is a valid id, then there is a call queued
+        {
+            return;
+        }
+        gameSelectHandlerId = g_timeout_add(10, [](gpointer gamesPanel) -> gint {
             if(((GamesPanel *)gamesPanel)->gameGridItems->find(((GamesPanel *)gamesPanel)->selectedGameId) != ((GamesPanel *)gamesPanel)->gameGridItems->end())
             {
                 GameGridItemWidget *gameGridItemWidget = ((GamesPanel *)gamesPanel)->gameGridItems->at(((GamesPanel *)gamesPanel)->selectedGameId);
                 gameGridItemWidget->setSelected(1);
             }
 
+            ((GamesPanel *)gamesPanel)->gameSelectHandlerId = 0;
             return 0;
         }, this);         
     }

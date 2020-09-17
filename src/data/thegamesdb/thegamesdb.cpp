@@ -424,7 +424,7 @@ void TheGamesDB::Elasticsearch::getPlatforms(function<void(list<TheGamesDB::Plat
         });
         
     }, [callback, items]() -> void {
-        callback(items);        
+        callback(items);
         TheGamesDB::Platform::releaseItems(items);
     });
 }
@@ -463,8 +463,11 @@ void TheGamesDB::Elasticsearch::getGames(int64_t apiPlatformId, string query, fu
                 Logger::getInstance()->error("TheGamesDB::Elasticsearch", __FUNCTION__, string(jsonError.text));
             }
         }
-
         delete httpConnector;
+        
+        items->sort([](TheGamesDB::Game *game1, TheGamesDB::Game *game2) -> int {
+            return Utils::getInstance()->strToLowerCase(game1->getName()).compare(Utils::getInstance()->strToLowerCase(game2->getName())) < 0;
+        });        
 
     }, [callback, items]() -> void {
         callback(items);        
@@ -629,7 +632,7 @@ string TheGamesDB::PlatformImage::getLarge()
 
 string TheGamesDB::PlatformImage::getFileName()
 {
-    return Directory::getInstance()->getCacheDirectory() + "apiPlatformImage_" + to_string(TheGamesDB::API_ID) + "_" + to_string(id);
+    return Directory::getInstance()->getCacheDirectory() + "apiPlatformImage_" + "_" + to_string(id);
 }
 
 TheGamesDB::PlatformImage *TheGamesDB::PlatformImage::getItem(list<TheGamesDB::PlatformImage *> *items, unsigned int index)
@@ -1092,8 +1095,14 @@ void TheGamesDB::EsrbRating::releaseItems(list<TheGamesDB::EsrbRating *> *items)
 
 
 const string TheGamesDB::GameImage::TYPE_BOXART = "boxart";
+const string TheGamesDB::GameImage::TYPE_SCREENSHOT = "screenshot";
+const string TheGamesDB::GameImage::TYPE_BANNER = "banner";
+const string TheGamesDB::GameImage::TYPE_FANART = "fanart";
+const string TheGamesDB::GameImage::TYPE_CLEAR_LOGO = "clearlogo";
+        
 const string TheGamesDB::GameImage::SIDE_FRONT = "front";
 const string TheGamesDB::GameImage::SIDE_BACK = "back";
+
 
 TheGamesDB::GameImage::GameImage()
 {
@@ -1139,43 +1148,43 @@ TheGamesDB::GameImage::GameImage(json_t *json)
 	}
 
 	json_t *sideJson = json_object_get(json, "side");
-	if(sideJson)
+	if(sideJson && !json_is_null(sideJson))
 	{
 		side = string(json_string_value(sideJson));
 	}
 
 	json_t *originalJson = json_object_get(json, "original");
-	if(originalJson)
+	if(originalJson && !json_is_null(originalJson))
 	{
 		original = string(json_string_value(originalJson));
 	}
 
 	json_t *smallJson = json_object_get(json, "small");
-	if(smallJson)
+	if(smallJson && !json_is_null(smallJson))
 	{
 		small = string(json_string_value(smallJson));
 	}
 
 	json_t *thumbJson = json_object_get(json, "thumb");
-	if(thumbJson)
+	if(thumbJson && !json_is_null(thumbJson))
 	{
 		thumb = string(json_string_value(thumbJson));
 	}
 
 	json_t *croppedCenterThumbJson = json_object_get(json, "croppedCenterThumb");
-	if(croppedCenterThumbJson)
+	if(croppedCenterThumbJson && !json_is_null(croppedCenterThumbJson))
 	{
 		croppedCenterThumb = string(json_string_value(croppedCenterThumbJson));
 	}
 
 	json_t *mediumJson = json_object_get(json, "medium");
-	if(mediumJson)
+	if(mediumJson && !json_is_null(mediumJson))
 	{
 		medium = string(json_string_value(mediumJson));
 	}
 
 	json_t *largeJson = json_object_get(json, "large");
-	if(largeJson)
+	if(largeJson && !json_is_null(largeJson))
 	{
 		large = string(json_string_value(largeJson));
 	}
@@ -1238,7 +1247,7 @@ string TheGamesDB::GameImage::getLarge()
 
 string TheGamesDB::GameImage::getFileName()
 {
-    return Directory::getInstance()->getCacheDirectory() + "apiGameImage_" + to_string(TheGamesDB::API_ID) + "_" + to_string(id);
+    return Directory::getInstance()->getCacheDirectory() + "apiGameImage_" + "_" + to_string(id);
 }
 
 TheGamesDB::GameImage *TheGamesDB::GameImage::getItem(list<TheGamesDB::GameImage *> *items, unsigned int index)
@@ -1587,19 +1596,19 @@ TheGamesDB::Game::Game(json_t *json)
 	}
 
 	json_t *nameJson = json_object_get(json, "name");
-	if(nameJson)
+	if(nameJson && !json_is_null(nameJson))
 	{
 		name = string(json_string_value(nameJson));
 	}
 
 	json_t *releaseDateJson = json_object_get(json, "releaseDate");
-	if(releaseDateJson)
+	if(releaseDateJson && !json_is_null(releaseDateJson))
 	{
 		releaseDate = string(json_string_value(releaseDateJson) ? json_string_value(releaseDateJson) : "");
 	}
 
 	json_t *descriptionJson = json_object_get(json, "description");
-	if(descriptionJson)
+	if(descriptionJson && !json_is_null(descriptionJson))
 	{
             description = string(json_string_value(descriptionJson) ? json_string_value(descriptionJson) : "");
 	}

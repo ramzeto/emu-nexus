@@ -258,13 +258,14 @@ gboolean GameGridItemWidget::signalBoxButtonPressedEvent(GtkWidget* widget, GdkE
     // Mouse right button
     else if(event->button.button == 3)
     {
+        ((GameGridItemWidget *)gameGridItemWidget)->setSelected(1);       
         if(((GameGridItemWidget *)gameGridItemWidget)->callbackSelect)
         {
             ((GameGridItemWidget *)gameGridItemWidget)->callbackSelect((GameGridItemWidget *)gameGridItemWidget);
-        }            
+        }
+        MainBannerWidget::getInstance()->setGameId(((GameGridItemWidget *)gameGridItemWidget)->game->getId());
 
-        GtkWidget *menu = gtk_menu_new();
-        
+        GtkWidget *menu = gtk_menu_new();        
         if(((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuFavorite)
         {
             GtkWidget *menuitem = NULL;

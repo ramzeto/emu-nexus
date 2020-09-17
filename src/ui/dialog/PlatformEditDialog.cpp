@@ -127,6 +127,11 @@ PlatformEditDialog::~PlatformEditDialog()
     delete platform;
 }
 
+Platform* PlatformEditDialog::getPlatform()
+{
+    return platform;
+}
+
 void PlatformEditDialog::deleteWhenReady(PlatformEditDialog *platformEditDialog)
 {
     // Checks if the PlatformEditDialog is waiting for PlatformImages to be downloaded
@@ -156,10 +161,15 @@ void PlatformEditDialog::toggleDeflate()
 
 void PlatformEditDialog::loadApiPlatforms()
 {
+    if(TheGamesDB::Elasticsearch::getInstance()->getStatus() != TheGamesDB::Elasticsearch::STATUS_OK)
+    {
+        gtk_widget_set_sensitive(GTK_WIDGET(apiPlatformComboBox), 0);
+        return;
+    }
     if(platform->getId() > 0)
     {
         gtk_widget_set_sensitive(GTK_WIDGET(apiPlatformComboBox), 0);
-    }
+    }        
     
     TheGamesDB::Elasticsearch::getInstance()->getPlatforms([this](list<TheGamesDB::Platform *> *apiPlatforms) -> void {
         this->apiPlatforms = new list<TheGamesDB::Platform *>;
@@ -179,7 +189,7 @@ void PlatformEditDialog::loadApiPlatforms()
             TheGamesDB::Platform *apiPlatform = TheGamesDB::Platform::getItem(this->apiPlatforms, index);
             gtk_list_store_insert_with_values (listStore, NULL, index, 0, apiPlatform->getName().c_str(), -1);
 
-            if(platform->getId() > 0 && platform->getApiId() == TheGamesDB::API_ID && platform->getApiItemId() == apiPlatform->getId())
+            if(platform->getId() > 0 && platform->getApiId() == apiPlatform->getId())
             {
                 selectedIndex = index;
             }
@@ -237,7 +247,7 @@ void PlatformEditDialog::updateApiPlatform()
         pthread_mutex_lock(&downloadPlatformImageRefsMutex);        
         for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
         {
-            if((*aDownloadPlatformImageRef)->platformEditDialog == this && (*aDownloadPlatformImageRef)->platformImage->getApiId() == TheGamesDB::API_ID && (*aDownloadPlatformImageRef)->platformImage->getApiItemId() == apiPlatformImage->getId())
+            if((*aDownloadPlatformImageRef)->platformEditDialog == this && (*aDownloadPlatformImageRef)->platformImage->getApiId() == apiPlatformImage->getId())
             {
                 platformImages->push_back((*aDownloadPlatformImageRef)->platformImage);
                 isDownloading = 1;
@@ -250,8 +260,7 @@ void PlatformEditDialog::updateApiPlatform()
         if(!isDownloading)
         {
             PlatformImage *platformImage = new PlatformImage((int64_t)0);
-            platformImage->setApiId(TheGamesDB::API_ID);
-            platformImage->setApiItemId(apiPlatformImage->getId());
+            platformImage->setApiId(apiPlatformImage->getId());
             platformImage->setType(type);
             platformImage->setFileName(apiPlatformImage->getFileName());
             platformImage->setExternal(0);
@@ -432,7 +441,6 @@ void PlatformEditDialog::addImage()
         
         PlatformImage *platformImage = new PlatformImage((int64_t)0);
         platformImage->setApiId(0);
-        platformImage->setApiItemId(0);
         platformImage->setType(PlatformImage::TYPE_BOXART);
         platformImage->setFileName(imageFileName);
         platformImage->setExternal(0);
@@ -611,13 +619,11 @@ void PlatformEditDialog::save()
     {
         if(apiPlatform)
         {
-            platform->setApiId(TheGamesDB::API_ID);
-            platform->setApiItemId(apiPlatform->getId());        
+            platform->setApiId(apiPlatform->getId());
         }
         else
         {
             platform->setApiId(0);
-            platform->setApiItemId(0);
         }        
     }
     

@@ -35,20 +35,18 @@ using namespace std;
 class ApiDatabase
 {
 private:
-	int64_t apiId;
 	string md5sum;
 	string timestamp;
 
 	ApiDatabase();
 
 public:
-	ApiDatabase(int64_t apiId, string md5sum);
+	ApiDatabase(string md5sum);
 	ApiDatabase(const ApiDatabase &orig);
 	ApiDatabase(json_t *json);
 
 	~ApiDatabase();
 
-	int64_t getApiId();
 	string getMd5sum();
 	string getTimestamp();
 	void setTimestamp(string timestamp);

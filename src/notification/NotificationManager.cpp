@@ -146,8 +146,7 @@ void NotificationManager::notify(string name, string message, int status, int er
 
                 notification->listener = (*notificationListenerData)->listener;
                 (*notificationListenerData)->callback(notification);
-            }
-        }, [notification, notificationListenersDataInMainThread]() -> void {
+            }            
             notificationListenersDataInMainThread->clear();
             
             delete notificationListenersDataInMainThread;

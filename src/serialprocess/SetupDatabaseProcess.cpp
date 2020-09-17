@@ -38,8 +38,7 @@
 
 #include <iostream>
 #include <jansson.h>
-#include <unistd.h>
-#include <fstream>
+#include <map>
 
 const string SetupDatabaseProcess::TYPE = "ElasticsearchProcess";
 //const string ElasticsearchProcess::URL_DOWNLOAD = "http://localhost/public/emu-nexus-db/downloads/thegamesdb.tar.gz";
@@ -57,7 +56,7 @@ SetupDatabaseProcess::~SetupDatabaseProcess()
 {
 }
 
-int SetupDatabaseProcess::execute()
+void SetupDatabaseProcess::execute()
 {
     status = STATUS_RUNNING;
     
@@ -72,7 +71,7 @@ int SetupDatabaseProcess::execute()
     {
         string md5sum((const char *)md5HttpConnector->getResponseData(), md5HttpConnector->getResponseDataSize());
         
-        ApiDatabase *apiDatabase = new ApiDatabase(TheGamesDB::API_ID, md5sum);
+        ApiDatabase *apiDatabase = new ApiDatabase(md5sum);
         int isCurrentVersion = apiDatabase->load();
         
         if(!Utils::getInstance()->directoryExists(Directory::getInstance()->getElasticseachDirectory()))
@@ -83,7 +82,11 @@ int SetupDatabaseProcess::execute()
         if(!isCurrentVersion)
         {
             HttpConnector *downloadHttpConnector = new HttpConnector(URL_DOWNLOAD);
-            downloadHttpConnector->setDownloadProgressListener(this, httpConnectorProgressListener);
+            downloadHttpConnector->setDownloadProgressListener(this, [](void* setupDatabaseProcess, HttpConnector* httpConnector, size_t bytesToDownload, size_t downloadedBytes) -> void {
+                int progress = (((double)downloadedBytes / (double)bytesToDownload) * 100.0);
+                NotificationManager::getInstance()->notify(TYPE, "Downloading database", ((SetupDatabaseProcess *)setupDatabaseProcess)->status, 0, NULL, progress);
+            });
+            
             if(downloadHttpConnector->get() == HttpConnector::HTTP_OK)
             {
                 string targzFileName = Directory::getInstance()->getCacheDirectory() + TARGZ_FILE_NAME;
@@ -118,131 +121,11 @@ int SetupDatabaseProcess::execute()
         {
             if(Database::getInstance()->isSetup())
             {
-                this->status = STATUS_SUCCESS;
-                NotificationManager::getInstance()->notify(TYPE, "Database setup successfully", this->status);
-                SerialProcessExecutor::getInstance()->finish(this);
+                update();
             }
             else
             {
-                TheGamesDB::Elasticsearch::getInstance()->getEsrbRatings([this](list<TheGamesDB::EsrbRating *> *apiItems) -> void {
-                    list<EsrbRating *> *items = new list<EsrbRating *>;
-                    for(unsigned int index = 0; index < apiItems->size(); index++)
-                    {
-                        TheGamesDB::EsrbRating *apiItem = TheGamesDB::EsrbRating::getItem(apiItems, index);
-
-                        EsrbRating *item = new EsrbRating((int64_t)0);
-                        item->setName(apiItem->getName());
-                        item->setApiId(TheGamesDB::API_ID);
-                        item->setApiItemId(apiItem->getId());
-
-                        items->push_back(item);
-                    }
-
-                    sqlite3 *sqlite = Database::getInstance()->acquire();
-                    int error = EsrbRating::bulkInsert(sqlite, items);
-                    Database::getInstance()->release();
-                    EsrbRating::releaseItems(items);
-                    
-                    if(error)
-                    {
-                        this->status = STATUS_FAIL;
-                        Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
-                        NotificationManager::getInstance()->notify(TYPE, "Database setup failed", this->status);
-                        SerialProcessExecutor::getInstance()->finish(this);
-                        return;
-                    }
-                    
-                    TheGamesDB::Elasticsearch::getInstance()->getDevelopers([this](list<TheGamesDB::Developer *> *apiItems) -> void {
-                        list<Developer *> *items = new list<Developer *>;
-                        for(unsigned int index = 0; index < apiItems->size(); index++)
-                        {
-                            TheGamesDB::Developer *apiItem = TheGamesDB::Developer::getItem(apiItems, index);
-
-                            Developer *item = new Developer((int64_t)0);
-                            item->setName(apiItem->getName());
-                            item->setApiId(TheGamesDB::API_ID);
-                            item->setApiItemId(apiItem->getId());
-
-                            items->push_back(item);
-                        }
-
-                        sqlite3 *sqlite = Database::getInstance()->acquire();
-                        int error = Developer::bulkInsert(sqlite, items);
-                        Database::getInstance()->release();
-                        Developer::releaseItems(items);
-                        
-                        if(error)
-                        {
-                            this->status = STATUS_FAIL;
-                            Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
-                            NotificationManager::getInstance()->notify(TYPE, "Database setup failed", this->status);
-                            SerialProcessExecutor::getInstance()->finish(this);
-                            return;
-                        }
-                        
-                        TheGamesDB::Elasticsearch::getInstance()->getPublishers([this](list<TheGamesDB::Publisher *> *apiItems) -> void {
-                            list<Publisher *> *items = new list<Publisher *>;
-                            for(unsigned int index = 0; index < apiItems->size(); index++)
-                            {
-                                TheGamesDB::Publisher *apiItem = TheGamesDB::Publisher::getItem(apiItems, index);
-
-                                Publisher *item = new Publisher((int64_t)0);
-                                item->setName(apiItem->getName());
-                                item->setApiId(TheGamesDB::API_ID);
-                                item->setApiItemId(apiItem->getId());
-
-                                items->push_back(item);
-                            }
-
-                            sqlite3 *sqlite = Database::getInstance()->acquire();
-                            int error = Publisher::bulkInsert(sqlite, items);
-                            Database::getInstance()->release();
-                            Publisher::releaseItems(items);
-                            
-                            if(error)
-                            {
-                                this->status = STATUS_FAIL;
-                                Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
-                                NotificationManager::getInstance()->notify(TYPE, "Database setup failed", this->status);
-                                SerialProcessExecutor::getInstance()->finish(this);
-                                return;
-                            }
-                            
-                            TheGamesDB::Elasticsearch::getInstance()->getGenres([this](list<TheGamesDB::Genre *> *apiItems) -> void {
-                                list<Genre *> *items = new list<Genre *>;
-                                for(unsigned int index = 0; index < apiItems->size(); index++)
-                                {
-                                    TheGamesDB::Genre *apiItem = TheGamesDB::Genre::getItem(apiItems, index);
-
-                                    Genre *item = new Genre((int64_t)0);
-                                    item->setName(apiItem->getName());
-                                    item->setApiId(TheGamesDB::API_ID);
-                                    item->setApiItemId(apiItem->getId());
-
-                                    items->push_back(item);
-                                }
-
-                                sqlite3 *sqlite = Database::getInstance()->acquire();
-                                int error = Genre::bulkInsert(sqlite, items);
-                                Database::getInstance()->release();
-                                Genre::releaseItems(items);
-                                
-                                if(error)
-                                {
-                                    this->status = STATUS_FAIL;
-                                    Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
-                                    NotificationManager::getInstance()->notify(TYPE, "Database setup failed", this->status);
-                                }
-                                else
-                                {
-                                    this->status = STATUS_SUCCESS;
-                                    NotificationManager::getInstance()->notify(TYPE, "Database setup successfully", this->status);
-                                }
-                                SerialProcessExecutor::getInstance()->finish(this);
-                            });                                                        
-                        });
-                    });                    
-                });
+                initialize();
             }            
         }
         else
@@ -250,16 +133,280 @@ int SetupDatabaseProcess::execute()
             this->status = STATUS_FAIL;
             Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
             NotificationManager::getInstance()->notify(TYPE, "Database setup failed", this->status);
-            SerialProcessExecutor::getInstance()->finish(this);
         }
     });
-    
-    return status;
 }
 
-void SetupDatabaseProcess::httpConnectorProgressListener(void* setupDatabaseProcess, HttpConnector* httpConnector, size_t bytesToDownload, size_t downloadedBytes)
+void SetupDatabaseProcess::initialize()
 {
-    int progress = (((double)downloadedBytes / (double)bytesToDownload) * 100.0);
-    NotificationManager::getInstance()->notify(TYPE, "Downloading database", ((SetupDatabaseProcess *)setupDatabaseProcess)->status, 0, NULL, progress);
+    NotificationManager::getInstance()->notify(TYPE, "Preloading data", status);
+    
+    TheGamesDB::Elasticsearch::getInstance()->getEsrbRatings([this](list<TheGamesDB::EsrbRating *> *apiItems) -> void {
+        list<EsrbRating *> *items = new list<EsrbRating *>;
+        for(unsigned int index = 0; index < apiItems->size(); index++)
+        {
+            TheGamesDB::EsrbRating *apiItem = TheGamesDB::EsrbRating::getItem(apiItems, index);
+
+            EsrbRating *item = new EsrbRating((int64_t)0);
+            item->setName(apiItem->getName());
+            item->setApiId(apiItem->getId());
+
+            items->push_back(item);
+        }
+
+        sqlite3 *sqlite = Database::getInstance()->acquire();
+        int error = EsrbRating::bulkInsert(sqlite, items);
+        Database::getInstance()->release();
+        EsrbRating::releaseItems(items);
+
+        if(error)
+        {
+            this->status = STATUS_FAIL;
+            Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
+            NotificationManager::getInstance()->notify(TYPE, "Database setup failed", this->status);
+            return;
+        }
+
+        TheGamesDB::Elasticsearch::getInstance()->getDevelopers([this](list<TheGamesDB::Developer *> *apiItems) -> void {
+            list<Developer *> *items = new list<Developer *>;
+            for(unsigned int index = 0; index < apiItems->size(); index++)
+            {
+                TheGamesDB::Developer *apiItem = TheGamesDB::Developer::getItem(apiItems, index);
+
+                Developer *item = new Developer((int64_t)0);
+                item->setName(apiItem->getName());
+                item->setApiId(apiItem->getId());
+
+                items->push_back(item);
+            }
+
+            sqlite3 *sqlite = Database::getInstance()->acquire();
+            int error = Developer::bulkInsert(sqlite, items);
+            Database::getInstance()->release();
+            Developer::releaseItems(items);
+
+            if(error)
+            {
+                this->status = STATUS_FAIL;
+                Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
+                NotificationManager::getInstance()->notify(TYPE, "Database setup failed", this->status);
+                return;
+            }
+
+            TheGamesDB::Elasticsearch::getInstance()->getPublishers([this](list<TheGamesDB::Publisher *> *apiItems) -> void {
+                list<Publisher *> *items = new list<Publisher *>;
+                for(unsigned int index = 0; index < apiItems->size(); index++)
+                {
+                    TheGamesDB::Publisher *apiItem = TheGamesDB::Publisher::getItem(apiItems, index);
+
+                    Publisher *item = new Publisher((int64_t)0);
+                    item->setName(apiItem->getName());
+                    item->setApiId(apiItem->getId());
+
+                    items->push_back(item);
+                }
+
+                sqlite3 *sqlite = Database::getInstance()->acquire();
+                int error = Publisher::bulkInsert(sqlite, items);
+                Database::getInstance()->release();
+                Publisher::releaseItems(items);
+
+                if(error)
+                {
+                    this->status = STATUS_FAIL;
+                    Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
+                    NotificationManager::getInstance()->notify(TYPE, "Database setup failed", this->status);
+                    return;
+                }
+
+                TheGamesDB::Elasticsearch::getInstance()->getGenres([this](list<TheGamesDB::Genre *> *apiItems) -> void {
+                    list<Genre *> *items = new list<Genre *>;
+                    for(unsigned int index = 0; index < apiItems->size(); index++)
+                    {
+                        TheGamesDB::Genre *apiItem = TheGamesDB::Genre::getItem(apiItems, index);
+
+                        Genre *item = new Genre((int64_t)0);
+                        item->setName(apiItem->getName());
+                        item->setApiId(apiItem->getId());
+
+                        items->push_back(item);
+                    }
+
+                    sqlite3 *sqlite = Database::getInstance()->acquire();
+                    int error = Genre::bulkInsert(sqlite, items);
+                    Database::getInstance()->release();
+                    Genre::releaseItems(items);
+
+                    if(error)
+                    {
+                        this->status = STATUS_FAIL;
+                        Utils::getInstance()->removeDirectory(Directory::getInstance()->getElasticseachDirectory());
+                        NotificationManager::getInstance()->notify(TYPE, "Database setup failed", this->status);
+                    }
+                    else
+                    {
+                        this->status = STATUS_SUCCESS;
+                        NotificationManager::getInstance()->notify(TYPE, "Database setup successfully", this->status);
+                    }
+                });                                                        
+            });
+        });                    
+    });
 }
 
+void SetupDatabaseProcess::update()
+{
+    NotificationManager::getInstance()->notify(TYPE, "Updating data", status);
+    
+    TheGamesDB::Elasticsearch::getInstance()->getEsrbRatings([this](list<TheGamesDB::EsrbRating *> *apiItems) -> void {
+        list<EsrbRating *> *items = EsrbRating::getItems();
+        map<int64_t, EsrbRating *> *itemsMap = new map<int64_t, EsrbRating *>();
+        for(unsigned int index = 0; index < items->size(); index++)
+        {
+            EsrbRating *item = EsrbRating::getItem(items, index);
+            itemsMap->insert(pair<int64_t, EsrbRating *>(item->getApiId(), item));
+        }
+        
+        for(unsigned int index = 0; index < apiItems->size(); index++)
+        {
+            TheGamesDB::EsrbRating *apiItem = TheGamesDB::EsrbRating::getItem(apiItems, index);
+
+            if(itemsMap->find(apiItem->getId()) != itemsMap->end())
+            {
+                EsrbRating *item = itemsMap->at(apiItem->getId());
+                if(item->getName().compare(apiItem->getName()) != 0)
+                {
+                    item->setName(apiItem->getName());
+                    item->save();
+                }
+            }
+            else
+            {
+                EsrbRating *item = new EsrbRating((int64_t)0);
+                item->setName(apiItem->getName());
+                item->setApiId(apiItem->getId());
+                item->save();
+                
+                delete item;
+            }
+        }        
+        itemsMap->clear();
+        delete itemsMap;
+        EsrbRating::releaseItems(items);
+
+        TheGamesDB::Elasticsearch::getInstance()->getDevelopers([this](list<TheGamesDB::Developer *> *apiItems) -> void {
+            list<Developer *> *items = Developer::getItems();
+            map<int64_t, Developer *> *itemsMap = new map<int64_t, Developer *>();
+            for(unsigned int index = 0; index < items->size(); index++)
+            {
+                Developer *item = Developer::getItem(items, index);
+                itemsMap->insert(pair<int64_t, Developer *>(item->getApiId(), item));
+            }
+
+            for(unsigned int index = 0; index < apiItems->size(); index++)
+            {
+                TheGamesDB::Developer *apiItem = TheGamesDB::Developer::getItem(apiItems, index);
+
+                if(itemsMap->find(apiItem->getId()) != itemsMap->end())
+                {
+                    Developer *item = itemsMap->at(apiItem->getId());
+                    if(item->getName().compare(apiItem->getName()) != 0)
+                    {
+                        item->setName(apiItem->getName());
+                        item->save();
+                    }
+                }
+                else
+                {
+                    Developer *item = new Developer((int64_t)0);
+                    item->setName(apiItem->getName());
+                    item->setApiId(apiItem->getId());
+                    item->save();
+                    
+                    delete item;
+                }
+            }
+            itemsMap->clear();
+            delete itemsMap;
+            Developer::releaseItems(items);
+
+            TheGamesDB::Elasticsearch::getInstance()->getPublishers([this](list<TheGamesDB::Publisher *> *apiItems) -> void {
+                list<Publisher *> *items = Publisher::getItems();
+                map<int64_t, Publisher *> *itemsMap = new map<int64_t, Publisher *>();
+                for(unsigned int index = 0; index < items->size(); index++)
+                {
+                    Publisher *item = Publisher::getItem(items, index);
+                    itemsMap->insert(pair<int64_t, Publisher *>(item->getApiId(), item));
+                }
+                
+                for(unsigned int index = 0; index < apiItems->size(); index++)
+                {
+                    TheGamesDB::Publisher *apiItem = TheGamesDB::Publisher::getItem(apiItems, index);
+
+                    if(itemsMap->find(apiItem->getId()) != itemsMap->end())
+                    {
+                        Publisher *item = itemsMap->at(apiItem->getId());
+                        if(item->getName().compare(apiItem->getName()) != 0)
+                        {
+                            item->setName(apiItem->getName());
+                            item->save();
+                        }
+                    }
+                    else
+                    {
+                        Publisher *item = new Publisher((int64_t)0);
+                        item->setName(apiItem->getName());
+                        item->setApiId(apiItem->getId());
+                        item->save();
+
+                        delete item;
+                    }
+                }
+                itemsMap->clear();
+                delete itemsMap;
+                Publisher::releaseItems(items);               
+
+                TheGamesDB::Elasticsearch::getInstance()->getGenres([this](list<TheGamesDB::Genre *> *apiItems) -> void {
+                    list<Genre *> *items = Genre::getItems();
+                    map<int64_t, Genre *> *itemsMap = new map<int64_t, Genre *>();
+                    for(unsigned int index = 0; index < items->size(); index++)
+                    {
+                        Genre *item = Genre::getItem(items, index);
+                        itemsMap->insert(pair<int64_t, Genre *>(item->getApiId(), item));
+                    }
+
+                    for(unsigned int index = 0; index < apiItems->size(); index++)
+                    {
+                        TheGamesDB::Genre *apiItem = TheGamesDB::Genre::getItem(apiItems, index);
+
+                        if(itemsMap->find(apiItem->getId()) != itemsMap->end())
+                        {
+                            Genre *item = itemsMap->at(apiItem->getId());
+                            if(item->getName().compare(apiItem->getName()) != 0)
+                            {
+                                item->setName(apiItem->getName());
+                                item->save();
+                            }
+                        }
+                        else
+                        {
+                            Genre *item = new Genre((int64_t)0);
+                            item->setName(apiItem->getName());
+                            item->setApiId(apiItem->getId());
+                            item->save();
+
+                            delete item;
+                        }
+                    }
+                    itemsMap->clear();
+                    delete itemsMap;
+                    Genre::releaseItems(items);
+                    
+
+                    this->status = STATUS_SUCCESS;
+                    NotificationManager::getInstance()->notify(TYPE, "Database setup successfully", this->status);
+                });                                                        
+            });
+        });                    
+    });
+}

@@ -41,7 +41,6 @@ private:
 	string fileName;
 	int64_t external;
 	int64_t apiId;
-	int64_t apiItemId;
 	string url;
 	int64_t downloaded;
         
@@ -55,6 +54,7 @@ public:
     static const int TYPE_SCREENSHOT;
     static const int TYPE_CLEAR_LOGO;
     static const int TYPE_BANNER;
+    static const int TYPE_FANART;
     
     static const int THUMBNAIL_WIDTH;
     static const int THUMBNAIL_HEIGHT;
@@ -76,8 +76,6 @@ public:
 	void setExternal(int64_t external);
 	int64_t getApiId();
 	void setApiId(int64_t apiId);
-	int64_t getApiItemId();
-	void setApiItemId(int64_t apiItemId);
 	string getUrl();
 	void setUrl(string url);
 	int64_t getDownloaded();

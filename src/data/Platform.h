@@ -42,7 +42,6 @@ private:
 	int64_t deflate;
 	string deflateFileExtensions;
 	int64_t apiId;
-	int64_t apiItemId;
 
 	Platform();
 
@@ -68,8 +67,6 @@ public:
 	void setDeflateFileExtensions(string deflateFileExtensions);
 	int64_t getApiId();
 	void setApiId(int64_t apiId);
-	int64_t getApiItemId();
-	void setApiItemId(int64_t apiItemId);
 
 	int load();
 	int save();

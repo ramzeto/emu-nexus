@@ -46,7 +46,6 @@ Platform::Platform(int64_t id)
         this->deflate = 0;
         this->deflateFileExtensions = "";
 	this->apiId = 0;
-	this->apiItemId = 0;
 }
 
 Platform::Platform(const Platform &orig)
@@ -58,7 +57,6 @@ Platform::Platform(const Platform &orig)
 	this->deflate = orig.deflate;
 	this->deflateFileExtensions = orig.deflateFileExtensions;
 	this->apiId = orig.apiId;
-	this->apiItemId = orig.apiItemId;
 }
 
 Platform::Platform(json_t *json)
@@ -104,13 +102,6 @@ Platform::Platform(json_t *json)
 	{
 		apiId = (int64_t)json_integer_value(apiIdJson);
 	}
-
-	json_t *apiItemIdJson = json_object_get(json, "apiItemId");
-	if(apiItemIdJson)
-	{
-		apiItemId = (int64_t)json_integer_value(apiItemIdJson);
-	}
-
 }
 
 Platform::~Platform()
@@ -182,21 +173,11 @@ void Platform::setApiId(int64_t apiId)
 	this->apiId = apiId;
 }
 
-int64_t Platform::getApiItemId()
-{
-	return apiItemId;
-}
-
-void Platform::setApiItemId(int64_t apiItemId)
-{
-	this->apiItemId = apiItemId;
-}
-
 int Platform::load()
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
-	string query = "select id, name, description, command, deflate, deflateFileExtensions, apiId, apiItemId from Platform where  id = ?";
+	string query = "select id, name, description, command, deflate, deflateFileExtensions, apiId from Platform where  id = ?";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -210,7 +191,6 @@ int Platform::load()
 			deflate = (int64_t)sqlite3_column_int64(statement, 4);
 			deflateFileExtensions = string((const char*) sqlite3_column_text(statement, 5));
 			apiId = (int64_t)sqlite3_column_int64(statement, 6);
-			apiItemId = (int64_t)sqlite3_column_int64(statement, 7);
 			result = 1;
 		}
 	}
@@ -231,7 +211,7 @@ int Platform::save()
         sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
-		string insert = "insert into Platform (name, description, command, deflate, deflateFileExtensions, apiId, apiItemId) values(?, ?, ?, ?, ?, ?, ?)";
+		string insert = "insert into Platform (name, description, command, deflate, deflateFileExtensions, apiId) values(?, ?, ?, ?, ?, ?)";
 		sqlite3_stmt *statement;
 		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
@@ -241,7 +221,6 @@ int Platform::save()
 			sqlite3_bind_int64(statement, 4, (sqlite3_int64)deflate);
 			sqlite3_bind_text(statement, 5, deflateFileExtensions.c_str(), deflateFileExtensions.length(), NULL);
 			sqlite3_bind_int64(statement, 6, (sqlite3_int64)apiId);
-			sqlite3_bind_int64(statement, 7, (sqlite3_int64)apiItemId);
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
@@ -257,7 +236,7 @@ int Platform::save()
 	}
 	else
 	{
-		string update = "update Platform set name = ?, description = ?, command = ?, deflate = ?, deflateFileExtensions = ?, apiId = ?, apiItemId = ? where id = ?";
+		string update = "update Platform set name = ?, description = ?, command = ?, deflate = ?, deflateFileExtensions = ?, apiId = ? where id = ?";
 		sqlite3_stmt *statement;
 		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
@@ -267,8 +246,7 @@ int Platform::save()
 			sqlite3_bind_int64(statement, 4, (sqlite3_int64)deflate);
 			sqlite3_bind_text(statement, 5, deflateFileExtensions.c_str(), deflateFileExtensions.length(), NULL);
 			sqlite3_bind_int64(statement, 6, (sqlite3_int64)apiId);
-			sqlite3_bind_int64(statement, 7, (sqlite3_int64)apiItemId);
-			sqlite3_bind_int64(statement, 8, (sqlite3_int64)id);
+			sqlite3_bind_int64(statement, 7, (sqlite3_int64)id);
 			
 			result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
 		}
@@ -468,8 +446,6 @@ json_t *Platform::toJson()
 	json_t *apiIdJson = json_integer((json_int_t)apiId);
 	json_object_set_new(json, "apiId", apiIdJson);
 
-	json_t *apiItemIdJson = json_integer((json_int_t)apiItemId);
-	json_object_set_new(json, "apiItemId", apiItemIdJson);
 
 	return json;
 }
@@ -478,7 +454,7 @@ list<Platform *> *Platform::getItems()
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	list<Platform *> *items = new list<Platform *>;
-	string query = "select id, name, description, command, deflate, deflateFileExtensions, apiId, apiItemId from Platform order by name";
+	string query = "select id, name, description, command, deflate, deflateFileExtensions, apiId from Platform order by name";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -492,7 +468,6 @@ list<Platform *> *Platform::getItems()
 			item->deflate = (int64_t)sqlite3_column_int64(statement, 4);
 			item->deflateFileExtensions = string((const char*) sqlite3_column_text(statement, 5));
 			item->apiId = (int64_t)sqlite3_column_int64(statement, 6);
-			item->apiItemId = (int64_t)sqlite3_column_int64(statement, 7);
 
 			items->push_back(item);
 		}

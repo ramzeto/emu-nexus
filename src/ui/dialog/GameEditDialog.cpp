@@ -537,6 +537,7 @@ void GameEditDialog::loadGameImageTypes()
     gameImageTypes->push_back(GameImage::TYPE_SCREENSHOT);
     gameImageTypes->push_back(GameImage::TYPE_CLEAR_LOGO);
     gameImageTypes->push_back(GameImage::TYPE_BANNER);
+    gameImageTypes->push_back(GameImage::TYPE_FANART);
     
     int position = 0;
     GtkListStore *listStore = gtk_list_store_new(1, G_TYPE_STRING);
@@ -563,6 +564,10 @@ void GameEditDialog::loadGameImageTypes()
         {
             gtk_list_store_insert_with_values (listStore, NULL, position++, 0, "Banner", -1);
         }
+        else if(*type == GameImage::TYPE_FANART)
+        {
+            gtk_list_store_insert_with_values (listStore, NULL, position++, 0, "Fanart", -1);
+        }        
     }
     gtk_combo_box_set_model(imageTypeComboBox, GTK_TREE_MODEL(listStore));
     
@@ -691,7 +696,6 @@ void GameEditDialog::addGameImage()
                 
         GameImage *gameImage = new GameImage((int64_t)0);
         gameImage->setApiId(0);
-        gameImage->setApiItemId(0);
         gameImage->setType(GameImage::TYPE_BOX_FRONT);
         gameImage->setFileName(imageFileName);
         gameImage->setExternal(0);
@@ -1000,7 +1004,6 @@ void GameEditDialog::addGameDocument()
                 
         GameDocument *gameDocument = new GameDocument((int64_t)0);
         gameDocument->setApiId(0);
-        gameDocument->setApiItemId(0);
         gameDocument->setType(GameDocument::TYPE_MANUAL);
         gameDocument->setName("");
         gameDocument->setFileName(fileName);
@@ -1152,14 +1155,13 @@ void GameEditDialog::search()
     Platform *platform = new Platform(game->getPlatformId());
     platform->load();
     
-    GameSearchDialog *gameSearchDialog = new GameSearchDialog(GTK_WINDOW(dialog), platform->getApiItemId(), query);
+    GameSearchDialog *gameSearchDialog = new GameSearchDialog(GTK_WINDOW(dialog), platform->getApiId(), query);
     if(gameSearchDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
         TheGamesDB::Game *apiGame = gameSearchDialog->getSelectedApiGame();
         if(apiGame)
         {
-            game->setApiId(TheGamesDB::API_ID);
-            game->setApiItemId(apiGame->getId());
+            game->setApiId(apiGame->getId());
             
             gtk_entry_set_text(nameEntry, apiGame->getName().c_str());
             gtk_entry_set_text(releaseDateEntry, apiGame->getReleaseDate().c_str());
@@ -1169,7 +1171,7 @@ void GameEditDialog::search()
             {
                 EsrbRating *esrbRating = EsrbRating::getItem(esrbRatings, c);
 
-                if(esrbRating->getApiItemId() == apiGame->getEsrbRatingId())
+                if(esrbRating->getApiId() == apiGame->getEsrbRatingId())
                 {
                     gtk_combo_box_set_active(esrbComboBox, c);
                     break;
@@ -1182,7 +1184,7 @@ void GameEditDialog::search()
             for(unsigned int c = 0; c < apiGame->getGameDevelopers()->size(); c++)
             {                
                 TheGamesDB::GameDeveloper *apiGameDeveloper = TheGamesDB::GameDeveloper::getItem(apiGame->getGameDevelopers(), c);
-                Developer *developer = Developer::getDeveloper(TheGamesDB::API_ID, apiGameDeveloper->getDeveloperId());
+                Developer *developer = Developer::getDeveloper(apiGameDeveloper->getDeveloperId());
                 if(developer)
                 {
                     developers->push_back(developer);
@@ -1196,7 +1198,7 @@ void GameEditDialog::search()
             for(unsigned int c = 0; c < apiGame->getGamePublishers()->size(); c++)
             {                
                 TheGamesDB::GamePublisher *apiGamePublisher = TheGamesDB::GamePublisher::getItem(apiGame->getGamePublishers(), c);
-                Publisher *publisher = Publisher::getPublisher(TheGamesDB::API_ID, apiGamePublisher->getPublisherId());
+                Publisher *publisher = Publisher::getPublisher(apiGamePublisher->getPublisherId());
                 if(publisher)
                 {
                     publishers->push_back(publisher);
@@ -1210,7 +1212,7 @@ void GameEditDialog::search()
             for(unsigned int c = 0; c < apiGame->getGameGenres()->size(); c++)
             {                
                 TheGamesDB::GameGenre *apiGameGenre = TheGamesDB::GameGenre::getItem(apiGame->getGameGenres(), c);
-                Genre *genre = Genre::getGenre(TheGamesDB::API_ID, apiGameGenre->getGenreId());
+                Genre *genre = Genre::getGenre(apiGameGenre->getGenreId());
                 if(genre)
                 {
                     genres->push_back(genre);
@@ -1243,13 +1245,30 @@ void GameEditDialog::search()
                         type = GameImage::TYPE_BOX_BACK;
                     }
                 }
+                else if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_BANNER) == 0)
+                {
+                    type = GameImage::TYPE_BANNER;
+                }
+                else if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_FANART) == 0)
+                {
+                    type = GameImage::TYPE_FANART;
+                }
+                else if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_SCREENSHOT) == 0)
+                {
+                    type = GameImage::TYPE_SCREENSHOT;
+                }
+                else if(apiGameImage->getType().compare(TheGamesDB::GameImage::TYPE_CLEAR_LOGO) == 0)
+                {
+                    type = GameImage::TYPE_CLEAR_LOGO;
+                }
+                
 
                 // Checks if there is GameImage for this TheGamesDB::GameImage being downloaded, if it is, then appends it to the list
                 int isDownloading = 0;
                 pthread_mutex_lock(&downloadGameImageRefsMutex);        
                 for(list<DownloadGameImageRef_t *>::iterator downloadGameImageRef = downloadGameImageRefs->begin(); downloadGameImageRef != downloadGameImageRefs->end(); downloadGameImageRef++)
                 {                    
-                    if((*downloadGameImageRef)->gameEditDialog == this && (*downloadGameImageRef)->gameImage->getApiId() == TheGamesDB::API_ID && (*downloadGameImageRef)->gameImage->getApiItemId() == apiGameImage->getId())
+                    if((*downloadGameImageRef)->gameEditDialog == this && (*downloadGameImageRef)->gameImage->getApiId() == apiGameImage->getId())
                     {
                         gameImages->push_back((*downloadGameImageRef)->gameImage);
                         isDownloading = 1;
@@ -1261,8 +1280,7 @@ void GameEditDialog::search()
                 if(!isDownloading)
                 {
                     GameImage *gameImage = new GameImage((int64_t)0);
-                    gameImage->setApiId(TheGamesDB::API_ID);
-                    gameImage->setApiItemId(apiGameImage->getId());
+                    gameImage->setApiId(apiGameImage->getId());
                     gameImage->setType(type);
                     gameImage->setFileName(apiGameImage->getFileName());
                     gameImage->setExternal(0);

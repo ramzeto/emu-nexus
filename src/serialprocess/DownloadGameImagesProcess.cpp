@@ -41,7 +41,7 @@ DownloadGameImagesProcess::~DownloadGameImagesProcess()
 {
 }
 
-int DownloadGameImagesProcess::execute()
+void DownloadGameImagesProcess::execute()
 {
     status = STATUS_RUNNING;
     
@@ -82,8 +82,6 @@ int DownloadGameImagesProcess::execute()
     
     status = STATUS_SUCCESS;
     NotificationManager::getInstance()->notify(TYPE, "", status);
-    
-    return status;
 }
 
 

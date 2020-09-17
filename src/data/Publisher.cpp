@@ -42,7 +42,6 @@ Publisher::Publisher(const Publisher &orig)
 	this->id = orig.id;
 	this->name = orig.name;
 	this->apiId = orig.apiId;
-	this->apiItemId = orig.apiItemId;
 }
 
 Publisher::Publisher(json_t *json)
@@ -64,13 +63,6 @@ Publisher::Publisher(json_t *json)
 	{
 		apiId = (int64_t)json_integer_value(apiIdJson);
 	}
-
-	json_t *apiItemIdJson = json_object_get(json, "apiItemId");
-	if(apiItemIdJson)
-	{
-		apiItemId = (int64_t)json_integer_value(apiItemIdJson);
-	}
-
 }
 
 Publisher::~Publisher()
@@ -102,21 +94,11 @@ void Publisher::setApiId(int64_t apiId)
 	this->apiId = apiId;
 }
 
-int64_t Publisher::getApiItemId()
-{
-	return apiItemId;
-}
-
-void Publisher::setApiItemId(int64_t apiItemId)
-{
-	this->apiItemId = apiItemId;
-}
-
 int Publisher::load()
 {
         sqlite3 *db = Database::getInstance()->acquire();
 	int result = 0;
-	string query = "select id, name, apiId, apiItemId from Publisher where  id = ?";
+	string query = "select id, name, apiId from Publisher where  id = ?";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -126,7 +108,6 @@ int Publisher::load()
 			id = (int64_t)sqlite3_column_int64(statement, 0);
 			name = string((const char*) sqlite3_column_text(statement, 1));
 			apiId = (int64_t)sqlite3_column_int64(statement, 2);
-			apiItemId = (int64_t)sqlite3_column_int64(statement, 3);
 			result = 1;
 		}
 	}
@@ -147,13 +128,12 @@ int Publisher::save()
         sqlite3 *db = Database::getInstance()->acquire();
 	if(id == 0)
 	{
-		string insert = "insert into Publisher (name, apiId, apiItemId) values(?, ?, ?)";
+		string insert = "insert into Publisher (name, apiId) values(?, ?)";
 		sqlite3_stmt *statement;
 		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)apiId);
-			sqlite3_bind_int64(statement, 3, (sqlite3_int64)apiItemId);
 			
 			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
 			{
@@ -169,14 +149,13 @@ int Publisher::save()
 	}
 	else
 	{
-		string update = "update Publisher set name = ?, apiId = ?, apiItemId = ? where id = ?";
+		string update = "update Publisher set name = ?, apiId = ? where id = ?";
 		sqlite3_stmt *statement;
 		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
 		{
 			sqlite3_bind_text(statement, 1, name.c_str(), name.length(), NULL);
 			sqlite3_bind_int64(statement, 2, (sqlite3_int64)apiId);
-			sqlite3_bind_int64(statement, 3, (sqlite3_int64)apiItemId);
-			sqlite3_bind_int64(statement, 4, (sqlite3_int64)id);
+			sqlite3_bind_int64(statement, 3, (sqlite3_int64)id);
 			
 			result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
 		}
@@ -205,8 +184,6 @@ json_t *Publisher::toJson()
 	json_t *apiIdJson = json_integer((json_int_t)apiId);
 	json_object_set_new(json, "apiId", apiIdJson);
 
-	json_t *apiItemIdJson = json_integer((json_int_t)apiItemId);
-	json_object_set_new(json, "apiItemId", apiItemIdJson);
 
 	return json;
 }
@@ -217,7 +194,7 @@ list<Publisher *> *Publisher::getItems(string name)
     
         sqlite3 *db = Database::getInstance()->acquire();
 	list<Publisher *> *items = new list<Publisher *>;
-	string query = "select id, name, apiId, apiItemId from Publisher where name like ? order by name";
+	string query = "select id, name, apiId from Publisher where name like ? order by name";
 	sqlite3_stmt *statement;
 	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
 	{
@@ -229,7 +206,6 @@ list<Publisher *> *Publisher::getItems(string name)
 			item->id = (int64_t)sqlite3_column_int64(statement, 0);
 			item->name = string((const char*) sqlite3_column_text(statement, 1));
 			item->apiId = (int64_t)sqlite3_column_int64(statement, 2);
-			item->apiItemId = (int64_t)sqlite3_column_int64(statement, 3);
 
 			items->push_back(item);
 		}
@@ -280,23 +256,21 @@ json_t *Publisher::toJsonArray(list<Publisher *> *items)
 	return jsonArray;
 }
 
-Publisher* Publisher::getPublisher(int64_t apiId, int64_t apiItemId)
+Publisher* Publisher::getPublisher(int64_t apiId)
 {
     sqlite3 *db = Database::getInstance()->acquire();
     Publisher *publisher = NULL;
-    string query = "select id, name, apiId, apiItemId from Publisher where  apiId = ? and apiItemId = ?";
+    string query = "select id, name, apiId from Publisher where  apiId = ?";
     sqlite3_stmt *statement;
     if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
     {        
         sqlite3_bind_int64(statement, 1, (sqlite3_int64)apiId);
-        sqlite3_bind_int64(statement, 2, (sqlite3_int64)apiItemId);
         if (sqlite3_step(statement) == SQLITE_ROW)
         {
             publisher = new Publisher();
             publisher->id = (int64_t)sqlite3_column_int64(statement, 0);
             publisher->name = string((const char*) sqlite3_column_text(statement, 1));
             publisher->apiId = (int64_t)sqlite3_column_int64(statement, 2);
-            publisher->apiItemId = (int64_t)sqlite3_column_int64(statement, 3);
         }
     }
     else
@@ -344,11 +318,11 @@ int Publisher::bulkInsert(sqlite3 *sqlite, list<Publisher*>* items)
     }
     else
     {
-        string insert = "insert into Publisher (name, apiId, apiItemId) values ";
+        string insert = "insert into Publisher (name, apiId) values ";
         string separator = "";
         for(unsigned int index = 0; index < items->size(); index++)
         {        
-            insert += separator + "(?, ?, ?)";
+            insert += separator + "(?, ?)";
             separator = ",";
         }
 
@@ -362,7 +336,6 @@ int Publisher::bulkInsert(sqlite3 *sqlite, list<Publisher*>* items)
 
                 sqlite3_bind_text(statement, valueIndex++, item->name.c_str(), item->name.length(), NULL);
                 sqlite3_bind_int64(statement, valueIndex++, (sqlite3_int64)item->apiId);
-                sqlite3_bind_int64(statement, valueIndex++, (sqlite3_int64)item->apiItemId);            
             }
 
             result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;

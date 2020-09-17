@@ -300,11 +300,12 @@ void MainWindow::showPlatformEditDialog(int64_t platformId)
     {
         if(platformId)
         {
-            updatePlatform(platformId);            
+            updatePlatform(platformId);
         }   
         else
         {
             loadPlatformList();
+            selectPlatform(platformEditDialog->getPlatform()->getId());
         }
     }
     PlatformEditDialog::deleteWhenReady(platformEditDialog);

@@ -27,6 +27,7 @@
 
 #include <pthread.h>
 #include <functional>
+#include <list>
 
 using namespace std;
 
@@ -52,18 +53,18 @@ public:
     
     /**
      * Executes a lambda function in a thread.
-     * @param mainThread If > 0, then 'execution' is executed in the main thread, otherwise is executed in a secondary thread.
+     * @param mainThread If > 0, then 'execution' is executed in the main thread, otherwise is executed in the same thread in which this method is called.
      * @param execution Lambda function to be executed.
      */
     void execute(int mainThread, function<void()> execution);
     
     /**
      * Executes a lambda function in a thread.
-     * @param mainThread If > 0, then 'execution' is executed in the main thread, otherwise is executed in a secondary thread.
+     * @param mainThread If > 0, then 'execution' is executed in the main thread, otherwise is executed in the same thread in which this method is called.
      * @param execution Lambda function to be executed.
-     * @param finished Lambda function to be executed when the 'execution' function finishes. If this method is called from the main thread, then, the 'finished' function is executed also in the main thread.
+     * @param finish Lambda function to be executed when the 'execution' function finishes. It will be executed in the same thread in which this method is called.
      */
-    void execute(int mainThread, function<void()> execution, function<void()> finished);
+    void execute(int mainThread, function<void()> execution, function<void()> finish);
     
     /**
      * 
@@ -74,11 +75,18 @@ public:
 private:
     typedef struct{        
         function<void()> execution;
-        function<void()> finished;
-        int finishedMainThread;
+        int shouldFinish;
+        function<void()> finish;        
+        int finishInMainThread;
     }ThreadData_t;
     
+    pthread_mutex_t mainThreadDataMutex;
+    list<ThreadData_t *> *mainThreadData;
+    
+    unsigned int mainThreadPostHandler;
     pthread_t mainThread;
+    
+    void postToMainThread(ThreadData_t *threadData);
     
     static ThreadManager *instance;
 };

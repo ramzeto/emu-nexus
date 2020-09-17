@@ -42,13 +42,7 @@ public:
      * Schedules a serialProcess object for execution. This serial process will be executed in a background thread.
      * @param serialProcess
      */
-    void schedule(SerialProcess *serialProcess);
-    
-    /**
-     * Ends the execution of the serialProcess. Only has effect if the serialProcess parameter is the same as currentSerialProcess. The requester has to free the SerialProcess object.
-     * @param serialProcess
-     */
-    void finish(SerialProcess *serialProcess);
+    void schedule(SerialProcess *serialProcess);    
     
     /**
      * 
@@ -62,10 +56,9 @@ private:
     
     list<SerialProcess *> *serialProcesses;
     pthread_mutex_t serialProcessesMutex;
-    SerialProcess *currentSerialProcess;
-    pthread_t executorThread;
     
-    void executeNext();
+    int isExecuting;
+    
     
     static SerialProcessExecutor *instance;
 };

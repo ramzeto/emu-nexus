@@ -26,15 +26,25 @@
 #include "Logger.h"
 
 #include <gdk/gdk.h>
+#include <list>
 
 ThreadManager *ThreadManager::instance = NULL;
 
 ThreadManager::ThreadManager()
 {
+    mainThreadDataMutex = PTHREAD_MUTEX_INITIALIZER;
+    mainThreadData = new list<ThreadData_t *>;
+    mainThreadPostHandler = 0;
 }
 
 ThreadManager::~ThreadManager()
 {
+    for(list<ThreadData_t *>::iterator data = mainThreadData->begin(); data != mainThreadData->end(); data++)
+    {
+        delete (*data);
+    }
+    mainThreadData->clear();
+    delete mainThreadData;
 }
 
 void ThreadManager::init()
@@ -51,83 +61,205 @@ void ThreadManager::execute(int mainThread, function<void()> execution)
 {
     ThreadData_t *threadData = new ThreadData_t;
     threadData->execution = execution;
+    threadData->shouldFinish = 0;
     
     if(mainThread)
     {
         if(isMainThread())
         {
-            execution();
+            threadData->execution();
+            
+            delete threadData;
         }
         else
         {
-            gdk_threads_add_idle([](gpointer threadData)->gboolean{
-                ((ThreadData_t *)threadData)->execution();
-                delete (ThreadData_t *)threadData;
-                
-                return G_SOURCE_REMOVE;
-            }, (gpointer)threadData);
+            postToMainThread(threadData);
         }
     }
     else
     {
-        pthread_t thread;
-        if(pthread_create(&thread, NULL, [](void *threadData)->void * {
-            ((ThreadData_t *)threadData)->execution();
-            delete (ThreadData_t *)threadData;
-            
-            return NULL;
-        }, (void *)threadData) != 0) 
+        if(isMainThread())
         {
-            Logger::getInstance()->error("ThreadManager", __FUNCTION__, "pthread_create");
-            exit(EXIT_FAILURE);
+            pthread_t thread;
+            int error;
+            if((error = pthread_create(&thread, NULL, [](void *threadData)->void * {
+                ((ThreadData_t *)threadData)->execution();
+                delete (ThreadData_t *)threadData;
+
+                return NULL;
+            }, (void *)threadData)) != 0) 
+            {
+                string errorName = "";
+                if(error == EAGAIN)
+                {
+                    errorName = "EAGAIN";
+                }
+                else if(error == EINVAL)
+                {
+                    errorName = "EINVAL";
+                }
+                else if(error == EPERM)
+                {
+                    errorName = "EPERM";
+                }
+
+                Logger::getInstance()->error("ThreadManager", __FUNCTION__, "1 pthread_create error: " + to_string(error) + " errorName: " + errorName);
+                exit(EXIT_FAILURE);
+            }
+        }
+        else
+        {
+            ((ThreadData_t *)threadData)->execution();            
+            delete (ThreadData_t *)threadData;
         }
     }
 }
 
-void ThreadManager::execute(int mainThread, function<void()> execution, function<void()> finished)
+void ThreadManager::execute(int mainThread, function<void()> execution, function<void()> finish)
 {
     ThreadData_t *threadData = new ThreadData_t;
     threadData->execution = execution;
-    threadData->finished = finished;
-    threadData->finishedMainThread = isMainThread();
+    threadData->shouldFinish = 1;
+    threadData->finish = finish;
+    threadData->finishInMainThread = isMainThread();
     
     if(mainThread)
     {
-        if(threadData->finishedMainThread)
+        if(isMainThread())
         {
             threadData->execution();
-            threadData->finished();
-        }
+            
+            if(threadData->finishInMainThread)
+            {            
+                threadData->finish();
+            }
+            else
+            {
+                execute(threadData->finishInMainThread, threadData->finish);
+            }
+            
+            delete threadData;
+        }        
         else
-        {                        
-            gdk_threads_add_idle([](gpointer threadData)->gboolean{
-                ((ThreadData_t *)threadData)->execution();               
-                instance->execute(((ThreadData_t *)threadData)->finishedMainThread, ((ThreadData_t *)threadData)->finished);
-                
-                delete (ThreadData_t *)threadData;
-                
-                return G_SOURCE_REMOVE;
-            }, (gpointer)threadData);
+        {
+            postToMainThread(threadData);
         }
     }
     else
     {
-        pthread_t thread;
-        if(pthread_create(&thread, NULL, [](void *threadData)->void * {
-            ((ThreadData_t *)threadData)->execution();
-            instance->execute(((ThreadData_t *)threadData)->finishedMainThread, ((ThreadData_t *)threadData)->finished);
-            delete (ThreadData_t *)threadData;
-            
-            return NULL;
-        }, (void *)threadData) != 0) 
+        if(isMainThread())
         {
-            Logger::getInstance()->error("ThreadManager", __FUNCTION__, "pthread_create");
-            exit(EXIT_FAILURE);
+            pthread_t thread;
+            int error;
+            if((error = pthread_create(&thread, NULL, [](void *threadData)->void * {
+                ((ThreadData_t *)threadData)->execution();
+
+                if(((ThreadData_t *)threadData)->finishInMainThread)
+                {
+                    instance->execute(((ThreadData_t *)threadData)->finishInMainThread, ((ThreadData_t *)threadData)->finish);
+                }
+                else
+                {
+                    ((ThreadData_t *)threadData)->finish();
+                }
+
+                delete (ThreadData_t *)threadData;
+
+                return NULL;
+            }, (void *)threadData)) != 0) 
+            {
+                string errorName = "";
+                if(error == EAGAIN)
+                {
+                    errorName = "EAGAIN";
+                }
+                else if(error == EINVAL)
+                {
+                    errorName = "EINVAL";
+                }
+                else if(error == EPERM)
+                {
+                    errorName = "EPERM";
+                }
+
+                Logger::getInstance()->error("ThreadManager", __FUNCTION__, "2 pthread_create error: " + to_string(error) + " errorName: " + errorName);
+                exit(EXIT_FAILURE);
+            }
+        }
+        else
+        {
+            ((ThreadData_t *)threadData)->execution();
+            
+            if(((ThreadData_t *)threadData)->finishInMainThread)
+            {
+                instance->execute(((ThreadData_t *)threadData)->finishInMainThread, ((ThreadData_t *)threadData)->finish);
+            }
+            else
+            {
+                ((ThreadData_t *)threadData)->finish();
+            }
+
+            delete (ThreadData_t *)threadData;
         }
     }
 }
 
-
+void ThreadManager::postToMainThread(ThreadData_t *threadData)
+{
+    pthread_mutex_lock(&mainThreadDataMutex);
+    mainThreadData->push_back(threadData);
+    pthread_mutex_unlock(&mainThreadDataMutex);
+    
+    if(mainThreadPostHandler)
+    {
+        return;
+    }
+    
+    //https://developer.gnome.org/gdk3/stable/gdk3-Threads.html
+    mainThreadPostHandler = gdk_threads_add_timeout(100, [](gpointer)->gboolean{
+        list<ThreadData_t *> *secureMainThreadData = new list<ThreadData_t *>;
+        
+        pthread_mutex_lock(&(instance->mainThreadDataMutex));
+        for(list<ThreadData_t *>::iterator data = instance->mainThreadData->begin(); data != instance->mainThreadData->end(); data++)
+        {
+            secureMainThreadData->push_back(*data);
+        }
+        pthread_mutex_unlock(&(instance->mainThreadDataMutex));
+        
+        
+        for(list<ThreadData_t *>::iterator data = secureMainThreadData->begin(); data != secureMainThreadData->end(); data++)
+        {
+            ThreadData_t *threadData = *data;
+            
+            threadData->execution();           
+            if(threadData->shouldFinish)
+            {
+                if(threadData->finishInMainThread)
+                {
+                    threadData->finish();
+                }
+                else
+                {
+                    instance->execute(0, threadData->finish);
+                }
+            }
+        }
+        
+        pthread_mutex_lock(&(instance->mainThreadDataMutex));
+        for(list<ThreadData_t *>::iterator data = secureMainThreadData->begin(); data != secureMainThreadData->end(); data++)
+        {
+            instance->mainThreadData->remove(*data);
+            delete *data;
+        }
+        pthread_mutex_unlock(&(instance->mainThreadDataMutex));
+        
+        secureMainThreadData->clear();
+        delete secureMainThreadData;
+        
+        return G_SOURCE_CONTINUE;
+    }, NULL);
+    
+}
 
 ThreadManager* ThreadManager::getInstance()
 {
