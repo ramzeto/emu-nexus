@@ -64,7 +64,7 @@ void TheGamesDB::Elasticsearch::start(function<void(int)> callback)
     ThreadManager::getInstance()->execute(0, [callback]() -> void {
         
         ThreadManager::getInstance()->execute(0, []() -> void {
-            string command = Preferences::getInstance()->getElasticseachBinary() + " -E http.port=" + to_string(Preferences::getInstance()->getElasticsearchPort());
+            string command = Preferences::getInstance()->getElasticseachBinary() + " -E http.port=" + to_string(Preferences::getInstance()->getElasticsearchPort()) + " -d";
             Logger::getInstance()->debug("TheGamesDB::Elasticsearch", __FUNCTION__, command);
             system(command.c_str());
         });
