@@ -1,3 +1,5 @@
+![EMU-nexus](https://www.dropbox.com/s/hko2y5mqwc8zzig/base_banner.jpg?raw=1)
+
 # EMU-nexus
 
 EMU-nexus is a front-end designed to launch emulators and to organize ROM collections. It is developed in C++ and it uses GTK3 as graphical user interface. It does not try to compete with any other front-end. It is not designed for an HTPC, it is intended to be used in an everyday not specific purpose PC. It is distributed under the [GPLv3 license](https://www.gnu.org/licenses/gpl-3.0.en.html).
