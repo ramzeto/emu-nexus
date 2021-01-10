@@ -23,6 +23,7 @@
  */
 
 #include "Utils.h"
+#include "Logger.h"
 
 #include <stdio.h>
 #include <sys/stat.h>
@@ -48,6 +49,7 @@
 #include <poppler/cpp/poppler-image.h>
 
 #include <curl/curl.h>
+#include <dbus/dbus.h>
 
 
 using namespace dlib;
@@ -279,7 +281,64 @@ void Utils::openFileWithDefaultApplication(string fileName)
 
 void Utils::showFileInFileManager(string fileName)
 {
-    system(string("dbus-send --session --print-reply --dest=org.freedesktop.FileManager1 --type=method_call /org/freedesktop/FileManager1 org.freedesktop.FileManager1.ShowItems array:string:\"file://" + fileName + "\" string:\"\"").c_str());
+    //https://www.freedesktop.org/wiki/Specifications/file-manager-interface/
+    //https://linux.die.net/man/1/dbus-send
+    
+    // Turns the filename into an URI
+    fileName = "file://" + fileName;
+    
+    DBusError dbusError;
+    DBusConnection *dbusConnection = NULL;
+    
+    dbus_error_init(&dbusError);
+    dbusConnection = dbus_bus_get(DBUS_BUS_SESSION, &dbusError);
+    if(dbusConnection == NULL)
+    {
+        Logger::getInstance()->error("Utils", __FUNCTION__, string(dbusError.name) + " " + string(dbusError.message));
+        return;
+    }
+    
+    DBusMessage *dbusMessage = dbus_message_new_method_call("org.freedesktop.FileManager1", "/org/freedesktop/FileManager1", "org.freedesktop.FileManager1", "ShowItems");
+    if(dbusMessage == NULL)
+    {
+        dbus_connection_unref(dbusConnection);
+        
+        Logger::getInstance()->error("Utils", __FUNCTION__, string(dbusError.name) + " " + string(dbusError.message));
+        return;
+    }
+    
+    // DBus call parameters
+    char **uris = new char*[1];
+    uris[0] = new char[fileName.size() + 1];
+    memset(uris[0], 0, fileName.size() + 1);
+    strcpy(uris[0], fileName.c_str());
+        
+    char *startupId = new char[2];
+    strcpy(startupId, "");
+    //_______
+    
+    if(dbus_message_append_args(dbusMessage, 
+                             DBUS_TYPE_ARRAY, DBUS_TYPE_STRING, &uris, 1,
+                             DBUS_TYPE_STRING, &startupId,
+                             DBUS_TYPE_INVALID))
+    {        
+        DBusMessage *dbusMessageReply = dbus_connection_send_with_reply_and_block(dbusConnection, dbusMessage, DBUS_TIMEOUT_USE_DEFAULT, &dbusError);
+        if(dbusMessageReply == NULL)
+        {
+            Logger::getInstance()->error("Utils", __FUNCTION__, string(dbusError.name) + " " + string(dbusError.message));
+        }
+        else
+        {
+            dbus_message_unref(dbusMessageReply);
+        }           
+    }
+    
+    dbus_message_unref(dbusMessage);
+    dbus_connection_unref(dbusConnection);
+    
+    delete[] uris[0];
+    delete uris;
+    delete startupId;
 }
 
 int Utils::executeApplication(string application, string* output)

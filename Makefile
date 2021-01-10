@@ -16,7 +16,7 @@ FileExtractor.o\
 CC=g++
 DEBUG=-ggdb
 CFLAGS=-Wall -c $(DEBUG) -std=c++11
-LFLAGS=-Wall -ljansson -lsqlite3 -lcurl -lpthread -lxml2 -lm -ldlib -lpoppler-cpp -larchive $(DEBUG)
+LFLAGS=-Wall -ljansson -lsqlite3 -lcurl -lpthread -lxml2 -lm -ldlib -lpoppler-cpp -larchive -ldbus-1 $(DEBUG)
 GTKFLAGS=-export-dynamic `pkg-config --cflags --libs gtk+-3.0`
 BIN=emu-nexus
 SRCDIR=./src
