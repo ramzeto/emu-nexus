@@ -289,7 +289,7 @@ gboolean GameGridItemWidget::signalBoxButtonPressedEvent(GtkWidget* widget, GdkE
         
         
         // Show in explorer
-        GtkWidget *showInExplorerMenuitem = gtk_menu_item_new_with_label("Show in explorer");
+        GtkWidget *showInExplorerMenuitem = gtk_menu_item_new_with_label("Show in file manager");
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), showInExplorerMenuitem);
         g_signal_connect(showInExplorerMenuitem, "activate", G_CALLBACK(signalMenuShowInExplorerActivate), gameGridItemWidget);
         
