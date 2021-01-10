@@ -135,7 +135,14 @@ private:
      * @param menuitem
      * @param mainWindow
      */
-    static void signalMenuFavoriteActivate(GtkMenuItem *menuitem, gpointer gameGridItemWidget);    
+    static void signalMenuFavoriteActivate(GtkMenuItem *menuitem, gpointer gameGridItemWidget);
+
+    /**
+     * Signal triggered when the user selects the "show in explorer" menu option on a game in the grid.
+     * @param menuitem
+     * @param mainWindow
+     */
+    static void signalMenuShowInExplorerActivate(GtkMenuItem *menuitem, gpointer gameGridItemWidget);    
     
     /**
      * Signal triggered when the user selects the edit menu option on a game in the grid.

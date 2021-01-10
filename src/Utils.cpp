@@ -277,6 +277,11 @@ void Utils::openFileWithDefaultApplication(string fileName)
     system(string("xdg-open \"" + fileName + "\" &").c_str());
 }
 
+void Utils::showFileInFileManager(string fileName)
+{
+    system(string("dbus-send --session --print-reply --dest=org.freedesktop.FileManager1 --type=method_call /org/freedesktop/FileManager1 org.freedesktop.FileManager1.ShowItems array:string:\"file://" + fileName + "\" string:\"\"").c_str());
+}
+
 int Utils::executeApplication(string application, string* output)
 {
     FILE *fp;

@@ -266,6 +266,8 @@ gboolean GameGridItemWidget::signalBoxButtonPressedEvent(GtkWidget* widget, GdkE
         MainBannerWidget::getInstance()->setGameId(((GameGridItemWidget *)gameGridItemWidget)->game->getId());
 
         GtkWidget *menu = gtk_menu_new();        
+        
+        // Favorites
         if(((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuFavorite)
         {
             GtkWidget *menuitem = NULL;
@@ -285,6 +287,14 @@ gboolean GameGridItemWidget::signalBoxButtonPressedEvent(GtkWidget* widget, GdkE
             delete gameFavorite;
         }
         
+        
+        // Show in explorer
+        GtkWidget *showInExplorerMenuitem = gtk_menu_item_new_with_label("Show in explorer");
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), showInExplorerMenuitem);
+        g_signal_connect(showInExplorerMenuitem, "activate", G_CALLBACK(signalMenuShowInExplorerActivate), gameGridItemWidget);
+        
+        
+        // Edit and remove
         int allowEditing = 1;
         if(GameLauncher::getInstance()->getStatus() != GameLauncher::STATUS_IDLE)
         {
@@ -293,7 +303,6 @@ gboolean GameGridItemWidget::signalBoxButtonPressedEvent(GtkWidget* widget, GdkE
                 allowEditing = 0;
             }
         }
-
         if(allowEditing)
         {
             if(((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuEdit)
@@ -338,7 +347,12 @@ void GameGridItemWidget::signalMenuFavoriteActivate(GtkMenuItem *menuitem, gpoin
     
     ((GameGridItemWidget *)gameGridItemWidget)->callbackContextMenuFavorite((GameGridItemWidget *)gameGridItemWidget);
     
-    NotificationManager::getInstance()->notify(NOTIFICATION_GAME_FAVORITE_UPDATED, "", 0, 0, new Game(*((GameGridItemWidget *)gameGridItemWidget)->game));        
+    NotificationManager::getInstance()->notify(NOTIFICATION_GAME_FAVORITE_UPDATED, "", 0, 0, new Game(*((GameGridItemWidget *)gameGridItemWidget)->game));
+}
+
+void GameGridItemWidget::signalMenuShowInExplorerActivate(GtkMenuItem* menuitem, gpointer gameGridItemWidget)
+{
+    Utils::getInstance()->showFileInFileManager(((GameGridItemWidget *)gameGridItemWidget)->game->getFileName());
 }
 
 void GameGridItemWidget::signalMenuEditActivate(GtkMenuItem* menuitem, gpointer gameGridItemWidget)

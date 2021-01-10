@@ -129,6 +129,12 @@ public:
     void openFileWithDefaultApplication(string fileName);
     
     /**
+     * Shows a file in the file namager.
+     * @param fileName
+     */
+    void showFileInFileManager(string fileName);
+    
+    /**
      * Executes an application.
      * @param application Application path and parameters.
      * @param output Input/Output parameter. The output of the application.
