@@ -97,12 +97,26 @@ public:
         string getMediaDirectory();
 
 	json_t *toJson();
-
-        static Game* getGameWithFileName(int64_t platformId, string fileName);
+        
 	static list<Game *> *getItems(int64_t platformId, string query);
 	static Game *getItem(list<Game *> *items, unsigned int index);
 	static void releaseItems(list<Game *> *items);
 	static json_t *toJsonArray(list<Game *> *items);
+
+        /**
+         * Gets a game for a platform and a fileName (if exists).
+         * @param platformId
+         * @param fileName
+         * @return Pointer to a Game object if exists, NULL otherwise.
+         */
+        static Game* getGameWithFileName(int64_t platformId, string fileName);
+        
+        /**
+         * Utility method that gets the "sanitized" game name from the file name.
+         * @param fileName
+         * @return "sanitized" name.
+         */
+        static string getSanitizedNameFromFileName(string fileName);
 };
 
 #endif

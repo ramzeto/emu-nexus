@@ -41,8 +41,7 @@
 #include "Logger.h"
 #include "EsrbRating.h"
 
-//For Ubuntu: ln -s /usr/include/libxml2/libxml/ /usr/include/libxml
-#include <libxml/parser.h>
+#include <libxml/parser.h> //For Ubuntu: ln -s /usr/include/libxml2/libxml/ /usr/include/libxml
 #include <dirent.h>
 #include <cstring>
 #include <iostream>
@@ -151,11 +150,11 @@ void ParseDirectoryProcess::parseGameFiles(list<string> extensions, string direc
                             parseDirectoryGame->setFileName(directory + fileName);
                             parseDirectoryGame->setProcessed(0);
                             parseDirectoryGame->setTimestamp(Utils::getInstance()->nowIsoDateTime());
-                            parseDirectoryGame->setName(sanitizeName(fileName, *extension));
+                            parseDirectoryGame->setName(Game::getSanitizedNameFromFileName(fileName));
 
                             if(parseDirectory->getUseMame())
                             {
-                                parseDirectoryGame->setMameName(sanitizeName(getMameGameName(parseDirectoryGame->getName()), ""));
+                                parseDirectoryGame->setMameName(Game::getSanitizedNameFromFileName(getMameGameName(parseDirectoryGame->getName())));
                             }
                             else
                             {
@@ -178,46 +177,6 @@ void ParseDirectoryProcess::parseGameFiles(list<string> extensions, string direc
         }        
         closedir(dir);
     }
-}
-
-string ParseDirectoryProcess::sanitizeName(string rawName, string extension)
-{
-    if(extension.length() > 0)
-    {
-        rawName.replace(rawName.length() - extension.length(), extension.length(), "");
-    }
-    
-    string name = "";
-    int open = 0;
-    for(unsigned int c = 0; c < rawName.length(); c++)
-    {
-        char letter = rawName.c_str()[c];
-        
-        if(letter == '(' || letter == '[' || letter == '{')
-        {
-            open++;
-        }
-        else if(open > 0 && (letter == ')' || letter == ']' || letter == '}'))
-        {
-            open--;
-        }                
-        else if(!open)
-        {
-            name += letter;
-        }
-    }
-    
-    // Sometimes ROM names have the version not in parenthesis, it should be removed
-    regex regEx("[a-zA-Z0-9_+?/!\\.(),&:;' -]*[\n\r\f\t ]\\{1,\\}\\(v[0-9]\\{1,\\}\\.\\{1,\\}[0-9]\\{1,\\}\\).*", regex_constants::basic);
-    cmatch matches;
-    regex_match(name.c_str(), matches, regEx, regex_constants::match_default);
-    if(matches.size() == 2)
-    {
-        name = Utils::getInstance()->strReplace(name, matches.str(1), "");
-    }
-    //_________
-    
-    return Utils::getInstance()->trim(name);
 }
 
 string ParseDirectoryProcess::getMameGameName(string fileName)
@@ -658,30 +617,6 @@ void ParseDirectoryProcess::fetch(ParseDirectoryGame* parseDirectoryGame)
             }                
         }
 
-        /*string aux = "";
-        for(list<string>::iterator it = gameNameTokens.begin(); it != gameNameTokens.end(); it++)
-        {
-            if(aux.length() > 0)
-            {
-                aux += " | ";
-            }
-            aux += (*it);
-        }
-        Logger::getInstance()->debug("PareDirectoryProcess", __FUNCTION__, "gameNameTokens: " + aux);            
-        for(unsigned int index = 0; index < apiGames->size(); index++)
-        {
-            aux = "";
-            for(list<string>::iterator it = gameEvaluations[index].nameTokens.begin(); it != gameEvaluations[index].nameTokens.end(); it++)
-            {
-                if(aux.length() > 0)
-                {
-                    aux += " | ";
-                }
-                aux += (*it);
-            }
-
-            Logger::getInstance()->debug("PareDirectoryProcess", __FUNCTION__, "apiGame: " + gameEvaluations[index].apiGame->getName() + " coincidences: " + to_string(gameEvaluations[index].coincidences) + " notCoincidences: " + to_string(gameEvaluations[index].notCoincidences) + " nameTokens: " + aux + " points: " + to_string(gameEvaluations[index].points));
-        }*/
 
         GameEvaluation_t *bestGameEvaluation = NULL;
         GameEvaluation_t *winnerGameEvaluation = NULL;
@@ -715,17 +650,6 @@ void ParseDirectoryProcess::fetch(ParseDirectoryGame* parseDirectoryGame)
 
         if(winnerGameEvaluation)
         {
-            /*aux = "";
-            for(list<string>::iterator it = winnerGameEvaluation->nameTokens.begin(); it != winnerGameEvaluation->nameTokens.end(); it++)
-            {
-                if(aux.length() > 0)
-                {
-                    aux += " | ";
-                }
-                aux += (*it);
-            }
-            Logger::getInstance()->debug("PareDirectoryProcess", __FUNCTION__, "winnerGameEvaluation.apiGame: " + winnerGameEvaluation->apiGame->getName() + " coincidences: " + to_string(winnerGameEvaluation->coincidences) + " notCoincidences: " + to_string(winnerGameEvaluation->notCoincidences) + " nameTokens: " + aux+ " points: " + to_string(winnerGameEvaluation->points));*/
-
             int64_t esrbRatingId = 0;
             if(winnerGameEvaluation->apiGame->getEsrbRatingId())
             {

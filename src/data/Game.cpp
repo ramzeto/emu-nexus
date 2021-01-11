@@ -36,6 +36,7 @@
 #include "GameFavorite.h"
 
 #include <iostream>
+#include <regex>
 
 const string Game::DIRECTORY_PREFIX = "game_";
 
@@ -502,45 +503,6 @@ json_t *Game::toJson()
 	return json;
 }
 
-Game* Game::getGameWithFileName(int64_t platformId, string fileName)
-{
-    sqlite3 *db = Database::getInstance()->acquire();
-    Game *game = NULL;
-    string query = "select id, platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId from Game where platformId = ? and fileName = ?";
-    sqlite3_stmt *statement;
-    if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
-    {
-        sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
-        sqlite3_bind_text(statement, 2, fileName.c_str(), fileName.length(), NULL);
-
-            while (sqlite3_step(statement) == SQLITE_ROW)
-            {
-                    game = new Game();
-                    game->id = (int64_t)sqlite3_column_int64(statement, 0);
-                    game->platformId = (int64_t)sqlite3_column_int64(statement, 1);
-                    game->esrbRatingId = (int64_t)sqlite3_column_int64(statement, 2);
-                    game->name = string((const char*) sqlite3_column_text(statement, 3));
-                    game->description = string((const char*) sqlite3_column_text(statement, 4));
-                    game->releaseDate = string((const char*) sqlite3_column_text(statement, 5));
-                    game->fileName = string((const char*) sqlite3_column_text(statement, 6));
-                    game->notes = string((const char*) sqlite3_column_text(statement, 7));
-                    game->command = string((const char*) sqlite3_column_text(statement, 8));
-                    game->deflate = (int64_t)sqlite3_column_int64(statement, 9);
-                    game->deflateFileExtensions = string((const char*) sqlite3_column_text(statement, 10));
-                    game->timestamp = string((const char*) sqlite3_column_text(statement, 11));
-                    game->apiId = (int64_t)sqlite3_column_int64(statement, 12);
-            }
-    }
-    else
-    {
-            Logger::getInstance()->error("Game", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
-    }
-    sqlite3_finalize(statement);
-    Database::getInstance()->release();
-
-    return game;
-}
-
 list<Game *> *Game::getItems(int64_t platformId, string queryString)
 {
         sqlite3 *db = Database::getInstance()->acquire();
@@ -632,4 +594,85 @@ json_t *Game::toJsonArray(list<Game *> *items)
 	}
 
 	return jsonArray;
+}
+
+Game* Game::getGameWithFileName(int64_t platformId, string fileName)
+{
+    sqlite3 *db = Database::getInstance()->acquire();
+    Game *game = NULL;
+    string query = "select id, platformId, esrbRatingId, name, description, releaseDate, fileName, notes, command, deflate, deflateFileExtensions, timestamp, apiId from Game where platformId = ? and fileName = ?";
+    sqlite3_stmt *statement;
+    if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+    {
+        sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
+        sqlite3_bind_text(statement, 2, fileName.c_str(), fileName.length(), NULL);
+
+            while (sqlite3_step(statement) == SQLITE_ROW)
+            {
+                    game = new Game();
+                    game->id = (int64_t)sqlite3_column_int64(statement, 0);
+                    game->platformId = (int64_t)sqlite3_column_int64(statement, 1);
+                    game->esrbRatingId = (int64_t)sqlite3_column_int64(statement, 2);
+                    game->name = string((const char*) sqlite3_column_text(statement, 3));
+                    game->description = string((const char*) sqlite3_column_text(statement, 4));
+                    game->releaseDate = string((const char*) sqlite3_column_text(statement, 5));
+                    game->fileName = string((const char*) sqlite3_column_text(statement, 6));
+                    game->notes = string((const char*) sqlite3_column_text(statement, 7));
+                    game->command = string((const char*) sqlite3_column_text(statement, 8));
+                    game->deflate = (int64_t)sqlite3_column_int64(statement, 9);
+                    game->deflateFileExtensions = string((const char*) sqlite3_column_text(statement, 10));
+                    game->timestamp = string((const char*) sqlite3_column_text(statement, 11));
+                    game->apiId = (int64_t)sqlite3_column_int64(statement, 12);
+            }
+    }
+    else
+    {
+            Logger::getInstance()->error("Game", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
+    }
+    sqlite3_finalize(statement);
+    Database::getInstance()->release();
+
+    return game;
+}
+
+string Game::getSanitizedNameFromFileName(string fileName)
+{
+    fileName = Utils::getInstance()->getFileBasename(fileName);    
+    size_t periodPosition = fileName.find_last_of(".");        
+    if(periodPosition != string::npos)
+    {
+        fileName.erase(periodPosition, fileName.length() - periodPosition);
+    }
+    
+    string name = "";
+    int open = 0;
+    for(unsigned int c = 0; c < fileName.length(); c++)
+    {
+        char letter = fileName.c_str()[c];
+        
+        if(letter == '(' || letter == '[' || letter == '{')
+        {
+            open++;
+        }
+        else if(open > 0 && (letter == ')' || letter == ']' || letter == '}'))
+        {
+            open--;
+        }                
+        else if(!open)
+        {
+            name += letter;
+        }
+    }
+    
+    // Sometimes ROM names have the version not in parenthesis, it should be removed
+    regex regEx("[a-zA-Z0-9_+?/!\\.(),&:;' -]*[\n\r\f\t ]\\{1,\\}\\(v[0-9]\\{1,\\}\\.\\{1,\\}[0-9]\\{1,\\}\\).*", regex_constants::basic);
+    cmatch matches;
+    regex_match(name.c_str(), matches, regEx, regex_constants::match_default);
+    if(matches.size() == 2)
+    {
+        name = Utils::getInstance()->strReplace(name, matches.str(1), "");
+    }
+    //_________
+    
+    return Utils::getInstance()->trim(name);
 }

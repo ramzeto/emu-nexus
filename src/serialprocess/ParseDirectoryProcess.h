@@ -64,15 +64,7 @@ private:
      * @param directory Directory to process.
      */
     void parseGameFiles(list<string> extensions, string directory);
-    
-    /**
-     * Sanitizes the name of a file. Removes undesired characters, region and version information.
-     * @param rawName
-     * @param extension
-     * @return Sanitized name of the file.
-     */
-    string sanitizeName(string rawName, string extension);
-    
+        
     /**
      * Queries MAME for the game name from a filename.
      * @param fileName

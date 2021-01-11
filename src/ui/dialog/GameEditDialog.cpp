@@ -509,7 +509,7 @@ void GameEditDialog::selectFileName()
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(fileName));
         Preferences::getInstance()->save();
        
-        string gameName = sanitizeFileName(fileName);
+        string gameName = Game::getSanitizedNameFromFileName(fileName);
         
         gtk_entry_set_text(nameEntry, gameName.c_str());
         fileSelected = 1;
@@ -1101,39 +1101,6 @@ void GameEditDialog::selectGameDocument(GameDocument *gameDocument)
     gtk_widget_show(GTK_WIDGET(removeDocumentButton));
     gtk_widget_show(GTK_WIDGET(documentNameEntry));
 }
-
-string GameEditDialog::sanitizeFileName(string fileName)
-{
-    fileName = Utils::getInstance()->getFileBasename(fileName);    
-    size_t periodPosition = fileName.find_last_of(".");        
-    if(periodPosition != string::npos)
-    {
-        fileName.erase(periodPosition, fileName.length() - periodPosition);
-    }
-    
-    string sanitizedName = "";
-    int open = 0;
-    for(unsigned int c = 0; c < fileName.length(); c++)
-    {
-        char letter = fileName.c_str()[c];
-        
-        if(letter == '(' || letter == '[' || letter == '{')
-        {
-            open++;
-        }
-        else if(open > 0 && (letter == ')' || letter == ']' || letter == '}'))
-        {
-            open--;
-        }                
-        else if(!open)
-        {
-            sanitizedName += letter;
-        }
-    }
-    
-    return Utils::getInstance()->trim(sanitizedName);
-}
-
 
 void GameEditDialog::search()
 {

@@ -211,8 +211,8 @@ MainWindow::MainWindow()
         gtk_widget_hide(GTK_WIDGET(addPlatformButton));
         loadPlatformList();
         
-        //SetupDatabaseProcess *setupDatabaseProcess = new SetupDatabaseProcess();
-        //SerialProcessExecutor::getInstance()->schedule(setupDatabaseProcess);
+        SetupDatabaseProcess *setupDatabaseProcess = new SetupDatabaseProcess();
+        SerialProcessExecutor::getInstance()->schedule(setupDatabaseProcess);
     }
     else
     {

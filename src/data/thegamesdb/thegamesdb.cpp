@@ -465,9 +465,9 @@ void TheGamesDB::Elasticsearch::getGames(int64_t apiPlatformId, string query, fu
         }
         delete httpConnector;
         
-        items->sort([](TheGamesDB::Game *game1, TheGamesDB::Game *game2) -> int {
+        /*items->sort([](TheGamesDB::Game *game1, TheGamesDB::Game *game2) -> int {
             return Utils::getInstance()->strToLowerCase(game1->getName()).compare(Utils::getInstance()->strToLowerCase(game2->getName())) < 0;
-        });        
+        });*/
 
     }, [callback, items]() -> void {
         callback(items);        
