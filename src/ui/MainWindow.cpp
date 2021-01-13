@@ -510,7 +510,7 @@ void MainWindow::removePlatform(int64_t platformId)
     Platform *platform = new Platform(platformId);
     platform->load();
     
-    MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(mainWindow), "Sure you want to remove \"" + platform->getName() + "\"?", "Remove", "Cancel");   
+    MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(mainWindow), "Sure you want to remove \"" + platform->getName() + "\"?\n(Your actual files will not be deleted)", "Remove", "Cancel");   
     if(messageDialog->execute() == GTK_RESPONSE_YES)
     {
         showHome();
