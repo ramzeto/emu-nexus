@@ -279,7 +279,7 @@ void GamesPanel::removeGame(int64_t gameId)
     Game *game = new Game(gameId);
     game->load();
     
-    MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(parentWindow), "Sure you want to remove \"" + game->getName() + "\"?", "Remove", "Cancel");
+    MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(parentWindow), "Sure you want to remove \"" + game->getName() + "\"?\n(Your actual file will not be deleted)", "Remove", "Cancel");
     if(messageDialog->execute() == GTK_RESPONSE_YES)
     {
         game->remove();

@@ -45,7 +45,7 @@ public:
      * @param positiveButtonText Positive button text. If is an empty string, the button is not showed. If pressed, gtk_dialog_response(..., GTK_RESPONSE_YES) will be called.
      * @param negativeButtonText Negative button text. If is an empty string, the button is not showed. If pressed, gtk_dialog_response(..., GTK_RESPONSE_NO) will be called.
      */
-    MessageDialog(GtkWindow *parent, string message, string positiveButtonText, string negativeButtonText);
+    MessageDialog(GtkWindow *parent, string message, string positiveButtonText, string negativeButtonText = "");
     
     virtual ~MessageDialog();
 

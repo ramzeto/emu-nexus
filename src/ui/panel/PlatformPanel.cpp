@@ -25,6 +25,7 @@
 #include "PlatformPanel.h"
 #include "AddDirectoryDialog.h"
 #include "MainBannerWidget.h"
+#include "MessageDialog.h"
 
 PlatformPanel::PlatformPanel(GtkWindow *parentWindow, int platformId)  : GamesPanel(parentWindow)
 {
@@ -48,12 +49,23 @@ void PlatformPanel::updateGames(string searchQuery)
 
 void PlatformPanel::showAddDirectoryDialog()
 {
+    int directoryAdded = 0;
     AddDirectoryDialog *addDirectoryDialog = new AddDirectoryDialog(GTK_WINDOW(parentWindow), platformId);   
     if(addDirectoryDialog->execute() == GTK_RESPONSE_ACCEPT)
     {
-        
+        directoryAdded = 1;
     }
     delete addDirectoryDialog;
+    
+    if(directoryAdded)
+    {
+        MessageDialog *messageDialog = new MessageDialog(GTK_WINDOW(parentWindow), "You can continue adding more directories. They will be processed in order.", "Ok");
+        if(messageDialog->execute() == GTK_RESPONSE_YES)
+        {
+            
+        }
+        delete messageDialog;
+    }
 }
 
 void PlatformPanel::loadGames()
