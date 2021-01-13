@@ -378,14 +378,10 @@ void MainWindow::loadPlatformList()
             
             Game::releaseItems(games);
 
-            PlatformImage *platformImage = PlatformImage::getPlatformImage(platform->getId(), PlatformImage::TYPE_BOXART);
+            PlatformImage *platformImage = PlatformImage::getPlatformImage(platform->getId(), PlatformImage::TYPE_ICON);
             if(platformImage)
             {
-                if(Utils::getInstance()->fileExists(platformImage->getThumbnailFileName()))
-                {
-                    UiUtils::getInstance()->loadImage(image, platformImage->getThumbnailFileName(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
-                }
-                else if(Utils::getInstance()->fileExists(platformImage->getFileName()))
+                if(Utils::getInstance()->fileExists(platformImage->getFileName()))
                 {
                     UiUtils::getInstance()->loadImage(image, platformImage->getFileName(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
                 }
@@ -453,14 +449,10 @@ void MainWindow::updatePlatform(int64_t platformId)
 
             Game::releaseItems(games);
 
-            PlatformImage *platformImage = PlatformImage::getPlatformImage(platform->getId(), PlatformImage::TYPE_BOXART);
+            PlatformImage *platformImage = PlatformImage::getPlatformImage(platform->getId(), PlatformImage::TYPE_ICON);
             if(platformImage)
             {
-                if(Utils::getInstance()->fileExists(platformImage->getThumbnailFileName()))
-                {
-                    UiUtils::getInstance()->loadImage(image, platformImage->getThumbnailFileName(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
-                }
-                else if(Utils::getInstance()->fileExists(platformImage->getFileName()))
+                if(Utils::getInstance()->fileExists(platformImage->getFileName()))
                 {
                     UiUtils::getInstance()->loadImage(image, platformImage->getFileName(), PLATFORM_IMAGE_WIDTH, PLATFORM_IMAGE_HEIGHT);
                 }
