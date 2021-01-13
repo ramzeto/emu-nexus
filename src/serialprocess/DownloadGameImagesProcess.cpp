@@ -28,6 +28,7 @@
 #include "Utils.h"
 #include "NotificationManager.h"
 #include "Notifications.h"
+#include "Logger.h"
 
 #include <iostream>
 
@@ -56,7 +57,6 @@ void DownloadGameImagesProcess::execute()
 
         int progress = ((double)index / (double)gameImages->size()) * 100.0;
         NotificationManager::getInstance()->notify(TYPE, game->getName(), status, 0, NULL, progress);
-
         
         HttpConnector *httpConnector = new HttpConnector(gameImage->getUrl());
         httpConnector->get();
@@ -74,10 +74,15 @@ void DownloadGameImagesProcess::execute()
                 NotificationManager::getInstance()->notify(NOTIFICATION_GAME_UPDATED, "", 0, 0, new Game(*game));
             }
         }
+        // Removes the image record if it does not exists in the TheGamesDB servers.
+        else if(httpConnector->getHttpStatus() == HttpConnector::HTTP_NOT_FOUND)
+        {
+            gameImage->remove();
+        }
         delete httpConnector;
         
         delete game;
-    }
+    }    
     GameImage::releaseItems(gameImages);
     
     status = STATUS_SUCCESS;

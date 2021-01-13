@@ -32,6 +32,7 @@
 const string HttpConnector::METHOD_POST = "POST";
 const string HttpConnector::METHOD_GET = "GET";
 const int HttpConnector::HTTP_OK = 200;
+const int HttpConnector::HTTP_NOT_FOUND = 404;
     
 HttpConnector::HttpConnector(string url)
 {

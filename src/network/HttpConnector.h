@@ -41,6 +41,7 @@ public:
     static const string METHOD_GET;
     
     static const int HTTP_OK;
+    static const int HTTP_NOT_FOUND;
     
     HttpConnector(string url);
     virtual ~HttpConnector();
