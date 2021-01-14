@@ -64,6 +64,7 @@ private:
     
     GtkBox *processBox;
     GtkSpinner *processSpinner;
+    GtkLabel *processQueueLabel;
     GtkLabel *processTitleLabel;
     GtkLabel *processMessageLabel;
     GtkProgressBar *processProgressBar;
@@ -134,7 +135,6 @@ private:
      * @param platformId
      */
     void removePlatform(int64_t platformId);
-    
     
     
     

@@ -99,7 +99,8 @@ MainWindow::MainWindow()
     bannerBox = (GtkBox *)gtk_builder_get_object (builder, "bannerBox");
     contentBox = (GtkBox *)gtk_builder_get_object (builder, "contentBox");    
     processBox = (GtkBox *)gtk_builder_get_object (builder, "processBox");
-    processSpinner = (GtkSpinner *)gtk_builder_get_object (builder, "processSpinner");;
+    processSpinner = (GtkSpinner *)gtk_builder_get_object (builder, "processSpinner");
+    processQueueLabel = (GtkLabel *)gtk_builder_get_object (builder, "processQueueLabel");
     processTitleLabel = (GtkLabel *)gtk_builder_get_object (builder, "processTitleLabel");
     processMessageLabel = (GtkLabel *)gtk_builder_get_object (builder, "processMessageLabel");   
     processProgressBar = (GtkProgressBar *)gtk_builder_get_object (builder, "processProgressBar");
@@ -193,6 +194,7 @@ MainWindow::MainWindow()
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_ACTIVITY_UPDATED, this, onNotification, 1);
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_FAVORITE_UPDATED, this, onNotification, 1);
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_LAUNCHER_STATUS_CHANGED, this, onNotification, 1);
+    NotificationManager::getInstance()->registerToNotification(NOTIFICATION_PROCESS_QUEUE_CHANGED, this, onNotification, 1);
     
     gtk_container_add(GTK_CONTAINER(bannerBox), GTK_WIDGET(MainBannerWidget::getInstance()->getWidget()));        
     gtk_widget_show_all(GTK_WIDGET(mainWindow));
@@ -202,6 +204,7 @@ MainWindow::MainWindow()
     gtk_widget_hide(GTK_WIDGET(gameSearchEntry));
     
     gtk_spinner_stop(processSpinner);
+    gtk_label_set_text(processQueueLabel, "");
     gtk_label_set_text(processTitleLabel, "");
     gtk_label_set_text(processMessageLabel, "");
     gtk_widget_hide(GTK_WIDGET(processProgressBar));           
@@ -234,6 +237,7 @@ MainWindow::~MainWindow()
     NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_ACTIVITY_UPDATED, this);
     NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_FAVORITE_UPDATED, this);
     NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_LAUNCHER_STATUS_CHANGED, this);
+    NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_PROCESS_QUEUE_CHANGED, this);
     
     Platform::releaseItems(platforms);
     
@@ -558,7 +562,7 @@ void MainWindow::onNotification(Notification* notification)
     {
         if(notification->getStatus() == SerialProcess::STATUS_RUNNING)
         {
-            gtk_spinner_start(mainWindow->processSpinner);
+            gtk_spinner_start(mainWindow->processSpinner);            
             gtk_label_set_text(mainWindow->processTitleLabel, "Starting");
             gtk_label_set_text(mainWindow->processMessageLabel, notification->getMessage().c_str());
 
@@ -596,6 +600,7 @@ void MainWindow::onNotification(Notification* notification)
             }
         }
     }
+    
     else if(notification->getName().compare(ParseDirectoryProcess::TYPE) == 0)
     {
         if(notification->getStatus() == SerialProcess::STATUS_RUNNING)
@@ -634,6 +639,7 @@ void MainWindow::onNotification(Notification* notification)
             }
         }
     }
+    
     else if(notification->getName().compare(DownloadGameImagesProcess::TYPE) == 0)
     {
         if(notification->getStatus() == SerialProcess::STATUS_RUNNING)
@@ -669,8 +675,7 @@ void MainWindow::onNotification(Notification* notification)
                 delete messageDialog;
             }
         }
-    }
-    
+    }    
     
     else if(notification->getName().compare(NOTIFICATION_PLATFORM_UPDATED) == 0)
     {
@@ -682,19 +687,23 @@ void MainWindow::onNotification(Notification* notification)
             ((PlatformPanel *)mainWindow->currentPanel)->updateGames(string(gtk_entry_get_text(GTK_ENTRY(mainWindow->gameSearchEntry))));
         }
     }
+    
     else if(notification->getName().compare(NOTIFICATION_GAME_ACTIVITY_UPDATED) == 0)
     {
         mainWindow->updateRecents();
-    }    
+    }
+    
     else if(notification->getName().compare(NOTIFICATION_GAME_FAVORITE_UPDATED) == 0)
     {
         mainWindow->updateFavorites();
-    }    
+    }
+    
     else if(notification->getName().compare(NOTIFICATION_DIRECTORY_ADDED) == 0)
     {
         ParseDirectoryProcess *parseDirectoryProcess = new ParseDirectoryProcess();
         SerialProcessExecutor::getInstance()->schedule(parseDirectoryProcess);
     }
+    
     else if(notification->getName().compare(NOTIFICATION_GAME_LAUNCHER_STATUS_CHANGED) == 0)
     {
         if(notification->getError())
@@ -757,8 +766,18 @@ void MainWindow::onNotification(Notification* notification)
         }
     }
     
-    
-    
-    
+    else if(notification->getName().compare(NOTIFICATION_PROCESS_QUEUE_CHANGED) == 0)
+    {
+        unsigned int processCount = SerialProcessExecutor::getInstance()->getProcessCount();
+        if(processCount > 0)
+        {
+            gtk_label_set_text(mainWindow->processQueueLabel, string("(" + to_string(processCount) + " pending " + (processCount == 1 ? "job" : "jobs") + ")").c_str());
+        }
+        else
+        {
+            gtk_label_set_text(mainWindow->processQueueLabel, "");
+        }
+    }
+          
 }
 

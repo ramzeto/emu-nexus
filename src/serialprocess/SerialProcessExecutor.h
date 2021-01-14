@@ -42,7 +42,13 @@ public:
      * Schedules a serialProcess object for execution. This serial process will be executed in a background thread.
      * @param serialProcess
      */
-    void schedule(SerialProcess *serialProcess);    
+    void schedule(SerialProcess *serialProcess);
+    
+    /**
+     * 
+     * @return Gets the number of processes in queue.
+     */
+    unsigned int getProcessCount();
     
     /**
      * 

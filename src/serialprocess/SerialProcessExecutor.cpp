@@ -25,6 +25,8 @@
 #include "SerialProcessExecutor.h"
 #include "ThreadManager.h"
 #include "Logger.h"
+#include "NotificationManager.h"
+#include "Notifications.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -47,10 +49,12 @@ SerialProcessExecutor::~SerialProcessExecutor()
 }
 
 void SerialProcessExecutor::schedule(SerialProcess* serialProcess)
-{    
+{
     pthread_mutex_lock(&serialProcessesMutex);
     serialProcesses->push_back(serialProcess);
     pthread_mutex_unlock(&serialProcessesMutex);
+    
+    NotificationManager::getInstance()->notify(NOTIFICATION_PROCESS_QUEUE_CHANGED);
     
     if(isExecuting)
     {
@@ -77,7 +81,9 @@ void SerialProcessExecutor::schedule(SerialProcess* serialProcess)
                 pthread_mutex_lock(&serialProcessesMutex);
                 serialProcesses->remove(*serialProcess);
                 delete *serialProcess;
-                pthread_mutex_unlock(&serialProcessesMutex);                
+                pthread_mutex_unlock(&serialProcessesMutex);
+                
+                NotificationManager::getInstance()->notify(NOTIFICATION_PROCESS_QUEUE_CHANGED);
             }
             
             safeSerialProcesses->clear();
@@ -85,9 +91,16 @@ void SerialProcessExecutor::schedule(SerialProcess* serialProcess)
             
             sleep(1);
         }
-    });
+    });   
+}
+
+unsigned int SerialProcessExecutor::getProcessCount() 
+{
+    pthread_mutex_lock(&serialProcessesMutex);
+    unsigned int count = serialProcesses->size();
+    pthread_mutex_unlock(&serialProcessesMutex);
     
-        
+    return count;
 }
 
 SerialProcessExecutor* SerialProcessExecutor::getInstance()
