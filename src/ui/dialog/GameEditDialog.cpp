@@ -40,7 +40,7 @@
 #include "ThreadManager.h"
 #include "thegamesdb.h"
 
-#include <iostream>
+#include <algorithm>
 
 const int GameEditDialog::THUMBNAIL_IMAGE_WIDTH = 90;
 const int GameEditDialog::THUMBNAIL_IMAGE_HEIGHT = 90;
@@ -1540,32 +1540,79 @@ void GameEditDialog::downloadGameImage(GameEditDialog *gameEditDialog, GameImage
                 pthread_mutex_unlock(&downloadGameImageRefsMutex);
 
                 if(downloadGameImageRef)
-                {            
-                    HttpConnector *httpConnector = new HttpConnector(downloadGameImageRef->gameImage->getUrl());
+                {
+                    GameImage *gameImage = downloadGameImageRef->gameImage;
+                    
+                    HttpConnector *httpConnector = new HttpConnector(gameImage->getUrl());
                     httpConnector->get();
-
                     if(httpConnector->getHttpStatus() == HttpConnector::HTTP_OK)
                     {
-                        Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), downloadGameImageRef->gameImage->getFileName());
+                        Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), gameImage->getFileName());
                         downloadGameImageRef->gameImage->setDownloaded(1);
                     }
                     delete httpConnector;
                     
+                    // Checks, saves and updates the image in the main thread to avoid race conditions with the destructor
                     ThreadManager::getInstance()->execute(1, [downloadGameImageRef]() -> void {
-                        pthread_mutex_lock(&downloadGameImageRefsMutex);
-                        downloadGameImageRefs->remove(downloadGameImageRef);
-                        pthread_mutex_unlock(&downloadGameImageRefsMutex);
-
-                        // Checks if the GameImage is still present in the list of the GameEditDialog
-                        int isImage = 0;
-                        for(list<GameImage *>::iterator gameImage = downloadGameImageRef->gameEditDialog->gameImages->begin(); gameImage != downloadGameImageRef->gameEditDialog->gameImages->end(); gameImage++)
+                        
+                        GameEditDialog *gameEditDialog = downloadGameImageRef->gameEditDialog;
+                        GameImage *gameImage = downloadGameImageRef->gameImage;
+                        
+                        // Checks if the GameImage is still present in the platformImages list of the PlatformEditDialog, if not, it should be deleted
+                        int isImage = find(gameEditDialog->gameImages->begin(), gameEditDialog->gameImages->end(), gameImage) != gameEditDialog->gameImages->end();
+                        if(!isImage)
                         {
-                            if(downloadGameImageRef->gameImage == (*gameImage))
+                            delete gameImage;                            
+                        }
+                        //_____________________
+                        
+                        // Checks if the GameEditDialog was dismissed
+                        if(gameEditDialog->dismissed)
+                        {
+                            // Checks if all images for this dialog have been downloaded
+                            pthread_mutex_lock(&downloadGameImageRefsMutex);
+                            int isDialog = 0;
+                            for(list<DownloadGameImageRef_t *>::iterator aDownloadGameImageRef = downloadGameImageRefs->begin(); aDownloadGameImageRef != downloadGameImageRefs->end(); aDownloadGameImageRef++)
                             {
-                                isImage = 1;
-                                break;
+                                if(*aDownloadGameImageRef == downloadGameImageRef)
+                                {
+                                    continue;
+                                }
+                                if((*aDownloadGameImageRef)->gameEditDialog == gameEditDialog)
+                                {
+                                    isDialog = 1;
+                                    break;
+                                }
+                            }
+                            pthread_mutex_unlock(&downloadGameImageRefsMutex);
+                            
+                            // If the user saved the Game and the image was downloaded, saves the image
+                            if(gameEditDialog->saved && gameImage->getDownloaded())
+                            {
+                                gameEditDialog->saveNewGameImage(gameImage);
+                            }
+                            
+                            // If all images have been downloaded, destroys the dialog
+                            if(!isDialog)
+                            {
+                                if(gameEditDialog->saved)
+                                {
+                                    NotificationManager::getInstance()->notify(NOTIFICATION_GAME_UPDATED, "", 0, 0, new Game(*(gameEditDialog->game)));
+                                }
+                                delete gameEditDialog;
+                            }                            
+                        }
+                        else if(isImage)
+                        {
+                            // If the image was downloaded and the GameEditDialog is visible, updates the UI
+                            if(gameImage->getDownloaded())
+                            {
+                                gameEditDialog->updateGameImageGrid();
                             }
                         }
+                        //_____________________
+                        
+                        
 
                         if(isImage)
                         {
@@ -1615,6 +1662,12 @@ void GameEditDialog::downloadGameImage(GameEditDialog *gameEditDialog, GameImage
                             }
                             pthread_mutex_unlock(&downloadGameImageRefsMutex);        
                         }
+                        
+                        
+                        pthread_mutex_lock(&downloadGameImageRefsMutex);
+                        downloadGameImageRefs->remove(downloadGameImageRef);
+                        delete downloadGameImageRef;
+                        pthread_mutex_unlock(&downloadGameImageRefsMutex);
                     });
                 }
 

@@ -34,6 +34,9 @@
 #include "Notifications.h"
 #include "Directory.h"
 #include "ThreadManager.h"
+#include "Logger.h"
+
+#include <algorithm>
 
 const int PlatformEditDialog::THUMBNAIL_IMAGE_WIDTH = 90;
 const int PlatformEditDialog::THUMBNAIL_IMAGE_HEIGHT = 90;
@@ -137,9 +140,9 @@ void PlatformEditDialog::deleteWhenReady(PlatformEditDialog *platformEditDialog)
     // Checks if the PlatformEditDialog is waiting for PlatformImages to be downloaded
     int isDownloading = 0;
     pthread_mutex_lock(&downloadPlatformImageRefsMutex);
-    for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
+    for(list<DownloadPlatformImageRef_t *>::iterator downloadPlatformImageRef = downloadPlatformImageRefs->begin(); downloadPlatformImageRef != downloadPlatformImageRefs->end(); downloadPlatformImageRef++)
     {
-        if((*aDownloadPlatformImageRef)->platformEditDialog == platformEditDialog)
+        if((*downloadPlatformImageRef)->platformEditDialog == platformEditDialog)
         {
             isDownloading = 1;
             break;
@@ -614,7 +617,7 @@ void PlatformEditDialog::save()
         return;
     }    
 
-    // Only assign the API platform if the platform is new
+    // Only assigns the API platform if the platform is new
     if(!platform->getId())
     {
         if(apiPlatform)
@@ -707,13 +710,13 @@ int PlatformEditDialog::downloadingPlatformImages = 0;
 
 void PlatformEditDialog::downloadPlatformImage(PlatformEditDialog* platformEditDialog, PlatformImage* platformImage)
 {
-    pthread_mutex_lock(&downloadPlatformImageRefsMutex);
-    
+    pthread_mutex_lock(&downloadPlatformImageRefsMutex);    
     DownloadPlatformImageRef_t *downloadPlatformImageRef = new DownloadPlatformImageRef_t;
     downloadPlatformImageRef->platformEditDialog = platformEditDialog;
     downloadPlatformImageRef->platformImage = platformImage;
     downloadPlatformImageRefs->push_back(downloadPlatformImageRef);
-        
+    pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
+    
     if(!downloadingPlatformImages)
     {
         downloadingPlatformImages = 1;
@@ -736,87 +739,88 @@ void PlatformEditDialog::downloadPlatformImage(PlatformEditDialog* platformEditD
 
                 if(downloadPlatformImageRef)
                 {
-                    HttpConnector *httpConnector = new HttpConnector(downloadPlatformImageRef->platformImage->getUrl());
+                    PlatformImage *platformImage = downloadPlatformImageRef->platformImage;
+                                                               
+                    HttpConnector *httpConnector = new HttpConnector(platformImage->getUrl());
                     httpConnector->get();            
                     if(httpConnector->getHttpStatus() == HttpConnector::HTTP_OK)
                     {
-                        Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), downloadPlatformImageRef->platformImage->getFileName());
-                        downloadPlatformImageRef->platformImage->setDownloaded(1);
+                        Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), platformImage->getFileName());
+                        platformImage->setDownloaded(1);
                     }
                     delete httpConnector;
-
+                    
+                    // Checks, saves and updates the image in the main thread to avoid race conditions with the destructor
                     ThreadManager::getInstance()->execute(1, [downloadPlatformImageRef]() -> void {
-    
-                        pthread_mutex_lock(&downloadPlatformImageRefsMutex);
-                        downloadPlatformImageRefs->remove(downloadPlatformImageRef);
-                        pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
+                        
+                        PlatformEditDialog *platformEditDialog = downloadPlatformImageRef->platformEditDialog;
+                        PlatformImage *platformImage = downloadPlatformImageRef->platformImage;
 
-                        // Checks if the PlatformImage is still present in the list of the PlatformEditDialog
-                        int isImage = 0;
-                        for(list<PlatformImage *>::iterator platformImage = downloadPlatformImageRef->platformEditDialog->platformImages->begin(); platformImage != downloadPlatformImageRef->platformEditDialog->platformImages->end(); platformImage++)
+                        // Checks if the PlatformImage is still present in the platformImages list of the PlatformEditDialog, if not, it should be deleted
+                        int isImage = find(platformEditDialog->platformImages->begin(), platformEditDialog->platformImages->end(), platformImage) != platformEditDialog->platformImages->end();
+                        if(!isImage)
                         {
-                            if(downloadPlatformImageRef->platformImage == (*platformImage))
-                            {
-                                isImage = 1;
-                                break;
-                            }
+                            delete platformImage;                            
                         }
-
-                        if(isImage)
+                        //_____________________
+                        
+                        // Checks if the PlatformEditDialog was dismissed
+                        if(platformEditDialog->dismissed)
                         {
-                            // Checks if the PlarformDialog is still been shown
-                            if(!downloadPlatformImageRef->platformEditDialog->dismissed)
-                            {
-                                // Checks if the PlatformImage has been downloaded
-                                if(downloadPlatformImageRef->platformImage->getDownloaded())
-                                {
-                                    downloadPlatformImageRef->platformEditDialog->updateImageGrid();
-                                }            
-                            }
-                            // Checks if the PlatformEditDialog was dismissed with the save instruction
-                            else
-                            {
-                                if(downloadPlatformImageRef->platformEditDialog->saved)
-                                {
-                                   downloadPlatformImageRef->platformEditDialog->saveNewImage(downloadPlatformImageRef->platformImage); 
-                                }
-                            }
-                        }
-                        else
-                        {
-                            delete downloadPlatformImageRef->platformImage;
-                        }
-
-                        // Checks if the PlatformEditDialog was dismissed and if all its images has finished downloading
-                        if(downloadPlatformImageRef->platformEditDialog->dismissed)
-                        {
+                            // Checks if all images for this dialog have been downloaded
                             pthread_mutex_lock(&downloadPlatformImageRefsMutex);
                             int isDialog = 0;
                             for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
                             {
-                                if((*aDownloadPlatformImageRef)->platformEditDialog == downloadPlatformImageRef->platformEditDialog)
+                                if(*aDownloadPlatformImageRef == downloadPlatformImageRef)
+                                {
+                                    continue;
+                                }
+                                if((*aDownloadPlatformImageRef)->platformEditDialog == platformEditDialog)
                                 {
                                     isDialog = 1;
                                     break;
                                 }
                             }
+                            pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
+                            
+                            // If the user saved the Platform and the image was downloaded, saves the image
+                            if(platformEditDialog->saved && platformImage->getDownloaded())
+                            {
+                                platformEditDialog->saveNewImage(platformImage);
+                            }
+                            
+                            // If all images have been downloaded, destroys the dialog
                             if(!isDialog)
                             {
-                                if(downloadPlatformImageRef->platformEditDialog->saved)
+                                if(platformEditDialog->saved)
                                 {                                    
-                                    NotificationManager::getInstance()->notify(NOTIFICATION_PLATFORM_UPDATED, "", 0 , 0, new Platform(*(downloadPlatformImageRef->platformEditDialog->platform)));
+                                    NotificationManager::getInstance()->notify(NOTIFICATION_PLATFORM_UPDATED, "", 0 , 0, new Platform(*(platformEditDialog->platform)));
                                 }
-                                delete downloadPlatformImageRef->platformEditDialog;                
-                            }
-                            pthread_mutex_unlock(&downloadPlatformImageRefsMutex);        
+                                delete platformEditDialog;
+                            }                            
                         }
-                    });
-                }
+                        else if(isImage)
+                        {
+                            // If the image was downloaded and the PlatformEditDialog is visible, updates the UI
+                            if(platformImage->getDownloaded())
+                            {
+                                platformEditDialog->updateImageGrid();
+                            }
+                        }
+                        //_____________________
 
+
+                        pthread_mutex_lock(&downloadPlatformImageRefsMutex);
+                        downloadPlatformImageRefs->remove(downloadPlatformImageRef);
+                        delete downloadPlatformImageRef;
+                        pthread_mutex_unlock(&downloadPlatformImageRefsMutex);                        
+                    });
+                    //_____________________
+                }
             }while(downloadPlatformImageRef);
 
             downloadingPlatformImages = 0;
         });
-    }
-    pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
+    }    
 }
