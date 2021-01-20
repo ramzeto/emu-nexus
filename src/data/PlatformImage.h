@@ -85,11 +85,23 @@ public:
 	int save();
         int remove();
         
+        /**
+         * Saves the image and creates its thumbnail. The PlatforImage object should exists in the database and the fileName should exists.
+         * @return 0 on success.
+         */
+        int saveImage();
+        
+        /**
+         * 
+         * @return Thumbnail file name.
+         */
         string getThumbnailFileName();
+        
 	json_t *toJson();
 
         static PlatformImage *getPlatformImage(int64_t platformId, int64_t type);
 	static list<PlatformImage *> *getItems(int64_t platformId);
+        static list<PlatformImage *> *getPendingToDownloadItems();
 	static PlatformImage *getItem(list<PlatformImage *> *items, unsigned int index);
 	static void releaseItems(list<PlatformImage *> *items);
 	static json_t *toJsonArray(list<PlatformImage *> *items);

@@ -24,7 +24,9 @@
 
 #include "GameImage.h"
 #include "Database.h"
+#include "Game.h"
 #include "Logger.h"
+#include "Utils.h"
 
 #include <unistd.h>
 
@@ -317,6 +319,45 @@ int GameImage::remove()
     unlink(getThumbnailFileName().c_str());
     
     return result;    
+}
+
+int GameImage::saveImage() 
+{
+    if(!id)
+    {
+       return 1;
+    }
+    
+    Game *game = new Game(getGameId());
+    game->load();
+    string newFileName = game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(id);
+    delete game;
+    
+    string currentFileName = getFileName();
+        
+    if(currentFileName.compare(newFileName) != 0)
+    {
+        if(Utils::getInstance()->fileExists(currentFileName))
+        {
+            if(!Utils::getInstance()->copyFile(currentFileName, newFileName))
+            {
+                setFileName(newFileName);            
+
+                Utils::getInstance()->scaleImage(getFileName(), GameImage::THUMBNAIL_WIDTH, GameImage::THUMBNAIL_HEIGHT, getThumbnailFileName());
+                return !save();
+            }
+        }        
+    }
+    else
+    {
+        if(Utils::getInstance()->fileExists(currentFileName))
+        {
+            Utils::getInstance()->scaleImage(currentFileName, GameImage::THUMBNAIL_WIDTH, GameImage::THUMBNAIL_HEIGHT, getThumbnailFileName());
+            return 0;
+        }
+    }
+                
+    return 1;    
 }
 
 string GameImage::getThumbnailFileName()

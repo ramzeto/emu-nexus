@@ -48,9 +48,7 @@ const int GameEditDialog::IMAGE_WIDTH = 300;
 const int GameEditDialog::IMAGE_HEIGHT = 400;
 
 GameEditDialog::GameEditDialog(GtkWindow *parent, int64_t gameId, int64_t platformId) : Dialog(parent, "GameEditDialog.ui", "gameEditDialog")
-{
-    saved = 0;
-        
+{    
     game = new Game(gameId);    
     if(!game->load())
     {
@@ -241,7 +239,7 @@ GameEditDialog::GameEditDialog(GtkWindow *parent, int64_t gameId, int64_t platfo
 
 GameEditDialog::~GameEditDialog()
 {
-    delete game;    
+    delete game;
     Developer::releaseItems(developers);        
     Publisher::releaseItems(publishers);    
     Genre::releaseItems(genres);
@@ -259,28 +257,6 @@ GameEditDialog::~GameEditDialog()
     
     gameImageTypes->clear();
     delete gameImageTypes;
-}
-
-void GameEditDialog::deleteWhenReady(GameEditDialog *gameEditDialog)
-{
-    // Checks if the GameEditDialog is waiting for GameImages to be downloaded
-    int isDownloading = 0;
-    pthread_mutex_lock(&downloadGameImageRefsMutex);    
-    for(list<DownloadGameImageRef_t *>::iterator downloadGameImageRef = downloadGameImageRefs->begin(); downloadGameImageRef != downloadGameImageRefs->end(); downloadGameImageRef++)
-    {
-        if((*downloadGameImageRef)->gameEditDialog == gameEditDialog)
-        {
-            isDownloading = 1;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&downloadGameImageRefsMutex);
-    
-    gameEditDialog->dismiss();
-    if(!isDownloading)
-    {
-        delete gameEditDialog;
-    }
 }
 
 void GameEditDialog::loadDevelopers()
@@ -610,12 +586,12 @@ void GameEditDialog::updateGameImageGrid()
 
                 if(!gameImage->getId())
                 {
-                    if(Utils::getInstance()->fileExists(gameImage->getFileName()))
+                    if(!UiUtils::getInstance()->loadImage(image, gameImage->getFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10))
                     {
-                        UiUtils::getInstance()->loadImage(image, gameImage->getFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
-                    }
-                    else
-                    {
+                        if(gameImage->getApiId())
+                        {
+                            UiUtils::getInstance()->downloadImage(image, gameImage->getUrl(), gameImage->getFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
+                        }
                         gtk_image_set_from_icon_name(image, "emblem-downloads", GTK_ICON_SIZE_DIALOG);
                     }
                 }
@@ -715,6 +691,14 @@ void GameEditDialog::removeGameImage()
         return;
     }
     
+    // "Cancels" the download of the image to be removed
+    if(selectedGameImage->getApiId() && gameImageBoxes->find(selectedGameImage) != gameImageBoxes->end())
+    {
+        GtkImage *image = (GtkImage *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(gameImageBoxes->at(selectedGameImage)), "image");
+        UiUtils::getInstance()->cancelDownloadImage(image);
+    }
+    //_____________
+    
     gameImages->remove(selectedGameImage);
     
     if(selectedGameImage->getId())
@@ -730,45 +714,26 @@ void GameEditDialog::removeGameImage()
     updateGameImageGrid();
 }
 
-void GameEditDialog::removeNewGameImages()
+void GameEditDialog::clearGameImageBoxes()
 {
     selectGameImage(NULL);
-    
-    list<GameImage *> *notNewGameImages = new list<GameImage *>;
-    
-    // Checks if there are GameImages being downloaded, GameImages that are being downloaded cannot be deleted
+        
     for(list<GameImage *>::iterator gameImage = gameImages->begin(); gameImage != gameImages->end(); gameImage++)
     {
         if((*gameImage)->getId())
         {
-            notNewGameImages->push_back((*gameImage));
-            continue;
-        }
-                
-        pthread_mutex_lock(&downloadGameImageRefsMutex);
-        int isDownloading = 0;
-        for(list<DownloadGameImageRef_t *>::iterator downloadGameImageRef = downloadGameImageRefs->begin(); downloadGameImageRef != downloadGameImageRefs->end(); downloadGameImageRef++)
-        {
-            if((*downloadGameImageRef)->gameEditDialog == this && (*downloadGameImageRef)->gameImage == (*gameImage))
-            {
-                isDownloading = 1;
-                break;
-            }
-        }
-        if(!isDownloading)
-        {            
-            delete (*gameImage);
-        }
-        pthread_mutex_unlock(&downloadGameImageRefsMutex);                
-    }
-    
+            gameImagesToRemove->push_back((*gameImage));
+        }           
+    }    
     gameImages->clear();
-    for(list<GameImage *>::iterator gameImage = notNewGameImages->begin(); gameImage != notNewGameImages->end(); gameImage++)
+    
+    // "Cancels" the download of the pending images
+    for (map<GameImage *, GtkWidget *>::iterator it = gameImageBoxes->begin(); it != gameImageBoxes->end(); it++)
     {
-        gameImages->push_back((*gameImage));        
+        GtkImage *image = (GtkImage *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(it->second), "image");
+        UiUtils::getInstance()->cancelDownloadImage(image);
     }
-    notNewGameImages->clear();
-    delete notNewGameImages;
+    //_____________    
     
     updateGameImageGrid();
 }
@@ -832,32 +797,6 @@ void GameEditDialog::selectGameImage(GameImage *gameImage)
         gtk_widget_hide(GTK_WIDGET(imageTypeComboBox));
         gtk_widget_hide(GTK_WIDGET(removeImageButton));
     }
-}
-
-void GameEditDialog::downloadGameImage(GameImage* gameImage)
-{
-    downloadGameImage(this, gameImage);
-}
-
-void GameEditDialog::saveNewGameImage(GameImage* gameImage)
-{             
-    // When the image is new, copies the file to the media directory and creates the thumbnail.
-    if(Utils::getInstance()->fileExists(gameImage->getFileName()))
-    {        
-        gameImage->setGameId(game->getId());
-        
-        // Saves before to generate the id
-        gameImage->save();
-
-        string imageFileName = game->getMediaDirectory() + GameImage::FILE_PREFIX + to_string(gameImage->getId());
-        if(!Utils::getInstance()->copyFile(gameImage->getFileName(), imageFileName))
-        {
-            gameImage->setFileName(imageFileName);
-
-            Utils::getInstance()->scaleImage(gameImage->getFileName(), GameImage::THUMBNAIL_WIDTH, GameImage::THUMBNAIL_HEIGHT, gameImage->getThumbnailFileName());            
-            gameImage->save();
-        }
-    }    
 }
 
 void GameEditDialog::loadGameDocumentTypes()
@@ -1195,7 +1134,7 @@ void GameEditDialog::search()
             
             
             // Updates images            
-            removeNewGameImages();
+            clearGameImageBoxes();
             for(unsigned int c = 0; c < apiGame->getGameImages()->size(); c++)
             {
                 TheGamesDB::GameImage *apiGameImage = TheGamesDB::GameImage::getItem(apiGame->getGameImages(), c);
@@ -1229,47 +1168,22 @@ void GameEditDialog::search()
                     type = GameImage::TYPE_CLEAR_LOGO;
                 }
                 
+                GameImage *gameImage = new GameImage((int64_t)0);
+                gameImage->setApiId(apiGameImage->getId());
+                gameImage->setType(type);
+                gameImage->setFileName(apiGameImage->getFileName());
+                gameImage->setExternal(0);
+                gameImage->setDownloaded(0);
+                gameImage->setUrl(apiGameImage->getOriginal());
 
-                // Checks if there is GameImage for this TheGamesDB::GameImage being downloaded, if it is, then appends it to the list
-                int isDownloading = 0;
-                pthread_mutex_lock(&downloadGameImageRefsMutex);        
-                for(list<DownloadGameImageRef_t *>::iterator downloadGameImageRef = downloadGameImageRefs->begin(); downloadGameImageRef != downloadGameImageRefs->end(); downloadGameImageRef++)
-                {                    
-                    if((*downloadGameImageRef)->gameEditDialog == this && (*downloadGameImageRef)->gameImage->getApiId() == apiGameImage->getId())
-                    {
-                        gameImages->push_back((*downloadGameImageRef)->gameImage);
-                        isDownloading = 1;
-                        break;
-                    }
-                }
-                pthread_mutex_unlock(&downloadGameImageRefsMutex);
-
-                if(!isDownloading)
-                {
-                    GameImage *gameImage = new GameImage((int64_t)0);
-                    gameImage->setApiId(apiGameImage->getId());
-                    gameImage->setType(type);
-                    gameImage->setFileName(apiGameImage->getFileName());
-                    gameImage->setExternal(0);
-                    gameImage->setDownloaded(0);
-                    gameImage->setUrl(apiGameImage->getOriginal());
-
-                    gameImages->push_back(gameImage);
-
-                    if(!Utils::getInstance()->fileExists(apiGameImage->getFileName()))
-                    {
-                        downloadGameImage(gameImage);
-                    }            
-                }
+                gameImages->push_back(gameImage);
             }
 
             updateGameImageGrid();    
             if(gameImages->size() > 0)
             {
                 selectGameImage(GameImage::getItem(gameImages, 0));
-            }
-            
-            
+            }                        
         }
     }
     delete gameSearchDialog;
@@ -1278,6 +1192,7 @@ void GameEditDialog::search()
 
 void GameEditDialog::cancel()
 {
+    clearGameImageBoxes();
     gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_CANCEL);
 }
 
@@ -1409,35 +1324,11 @@ void GameEditDialog::save()
     for(unsigned int c = 0; c < gameImages->size(); c++)
     {
         GameImage *gameImage = GameImage::getItem(gameImages, c);
-        if(!gameImage->getId())
-        {
-            // Checks if the image is still downloading, in this case, the image should be saved after it is downloaded
-            int isDownloading = 0;
-            pthread_mutex_lock(&downloadGameImageRefsMutex);            
-            for(list<DownloadGameImageRef_t *>::iterator downloadGameImageRef = downloadGameImageRefs->begin(); downloadGameImageRef != downloadGameImageRefs->end(); downloadGameImageRef++)
-            {
-                if((*downloadGameImageRef)->gameEditDialog == this && (*downloadGameImageRef)->gameImage == gameImage)
-                {
-                    isDownloading = 1;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&downloadGameImageRefsMutex);
-
-            if(!isDownloading)
-            {
-                saveNewGameImage(gameImage);
-            }
-        }
-        else
-        {
-            gameImage->save();
-        }
-    }
-            
-    saved = 1;
+        gameImage->setGameId(game->getId());
+    }    
+    _saveGameImages(gameImages);
     
-    NotificationManager::getInstance()->notify(NOTIFICATION_GAME_UPDATED, "", 0, 0, new Game(*game));
+    clearGameImageBoxes();
     
     if(isNew)
     {
@@ -1445,7 +1336,9 @@ void GameEditDialog::save()
         platfom->load();
         NotificationManager::getInstance()->notify(NOTIFICATION_PLATFORM_UPDATED, "", 0, 0, platfom); 
     }
-        
+
+    NotificationManager::getInstance()->notify(NOTIFICATION_GAME_UPDATED, "", 0, 0, new Game(*game));
+
     gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);        
 }
 
@@ -1501,180 +1394,58 @@ gboolean GameEditDialog::signalDocumentBoxButtonPressedEvent(GtkWidget *widget, 
     return TRUE;
 }
 
-
-
-
-
-list<GameEditDialog::DownloadGameImageRef_t *> *GameEditDialog::downloadGameImageRefs = new list<GameEditDialog::DownloadGameImageRef_t *>;
-pthread_t GameEditDialog::downloadGameImagesThread;
-pthread_mutex_t GameEditDialog::downloadGameImageRefsMutex = PTHREAD_MUTEX_INITIALIZER;
-int GameEditDialog::downloadingGameImages = 0;
-
-void GameEditDialog::downloadGameImage(GameEditDialog *gameEditDialog, GameImage *gameImage)
+void GameEditDialog::_saveGameImages(list<GameImage*>* gameImages) 
 {
-    pthread_mutex_lock(&downloadGameImageRefsMutex);
-    
-    DownloadGameImageRef_t *downloadGameImageRef = new DownloadGameImageRef_t;
-    downloadGameImageRef->gameEditDialog = gameEditDialog;
-    downloadGameImageRef->gameImage = gameImage;
-    downloadGameImageRefs->push_back(downloadGameImageRef);
-        
-    if(!downloadingGameImages)
+    list<GameImage *> *gameImagesToSave = new list<GameImage *>;
+    for(unsigned int c = 0; c < gameImages->size(); c++)
     {
-        downloadingGameImages = 1;
-        ThreadManager::getInstance()->execute(0, []() -> void {
-            DownloadGameImageRef_t *downloadGameImageRef = NULL;
-            do
+        GameImage *gameImage = GameImage::getItem(gameImages, c);
+        gameImagesToSave->push_back(new GameImage(*gameImage));
+    }
+    
+    ThreadManager::getInstance()->execute(0, [gameImagesToSave]() -> void {
+        int64_t gameId = 0;
+        
+        for(unsigned int c = 0; c < gameImagesToSave->size(); c++)
+        {
+            GameImage *gameImage = GameImage::getItem(gameImagesToSave, c);
+            if(gameImage->getId())
             {
-                downloadGameImageRef = NULL;
-
-                pthread_mutex_lock(&downloadGameImageRefsMutex);
-                for(list<DownloadGameImageRef_t *>::iterator aDownloadGameImageRef = downloadGameImageRefs->begin(); aDownloadGameImageRef != downloadGameImageRefs->end(); aDownloadGameImageRef++)
+                continue;
+            }
+            
+            if(gameImage->getApiId())
+            {
+                if(!Utils::getInstance()->fileExists(gameImage->getFileName()))
                 {
-                    if(!(*aDownloadGameImageRef)->gameImage->getDownloaded())
-                    {
-                        downloadGameImageRef = (*aDownloadGameImageRef);
-                        break;
-                    }
-                }
-                pthread_mutex_unlock(&downloadGameImageRefsMutex);
-
-                if(downloadGameImageRef)
-                {
-                    GameImage *gameImage = downloadGameImageRef->gameImage;
-                    
                     HttpConnector *httpConnector = new HttpConnector(gameImage->getUrl());
                     httpConnector->get();
                     if(httpConnector->getHttpStatus() == HttpConnector::HTTP_OK)
                     {
                         Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), gameImage->getFileName());
-                        downloadGameImageRef->gameImage->setDownloaded(1);
+                        gameImage->setDownloaded(1);
                     }
-                    delete httpConnector;
+                    else if(httpConnector->getHttpStatus() == HttpConnector::HTTP_NOT_FOUND)
+                    {
+                        delete httpConnector;
+                        continue;                                
+                    }
                     
-                    // Checks, saves and updates the image in the main thread to avoid race conditions with the destructor
-                    ThreadManager::getInstance()->execute(1, [downloadGameImageRef]() -> void {
-                        
-                        GameEditDialog *gameEditDialog = downloadGameImageRef->gameEditDialog;
-                        GameImage *gameImage = downloadGameImageRef->gameImage;
-                        
-                        // Checks if the GameImage is still present in the platformImages list of the PlatformEditDialog, if not, it should be deleted
-                        int isImage = find(gameEditDialog->gameImages->begin(), gameEditDialog->gameImages->end(), gameImage) != gameEditDialog->gameImages->end();
-                        if(!isImage)
-                        {
-                            delete gameImage;                            
-                        }
-                        //_____________________
-                        
-                        // Checks if the GameEditDialog was dismissed
-                        if(gameEditDialog->dismissed)
-                        {
-                            // Checks if all images for this dialog have been downloaded
-                            pthread_mutex_lock(&downloadGameImageRefsMutex);
-                            int isDialog = 0;
-                            for(list<DownloadGameImageRef_t *>::iterator aDownloadGameImageRef = downloadGameImageRefs->begin(); aDownloadGameImageRef != downloadGameImageRefs->end(); aDownloadGameImageRef++)
-                            {
-                                if(*aDownloadGameImageRef == downloadGameImageRef)
-                                {
-                                    continue;
-                                }
-                                if((*aDownloadGameImageRef)->gameEditDialog == gameEditDialog)
-                                {
-                                    isDialog = 1;
-                                    break;
-                                }
-                            }
-                            pthread_mutex_unlock(&downloadGameImageRefsMutex);
-                            
-                            // If the user saved the Game and the image was downloaded, saves the image
-                            if(gameEditDialog->saved && gameImage->getDownloaded())
-                            {
-                                gameEditDialog->saveNewGameImage(gameImage);
-                            }
-                            
-                            // If all images have been downloaded, destroys the dialog
-                            if(!isDialog)
-                            {
-                                if(gameEditDialog->saved)
-                                {
-                                    NotificationManager::getInstance()->notify(NOTIFICATION_GAME_UPDATED, "", 0, 0, new Game(*(gameEditDialog->game)));
-                                }
-                                delete gameEditDialog;
-                            }                            
-                        }
-                        else if(isImage)
-                        {
-                            // If the image was downloaded and the GameEditDialog is visible, updates the UI
-                            if(gameImage->getDownloaded())
-                            {
-                                gameEditDialog->updateGameImageGrid();
-                            }
-                        }
-                        //_____________________
-                        
-                        
-
-                        if(isImage)
-                        {
-                            // Checks if the GameEditDialog is still been shown
-                            if(!downloadGameImageRef->gameEditDialog->dismissed)
-                            {
-                                // Checks if the GameImage has been downloaded
-                                if(downloadGameImageRef->gameImage->getDownloaded())
-                                {
-                                    downloadGameImageRef->gameEditDialog->updateGameImageGrid();
-                                }            
-                            }
-                            // Checks if the GameEditDialog was dismissed with the save instruction
-                            else
-                            {
-                                if(downloadGameImageRef->gameEditDialog->saved)
-                                {
-                                   downloadGameImageRef->gameEditDialog->saveNewGameImage(downloadGameImageRef->gameImage); 
-                                }
-                            }
-                        }
-                        else
-                        {
-                            delete downloadGameImageRef->gameImage;
-                        }
-
-                        // Checks if the GameEditDialog was dismissed and if all its images has finished downloading
-                        if(downloadGameImageRef->gameEditDialog->dismissed)
-                        {
-                            pthread_mutex_lock(&downloadGameImageRefsMutex);
-                            int isDialog = 0;
-                            for(list<DownloadGameImageRef_t *>::iterator aDownloadGameImageRef = downloadGameImageRefs->begin(); aDownloadGameImageRef != downloadGameImageRefs->end(); aDownloadGameImageRef++)
-                            {
-                                if((*aDownloadGameImageRef)->gameEditDialog == downloadGameImageRef->gameEditDialog)
-                                {
-                                    isDialog = 1;
-                                    break;
-                                }
-                            }
-                            if(!isDialog)
-                            {
-                                if(downloadGameImageRef->gameEditDialog->saved)
-                                {
-                                    NotificationManager::getInstance()->notify(NOTIFICATION_GAME_UPDATED, "", 0, 0, new Game(*(downloadGameImageRef->gameEditDialog->game)));    
-                                }
-                                delete downloadGameImageRef->gameEditDialog;                
-                            }
-                            pthread_mutex_unlock(&downloadGameImageRefsMutex);        
-                        }
-                        
-                        
-                        pthread_mutex_lock(&downloadGameImageRefsMutex);
-                        downloadGameImageRefs->remove(downloadGameImageRef);
-                        delete downloadGameImageRef;
-                        pthread_mutex_unlock(&downloadGameImageRefsMutex);
-                    });
+                    delete httpConnector;
                 }
+            }
 
-            }while(downloadGameImageRef);
-
-            downloadingGameImages = 0;
-        });        
-    }
-    pthread_mutex_unlock(&downloadGameImageRefsMutex);
+            gameImage->save();
+            gameImage->saveImage();
+            gameId = gameImage->getGameId();
+        }
+        
+        // Sends the notification when the last image is saved
+        if(gameId)
+        {
+            NotificationManager::getInstance()->notify(NOTIFICATION_GAME_UPDATED, "", 0 , 0, new Game(gameId));
+        }
+        
+        GameImage::releaseItems(gameImagesToSave);
+    });
 }

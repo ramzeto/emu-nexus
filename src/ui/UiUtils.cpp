@@ -23,19 +23,27 @@
  */
 
 #include "UiUtils.h"
-#include "glib/glist.h"
 #include "Utils.h"
+#include "HttpConnector.h"
+#include "ThreadManager.h"
 
 #include <iostream>
 #include <string.h>
+#include <glib/glist.h>
 
 using namespace std;
 
 UiUtils *UiUtils::instance = NULL;
-
+const int UiUtils::DOWNLOADED_DONE = 0;
+const int UiUtils::DOWNLOADED_PENDING = 1;
+const int UiUtils::DOWNLOADED_FAILED = 2;
+    
 UiUtils::UiUtils()
 {
     imageCache = new map<string, GdkPixbuf*>;
+    downloadImages = new list<DownloadImage_t*>;
+    downloadingImages = 0;
+    downloadImagesMutex = PTHREAD_MUTEX_INITIALIZER;
 }
 
 UiUtils::~UiUtils()
@@ -46,7 +54,14 @@ UiUtils::~UiUtils()
     }
     imageCache->clear();
     
+    for (list<DownloadImage_t*>::iterator downloadImage = downloadImages->begin(); downloadImage != downloadImages->end(); downloadImage++)
+    {
+        delete *downloadImage;
+    }
+    downloadImages->clear();
+    
     delete imageCache;
+    delete downloadImages;
 }
 
 GtkWidget *UiUtils::getWidget(GtkContainer *gtkContainer, string name)
@@ -117,9 +132,13 @@ void UiUtils::removeListRow(GtkListBox* listBox, GtkWidget* row)
 }
 
 
-void UiUtils::loadImage(GtkImage* image, string fileName, int width, int height, int aspectFill)
+int UiUtils::loadImage(GtkImage* image, string fileName, int width, int height, int aspectFill)
 {
     //@TODO Clear cache at some point
+    if(!Utils::getInstance()->fileExists(fileName))
+    {
+        return 0;
+    }
     
     GdkPixbuf *pixBuf = NULL;
     string key;
@@ -133,11 +152,8 @@ void UiUtils::loadImage(GtkImage* image, string fileName, int width, int height,
         }
         else
         {
-            if(Utils::getInstance()->fileExists(fileName))
-            {
-                pixBuf = gdk_pixbuf_new_from_file(fileName.c_str(), NULL);
-                imageCache->insert(pair<string, GdkPixbuf *>(key, pixBuf));
-            }
+            pixBuf = gdk_pixbuf_new_from_file(fileName.c_str(), NULL);
+            imageCache->insert(pair<string, GdkPixbuf *>(key, pixBuf));
         }
 
         width = gdk_pixbuf_get_width (pixBuf);
@@ -156,17 +172,97 @@ void UiUtils::loadImage(GtkImage* image, string fileName, int width, int height,
         }
         else
         {
-            if(Utils::getInstance()->fileExists(fileName))
-            {
-                pixBuf = gdk_pixbuf_new_from_file_at_scale (fileName.c_str(), width, height, 1, NULL);
-                imageCache->insert(pair<string, GdkPixbuf *>(key, pixBuf));
-            }
+            pixBuf = gdk_pixbuf_new_from_file_at_scale (fileName.c_str(), width, height, 1, NULL);
+            imageCache->insert(pair<string, GdkPixbuf *>(key, pixBuf));
         }
 
         gtk_widget_set_size_request(GTK_WIDGET(image), width, height);
         gtk_image_set_from_pixbuf(image, pixBuf);
     }
+    
+    return 1;
 }
+
+void UiUtils::downloadImage(GtkImage* image, string url, string fileName, int width, int height, int aspectFill) 
+{
+    pthread_mutex_lock(&downloadImagesMutex);
+    DownloadImage_t *downloadImage = new DownloadImage_t;
+    downloadImage->image = image;
+    downloadImage->url = url;
+    downloadImage->fileName = fileName;
+    downloadImage->width = width;
+    downloadImage->height = height;
+    downloadImage->aspectFill = aspectFill;
+    downloadImage->downloaded = DOWNLOADED_PENDING;
+    downloadImages->push_back(downloadImage);
+    pthread_mutex_unlock(&downloadImagesMutex);
+    
+    if(!downloadingImages)
+    {
+        downloadingImages = 1;
+        ThreadManager::getInstance()->execute(0, [this]() -> void {            
+            while(1)
+            {
+                DownloadImage_t *downloadImage = NULL;
+                pthread_mutex_lock(&downloadImagesMutex);
+                for(list<DownloadImage_t *>::iterator aDownloadImage = downloadImages->begin(); aDownloadImage != downloadImages->end(); aDownloadImage++)
+                {
+                    if((*aDownloadImage)->downloaded == DOWNLOADED_PENDING)
+                    {
+                        downloadImage = *aDownloadImage;
+                        break;
+                    }
+                }
+                pthread_mutex_unlock(&downloadImagesMutex);
+                
+                if(!downloadImage)
+                {
+                    downloadingImages = 0;
+                    break;
+                }
+                
+                HttpConnector *httpConnector = new HttpConnector(downloadImage->url);
+                httpConnector->get();            
+                if(httpConnector->getHttpStatus() == HttpConnector::HTTP_OK)
+                {
+                    Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), downloadImage->fileName);
+                    downloadImage->downloaded = DOWNLOADED_DONE;
+                }
+                else
+                {
+                    downloadImage->downloaded = DOWNLOADED_FAILED;
+                }
+                delete httpConnector;
+                
+                ThreadManager::getInstance()->execute(1, [this, downloadImage]() -> void {
+                    pthread_mutex_lock(&downloadImagesMutex);
+                    if(downloadImage->downloaded == DOWNLOADED_DONE && downloadImage->image)
+                    {
+                        UiUtils::getInstance()->loadImage(downloadImage->image, downloadImage->fileName, downloadImage->width, downloadImage->height, downloadImage->aspectFill);
+                    }
+                    downloadImages->remove(downloadImage);
+                    delete downloadImage;
+                    pthread_mutex_unlock(&downloadImagesMutex);
+                });
+            }                                                            
+        });
+    }    
+}
+
+void UiUtils::cancelDownloadImage(GtkImage *image) 
+{
+    pthread_mutex_lock(&downloadImagesMutex);
+    for(list<DownloadImage_t *>::iterator downloadImage = downloadImages->begin(); downloadImage != downloadImages->end(); downloadImage++)
+    {
+        if((*downloadImage)->image == image)
+        {
+            (*downloadImage)->image = NULL;
+        }        
+    }
+    pthread_mutex_unlock(&downloadImagesMutex);
+}
+
+
 
 UiUtils* UiUtils::getInstance()
 {

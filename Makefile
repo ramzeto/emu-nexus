@@ -4,7 +4,7 @@ thegamesdb.o\
 GameLauncher.o\
 HttpConnector.o\
 NotificationManager.o Notification.o\
-SerialProcessExecutor.o SerialProcess.o ParseDirectoryProcess.o DownloadGameImagesProcess.o SetupDatabaseProcess.o\
+SerialProcessExecutor.o SerialProcess.o ParseDirectoryProcess.o DownloadImagesProcess.o SetupDatabaseProcess.o\
 Asset.o MainWindow.o UiUtils.o\
 Dialog.o MessageDialog.o PlatformEditDialog.o GameEditDialog.o DevelopersSelectDialog.o PublishersSelectDialog.o GenresSelectDialog.o GameSearchDialog.o AddDirectoryDialog.o SelectFromListDialog.o\
 Panel.o HomePanel.o GamesPanel.o PlatformPanel.o RecentsPanel.o FavoritePanel.o\

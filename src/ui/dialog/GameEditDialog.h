@@ -37,7 +37,6 @@
 #include "GameGenre.h"
 #include "GameDocument.h"
 
-#include <pthread.h>
 #include <list>
 #include <map>
 
@@ -58,11 +57,7 @@ public:
      */
     GameEditDialog(GtkWindow *parent, int64_t gameId, int64_t platformId = 0);    
     
-    /**
-     * This method should be called to dismiss the dialog. Explicitely deleting the dialog is forbidden. The dialog downloads the game images when required and the download process may continue after the dialog is dismissed.
-     * @param gameEditDialog GameEditDialog to dismiss.
-     */
-    static void deleteWhenReady(GameEditDialog *gameEditDialog);
+    virtual ~GameEditDialog();
     
 private:
     static const int THUMBNAIL_IMAGE_WIDTH;
@@ -87,7 +82,6 @@ private:
     list<GameDocument *> *gameDocumentsToRemove;
     map<GameDocument *, GtkWidget *> *gameDocumentBoxes;
     GameDocument *selectedGameDocument;
-    int saved;
     
     GtkEntry *nameEntry;
     GtkButton *searchButton;
@@ -121,9 +115,7 @@ private:
     GtkTextView *notesTextView;
     
     GtkButton *cancelButton;
-    GtkButton *saveButton;
-    
-    virtual ~GameEditDialog();
+    GtkButton *saveButton;        
     
     void loadDevelopers();
     void removeDeveloper(int64_t developerId);
@@ -145,11 +137,9 @@ private:
     void updateGameImageGrid();
     void addGameImage();
     void removeGameImage();
-    void removeNewGameImages();
+    void clearGameImageBoxes();
     void updateGameImageType();
     void selectGameImage(GameImage *gameImage);
-    void downloadGameImage(GameImage *gameImage);
-    void saveNewGameImage(GameImage *gameImage);
     
     void loadGameDocumentTypes();
     void updateGameDocumentGrid();
@@ -172,22 +162,8 @@ private:
     static gboolean signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameEditDialog);
     static void signalAddDocumentButtonClicked(GtkButton *button, gpointer gameEditDialog);
     static gboolean signalDocumentBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer gameEditDialog);
-        
     
-    
-    typedef struct
-    {
-        GameEditDialog *gameEditDialog;
-        GameImage *gameImage;
-    }DownloadGameImageRef_t;
-    
-    static list<DownloadGameImageRef_t *> *downloadGameImageRefs;
-    static pthread_t downloadGameImagesThread;
-    static pthread_mutex_t downloadGameImageRefsMutex;    
-    static int downloadingGameImages;
-    static void downloadGameImage(GameEditDialog *gameEditDialog, GameImage *gameImage);
-    static void *downloadGameImagesWorker(void *);
-    static void callbackDownloadGameImage(void *pDownloadGameImageRef);
+    static void _saveGameImages(list<GameImage *> *gameImages);
 };
 
 #endif /* GAMEDIALOG_H */

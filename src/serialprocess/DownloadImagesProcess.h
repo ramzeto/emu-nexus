@@ -16,14 +16,14 @@
  */
 
 /* 
- * File:   DownloadGameImagesProcess.h
+ * File:   DownloadImagesProcess.h
  * Author: ram
  *
  * Created on August 11, 2019, 8:09 PM
  */
 
-#ifndef DOWNLOADGAMEIMAGESPROCESS_H
-#define DOWNLOADGAMEIMAGESPROCESS_H
+#ifndef DOWNLOADIMAGESPROCESS_H
+#define DOWNLOADIMAGESPROCESS_H
 
 #include "SerialProcess.h"
 #include "Game.h"
@@ -35,13 +35,13 @@ using namespace std;
 /**
  * Class for downloading the game images as a SerialProcess.
  */
-class DownloadGameImagesProcess : public SerialProcess
+class DownloadImagesProcess : public SerialProcess
 {
 public:
     static const string TYPE;
 
-    DownloadGameImagesProcess();    
-    virtual ~DownloadGameImagesProcess();
+    DownloadImagesProcess();    
+    virtual ~DownloadImagesProcess();
         
 private:
     
@@ -49,5 +49,5 @@ private:
     
 };
 
-#endif /* DOWNLOADGAMEIMAGESPROCESS_H */
+#endif /* DOWNLOADIMAGESPROCESS_H */
 

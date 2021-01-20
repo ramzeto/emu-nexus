@@ -132,7 +132,7 @@ void GamesPanel::showGameEditDialog(int64_t gameId, int64_t platformId)
             selectGame(gameId);
         }        
     }
-    GameEditDialog::deleteWhenReady(gameEditDialog);
+    delete gameEditDialog;
 }
 
 void GamesPanel::loadGames()

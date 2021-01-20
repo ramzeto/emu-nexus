@@ -30,8 +30,6 @@
 #include "PlatformImage.h"
 #include "thegamesdb.h"
 
-#include <pthread.h>
-
 #include <list>
 #include <map>
 
@@ -50,7 +48,9 @@ public:
      * @param platformId Id of the platform to configure. If is 0, a new platform will be created.
      */
     PlatformEditDialog(GtkWindow *parent, int64_t platformId);
-
+    
+    virtual ~PlatformEditDialog();
+    
     /**
      * 
      * @return platform.
@@ -77,7 +77,6 @@ private:
     list<PlatformImage *> *platformImagesToRemove;
     map<PlatformImage *, GtkWidget *> *platformImageBoxes;
     PlatformImage *selectedPlatformImage;
-    int saved;
     
     GtkComboBox *apiPlatformComboBox;
     GtkEntry *nameEntry;
@@ -89,9 +88,7 @@ private:
     GtkButton *removeImageButton;
     GtkListBox *imagesGridListBox;
     GtkButton *cancelButton;
-    GtkButton *saveButton;
-        
-    virtual ~PlatformEditDialog();
+    GtkButton *saveButton;            
     
     void toggleDeflate();
     void loadApiPlatforms();
@@ -99,30 +96,16 @@ private:
     void loadPlatformImageTypes();
     void updateImageGrid();
     void addImage();
-    void removeAllImages();
+    void clearImageBoxes();
     void removeImage();
     void updateImageType();
-    void selectImage(PlatformImage *platformImage);
-    void downloadPlatformImage(PlatformImage *platformImage);
-    void saveNewImage(PlatformImage *platformImage);
+    void selectImage(PlatformImage *platformImage);    
     void cancel();
     void save();
     
-    static void signalAddImageButtonClicked(GtkButton *button, gpointer platformEditDialog);
-    static gboolean signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer platformEditDialog);
-        
-
-    typedef struct
-    {
-        PlatformEditDialog *platformEditDialog;
-        PlatformImage *platformImage;
-    }DownloadPlatformImageRef_t;
-    
-    static list<DownloadPlatformImageRef_t *> *downloadPlatformImageRefs;
-    static pthread_t downloadPlatformImagesThread;
-    static pthread_mutex_t downloadPlatformImageRefsMutex;    
-    static int downloadingPlatformImages;
-    static void downloadPlatformImage(PlatformEditDialog *platformEditDialog, PlatformImage *platformImage);        
+    static void _signalAddImageButtonClicked(GtkButton *button, gpointer platformEditDialog);
+    static gboolean _signalImageBoxButtonPressedEvent(GtkWidget *widget, GdkEvent *event, gpointer platformEditDialog);    
+    static void _savePlatformImages(list<PlatformImage *> *platformImages);
 };
 
 #endif /* PLATFORMEDITDIALOG_H */

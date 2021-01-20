@@ -34,7 +34,6 @@
 #include "Notifications.h"
 #include "Directory.h"
 #include "ThreadManager.h"
-#include "Logger.h"
 
 #include <algorithm>
 
@@ -45,7 +44,6 @@ const int PlatformEditDialog::IMAGE_HEIGHT = 200;
 
 PlatformEditDialog::PlatformEditDialog(GtkWindow *parent, int64_t platformId) : Dialog(parent, "PlatformEditDialog.ui", "platformEditDialog")
 {
-    saved = 0;
     apiPlatform = NULL;
     apiPlatforms = NULL;
     
@@ -54,12 +52,12 @@ PlatformEditDialog::PlatformEditDialog(GtkWindow *parent, int64_t platformId) : 
     
     platformImages = PlatformImage::getItems(platform->getId());
     
-    platformImageTypes = new list<int64_t>;    
+    platformImageTypes = new list<int64_t>;
     selectedPlatformImage = NULL;
     
     platformImagesToRemove = new list<PlatformImage *>;
-    platformImageBoxes = new map<PlatformImage *, GtkWidget *>;    
-    
+    platformImageBoxes = new map<PlatformImage *, GtkWidget *>;
+        
     apiPlatformComboBox = (GtkComboBox *)gtk_builder_get_object (builder, "apiPlatformComboBox");        
     nameEntry = (GtkEntry *)gtk_builder_get_object (builder, "nameEntry");        
     commandEntry = (GtkEntry *)gtk_builder_get_object (builder, "commandEntry");        
@@ -135,28 +133,6 @@ Platform* PlatformEditDialog::getPlatform()
     return platform;
 }
 
-void PlatformEditDialog::deleteWhenReady(PlatformEditDialog *platformEditDialog)
-{
-    // Checks if the PlatformEditDialog is waiting for PlatformImages to be downloaded
-    int isDownloading = 0;
-    pthread_mutex_lock(&downloadPlatformImageRefsMutex);
-    for(list<DownloadPlatformImageRef_t *>::iterator downloadPlatformImageRef = downloadPlatformImageRefs->begin(); downloadPlatformImageRef != downloadPlatformImageRefs->end(); downloadPlatformImageRef++)
-    {
-        if((*downloadPlatformImageRef)->platformEditDialog == platformEditDialog)
-        {
-            isDownloading = 1;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
-    
-    platformEditDialog->dismiss();
-    if(!isDownloading)
-    {
-        delete platformEditDialog;
-    }
-}
-
 void PlatformEditDialog::toggleDeflate()
 {
     gtk_widget_set_sensitive(GTK_WIDGET(deflateFileExtensionsEntry), gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(deflateCheckButton)));
@@ -222,7 +198,7 @@ void PlatformEditDialog::updateApiPlatform()
     
     gtk_entry_set_text(nameEntry, apiPlatform->getName().c_str());
     
-    removeAllImages();
+    clearImageBoxes();
     for(unsigned int c = 0; c < apiPlatform->getPlatformImages()->size(); c++)
     {
         TheGamesDB::PlatformImage *apiPlatformImage = TheGamesDB::PlatformImage::getItem(apiPlatform->getPlatformImages(), c);
@@ -245,38 +221,15 @@ void PlatformEditDialog::updateApiPlatform()
             type = PlatformImage::TYPE_ICON;
         }
         
-        // Checks if there is PlatformImage for this TheGamesDB::PlatformImage being downloaded, if it is, then appends it to the list
-        int isDownloading = 0;
-        pthread_mutex_lock(&downloadPlatformImageRefsMutex);        
-        for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
-        {
-            if((*aDownloadPlatformImageRef)->platformEditDialog == this && (*aDownloadPlatformImageRef)->platformImage->getApiId() == apiPlatformImage->getId())
-            {
-                platformImages->push_back((*aDownloadPlatformImageRef)->platformImage);
-                isDownloading = 1;
-                break;
-            }
-        }
-        pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
-        //_________
+        PlatformImage *platformImage = new PlatformImage((int64_t)0);
+        platformImage->setApiId(apiPlatformImage->getId());
+        platformImage->setType(type);
+        platformImage->setFileName(apiPlatformImage->getFileName());
+        platformImage->setExternal(0);
+        platformImage->setDownloaded(0);
+        platformImage->setUrl(apiPlatformImage->getOriginal());
 
-        if(!isDownloading)
-        {
-            PlatformImage *platformImage = new PlatformImage((int64_t)0);
-            platformImage->setApiId(apiPlatformImage->getId());
-            platformImage->setType(type);
-            platformImage->setFileName(apiPlatformImage->getFileName());
-            platformImage->setExternal(0);
-            platformImage->setDownloaded(0);
-            platformImage->setUrl(apiPlatformImage->getOriginal());
-
-            platformImages->push_back(platformImage);
-
-            if(!Utils::getInstance()->fileExists(apiPlatformImage->getFileName()))
-            {
-                downloadPlatformImage(platformImage);
-            }
-        }
+        platformImages->push_back(platformImage);        
     }
     
     updateImageGrid();    
@@ -324,10 +277,11 @@ void PlatformEditDialog::loadPlatformImageTypes()
 }
 
 void PlatformEditDialog::updateImageGrid()
-{
+{        
     platformImageBoxes->clear();
     UiUtils::getInstance()->clearContainer(GTK_CONTAINER(imagesGridListBox), 1);
  
+    
     int columns = 3;
     int rows = platformImages->size() / columns;
     if(platformImages->size() % columns)
@@ -357,12 +311,12 @@ void PlatformEditDialog::updateImageGrid()
 
                 if(!platformImage->getId())
                 {
-                    if(Utils::getInstance()->fileExists(platformImage->getFileName()))
+                    if(!UiUtils::getInstance()->loadImage(image, platformImage->getFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10))
                     {
-                        UiUtils::getInstance()->loadImage(image, platformImage->getFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
-                    }
-                    else
-                    {
+                        if(platformImage->getApiId())
+                        {
+                            UiUtils::getInstance()->downloadImage(image, platformImage->getUrl(), platformImage->getFileName(), THUMBNAIL_IMAGE_WIDTH - 10, THUMBNAIL_IMAGE_HEIGHT - 10);
+                        }
                         gtk_image_set_from_icon_name(image, "emblem-downloads", GTK_ICON_SIZE_DIALOG);
                     }
                 }
@@ -373,7 +327,7 @@ void PlatformEditDialog::updateImageGrid()
                 
                 
                 gtk_widget_set_name(GTK_WIDGET(imageBox), to_string(index).c_str());                                
-                g_signal_connect (imageBox, "button-press-event", G_CALLBACK(signalImageBoxButtonPressedEvent), this);                                
+                g_signal_connect (imageBox, "button-press-event", G_CALLBACK(_signalImageBoxButtonPressedEvent), this);                                
                 
                                 
                 if(selectedPlatformImage == platformImage)
@@ -384,11 +338,13 @@ void PlatformEditDialog::updateImageGrid()
                 
                 gtk_widget_set_size_request(GTK_WIDGET(imageBox), THUMBNAIL_IMAGE_WIDTH, THUMBNAIL_IMAGE_HEIGHT);
                 gtk_box_pack_start(rowBox, GTK_WIDGET(imageBox), 1, 1, 0);
+                
+                
             }
             else if(index == platformImages->size())
             {
                 GtkWidget *addImageButton = gtk_button_new_with_label("+");
-                g_signal_connect (addImageButton, "clicked", G_CALLBACK (signalAddImageButtonClicked), this);
+                g_signal_connect (addImageButton, "clicked", G_CALLBACK (_signalAddImageButtonClicked), this);
                 gtk_widget_set_size_request(GTK_WIDGET(addImageButton), THUMBNAIL_IMAGE_WIDTH, THUMBNAIL_IMAGE_HEIGHT);
                 
                 gtk_box_pack_start(rowBox, GTK_WIDGET(addImageButton), 1, 1, 0);                
@@ -447,7 +403,8 @@ void PlatformEditDialog::addImage()
         platformImage->setType(PlatformImage::TYPE_BOXART);
         platformImage->setFileName(imageFileName);
         platformImage->setExternal(0);
-                
+        platformImage->setDownloaded(0);
+
         platformImages->push_back(platformImage);
         
         updateImageGrid();
@@ -456,31 +413,20 @@ void PlatformEditDialog::addImage()
     gtk_widget_destroy (fileChooserDialog);
 }
 
-void PlatformEditDialog::removeAllImages()
+void PlatformEditDialog::clearImageBoxes()
 {
-    selectedPlatformImage = NULL;
-    
-    // Checks if there are PlatformImages being downloaded, PlarformImages that are being downloaded cannot be deleted
-    for(list<PlatformImage *>::iterator platformImage = platformImages->begin(); platformImage != platformImages->end(); platformImage++)
-    {        
-        pthread_mutex_lock(&downloadPlatformImageRefsMutex);
-        int isDownloading = 0;
-        for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
-        {
-            if((*aDownloadPlatformImageRef)->platformEditDialog == this && (*aDownloadPlatformImageRef)->platformImage == (*platformImage))
-            {
-                isDownloading = 1;
-                break;
-            }
-        }
-        if(!isDownloading)
-        {
-            delete (*platformImage);
-        }
-        pthread_mutex_unlock(&downloadPlatformImageRefsMutex);    
+    // "Cancels" the download of the pending images
+    for (map<PlatformImage *, GtkWidget *>::iterator it = platformImageBoxes->begin(); it != platformImageBoxes->end(); it++)
+    {
+        GtkImage *image = (GtkImage *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(it->second), "image");
+        UiUtils::getInstance()->cancelDownloadImage(image);
     }
-    platformImages->clear();
-        
+    //_____________
+    
+    selectedPlatformImage = NULL;
+    PlatformImage::releaseItems(platformImages);
+    platformImages = new list<PlatformImage *>;
+    
     updateImageGrid();
 }
 
@@ -497,25 +443,15 @@ void PlatformEditDialog::removeImage()
     {
         platformImagesToRemove->push_back(selectedPlatformImage);
     }
-    else
+    
+    // "Cancels" the download of the image to be removed
+    if(selectedPlatformImage->getApiId() && platformImageBoxes->find(selectedPlatformImage) != platformImageBoxes->end())
     {
-        // Checks if the PlatformImage is being downloaded, PlarformImages that are being downloaded cannot be deleted
-        pthread_mutex_lock(&downloadPlatformImageRefsMutex);
-        int isDownloading = 0;
-        for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
-        {
-            if((*aDownloadPlatformImageRef)->platformEditDialog == this && (*aDownloadPlatformImageRef)->platformImage == selectedPlatformImage)
-            {
-                isDownloading = 1;
-                break;
-            }
-        }
-        if(!isDownloading)
-        {
-            delete selectedPlatformImage;
-        }
-        pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
-    }    
+        GtkImage *image = (GtkImage *)UiUtils::getInstance()->getWidget(GTK_CONTAINER(platformImageBoxes->at(selectedPlatformImage)), "image");
+        UiUtils::getInstance()->cancelDownloadImage(image);
+    }
+    //_____________
+    
     selectedPlatformImage = NULL;
     
     gtk_widget_hide(GTK_WIDGET(imageTypeComboBox));
@@ -559,7 +495,10 @@ void PlatformEditDialog::selectImage(PlatformImage* platformImage)
         gtk_widget_set_state_flags(GTK_WIDGET(imageBox), GTK_STATE_FLAG_SELECTED, 1);
     }
     
-    UiUtils::getInstance()->loadImage(image, selectedPlatformImage->getFileName(), IMAGE_WIDTH, IMAGE_HEIGHT);    
+    if(!UiUtils::getInstance()->loadImage(image, selectedPlatformImage->getFileName(), IMAGE_WIDTH, IMAGE_HEIGHT))
+    {
+        gtk_image_clear(image);
+    }
     
     int position = 0;
     for(list<int64_t>::iterator type = platformImageTypes->begin(); type != platformImageTypes->end(); type++)
@@ -575,33 +514,9 @@ void PlatformEditDialog::selectImage(PlatformImage* platformImage)
     gtk_widget_show(GTK_WIDGET(removeImageButton));
 }
 
-void PlatformEditDialog::downloadPlatformImage(PlatformImage *platformImage)
-{
-    downloadPlatformImage(this, platformImage);
-}
-
-void PlatformEditDialog::saveNewImage(PlatformImage* platformImage)
-{
-    // When the image is new, copies the file to the media directory and creates the thumbnail.        
-    if(Utils::getInstance()->fileExists(platformImage->getFileName()))
-    {
-        // Saves before to generate the id
-        platformImage->setPlatformId(platform->getId());
-        platformImage->save();
-        
-        string imageFileName = platform->getMediaDirectory() + PlatformImage::FILE_PREFIX + to_string(platformImage->getId());
-        if(!Utils::getInstance()->copyFile(platformImage->getFileName(), imageFileName))
-        {
-            platformImage->setFileName(imageFileName);
-
-            Utils::getInstance()->scaleImage(platformImage->getFileName(), PlatformImage::THUMBNAIL_WIDTH, PlatformImage::THUMBNAIL_HEIGHT, platformImage->getThumbnailFileName());            
-            platformImage->save();
-        }        
-    }    
-}
-
 void PlatformEditDialog::cancel()
 {
+    clearImageBoxes();
     gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_CANCEL);
 }
 
@@ -643,51 +558,26 @@ void PlatformEditDialog::save()
         PlatformImage *platformImage = PlatformImage::getItem(platformImagesToRemove, c);
         platformImage->remove();
     }
-        
+
     for(unsigned int c = 0; c < platformImages->size(); c++)
     {
-        PlatformImage *platformImage = PlatformImage::getItem(platformImages, c);                
-        if(!platformImage->getId())
-        {
-            // Checks if the image is still downloading, in this case, the image should be saved after it is downloaded
-            int isDownloading = 0;
-            pthread_mutex_lock(&downloadPlatformImageRefsMutex);            
-            for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
-            {
-                if((*aDownloadPlatformImageRef)->platformEditDialog == this && (*aDownloadPlatformImageRef)->platformImage == platformImage)
-                {
-                    isDownloading = 1;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
-
-            if(!isDownloading)
-            {
-                saveNewImage(platformImage);
-            }
-        }
-        else
-        {
-            platformImage->save();
-        }
+        PlatformImage *platformImage = PlatformImage::getItem(platformImages, c);
+        platformImage->setPlatformId(platform->getId());
     }
-
-    saved = 1;
-    
+    _savePlatformImages(platformImages);
+   
+    clearImageBoxes();
     NotificationManager::getInstance()->notify(NOTIFICATION_PLATFORM_UPDATED, "", 0 , 0, new Platform(*platform));
-    
     gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
 }
 
 
-
-void PlatformEditDialog::signalAddImageButtonClicked(GtkButton* button, gpointer platformEditDialog)
+void PlatformEditDialog::_signalAddImageButtonClicked(GtkButton* button, gpointer platformEditDialog)
 {
     ((PlatformEditDialog *)platformEditDialog)->addImage();
 }
 
-gboolean PlatformEditDialog::signalImageBoxButtonPressedEvent(GtkWidget* widget, GdkEvent* event, gpointer platformEditDialog)
+gboolean PlatformEditDialog::_signalImageBoxButtonPressedEvent(GtkWidget* widget, GdkEvent* event, gpointer platformEditDialog)
 {
     // Mouse left button
     if(event->button.button == 1)
@@ -699,128 +589,60 @@ gboolean PlatformEditDialog::signalImageBoxButtonPressedEvent(GtkWidget* widget,
     return TRUE;
 }
 
-
-
-
-
-list<PlatformEditDialog::DownloadPlatformImageRef_t *> *PlatformEditDialog::downloadPlatformImageRefs = new list<PlatformEditDialog::DownloadPlatformImageRef_t *>;
-pthread_t PlatformEditDialog::downloadPlatformImagesThread;
-pthread_mutex_t PlatformEditDialog::downloadPlatformImageRefsMutex = PTHREAD_MUTEX_INITIALIZER;
-int PlatformEditDialog::downloadingPlatformImages = 0;
-
-void PlatformEditDialog::downloadPlatformImage(PlatformEditDialog* platformEditDialog, PlatformImage* platformImage)
+void PlatformEditDialog::_savePlatformImages(list<PlatformImage*>* platformImages) 
 {
-    pthread_mutex_lock(&downloadPlatformImageRefsMutex);    
-    DownloadPlatformImageRef_t *downloadPlatformImageRef = new DownloadPlatformImageRef_t;
-    downloadPlatformImageRef->platformEditDialog = platformEditDialog;
-    downloadPlatformImageRef->platformImage = platformImage;
-    downloadPlatformImageRefs->push_back(downloadPlatformImageRef);
-    pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
-    
-    if(!downloadingPlatformImages)
+    list<PlatformImage *> *platformImagesToSave = new list<PlatformImage *>;
+    for(unsigned int c = 0; c < platformImages->size(); c++)
     {
-        downloadingPlatformImages = 1;
-        ThreadManager::getInstance()->execute(0, []() -> void {
-            DownloadPlatformImageRef_t *downloadPlatformImageRef = NULL;
-            do
+        PlatformImage *platformImage = PlatformImage::getItem(platformImages, c);
+        platformImagesToSave->push_back(new PlatformImage(*platformImage));
+    }
+    
+    ThreadManager::getInstance()->execute(0, [platformImagesToSave]() -> void {
+        int64_t platformId = 0;
+        
+        for(unsigned int c = 0; c < platformImagesToSave->size(); c++)
+        {
+            PlatformImage *platformImage = PlatformImage::getItem(platformImagesToSave, c);
+            if(platformImage->getId())
             {
-                downloadPlatformImageRef = NULL;
-
-                pthread_mutex_lock(&downloadPlatformImageRefsMutex);
-                for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
+                continue;
+            }
+            
+            if(platformImage->getApiId())
+            {
+                if(!Utils::getInstance()->fileExists(platformImage->getFileName()))
                 {
-                    if(!(*aDownloadPlatformImageRef)->platformImage->getDownloaded())
-                    {
-                        downloadPlatformImageRef = (*aDownloadPlatformImageRef);
-                        break;
-                    }
-                }
-                pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
-
-                if(downloadPlatformImageRef)
-                {
-                    PlatformImage *platformImage = downloadPlatformImageRef->platformImage;
-                                                               
                     HttpConnector *httpConnector = new HttpConnector(platformImage->getUrl());
-                    httpConnector->get();            
+                    httpConnector->get();
                     if(httpConnector->getHttpStatus() == HttpConnector::HTTP_OK)
                     {
                         Utils::getInstance()->writeToFile(httpConnector->getResponseData(), httpConnector->getResponseDataSize(), platformImage->getFileName());
                         platformImage->setDownloaded(1);
                     }
-                    delete httpConnector;
+                    else if(httpConnector->getHttpStatus() == HttpConnector::HTTP_NOT_FOUND)
+                    {
+                        delete httpConnector;
+                        continue;                                
+                    }
                     
-                    // Checks, saves and updates the image in the main thread to avoid race conditions with the destructor
-                    ThreadManager::getInstance()->execute(1, [downloadPlatformImageRef]() -> void {
-                        
-                        PlatformEditDialog *platformEditDialog = downloadPlatformImageRef->platformEditDialog;
-                        PlatformImage *platformImage = downloadPlatformImageRef->platformImage;
-
-                        // Checks if the PlatformImage is still present in the platformImages list of the PlatformEditDialog, if not, it should be deleted
-                        int isImage = find(platformEditDialog->platformImages->begin(), platformEditDialog->platformImages->end(), platformImage) != platformEditDialog->platformImages->end();
-                        if(!isImage)
-                        {
-                            delete platformImage;                            
-                        }
-                        //_____________________
-                        
-                        // Checks if the PlatformEditDialog was dismissed
-                        if(platformEditDialog->dismissed)
-                        {
-                            // Checks if all images for this dialog have been downloaded
-                            pthread_mutex_lock(&downloadPlatformImageRefsMutex);
-                            int isDialog = 0;
-                            for(list<DownloadPlatformImageRef_t *>::iterator aDownloadPlatformImageRef = downloadPlatformImageRefs->begin(); aDownloadPlatformImageRef != downloadPlatformImageRefs->end(); aDownloadPlatformImageRef++)
-                            {
-                                if(*aDownloadPlatformImageRef == downloadPlatformImageRef)
-                                {
-                                    continue;
-                                }
-                                if((*aDownloadPlatformImageRef)->platformEditDialog == platformEditDialog)
-                                {
-                                    isDialog = 1;
-                                    break;
-                                }
-                            }
-                            pthread_mutex_unlock(&downloadPlatformImageRefsMutex);
-                            
-                            // If the user saved the Platform and the image was downloaded, saves the image
-                            if(platformEditDialog->saved && platformImage->getDownloaded())
-                            {
-                                platformEditDialog->saveNewImage(platformImage);
-                            }
-                            
-                            // If all images have been downloaded, destroys the dialog
-                            if(!isDialog)
-                            {
-                                if(platformEditDialog->saved)
-                                {                                    
-                                    NotificationManager::getInstance()->notify(NOTIFICATION_PLATFORM_UPDATED, "", 0 , 0, new Platform(*(platformEditDialog->platform)));
-                                }
-                                delete platformEditDialog;
-                            }                            
-                        }
-                        else if(isImage)
-                        {
-                            // If the image was downloaded and the PlatformEditDialog is visible, updates the UI
-                            if(platformImage->getDownloaded())
-                            {
-                                platformEditDialog->updateImageGrid();
-                            }
-                        }
-                        //_____________________
-
-
-                        pthread_mutex_lock(&downloadPlatformImageRefsMutex);
-                        downloadPlatformImageRefs->remove(downloadPlatformImageRef);
-                        delete downloadPlatformImageRef;
-                        pthread_mutex_unlock(&downloadPlatformImageRefsMutex);                        
-                    });
-                    //_____________________
+                    delete httpConnector;
                 }
-            }while(downloadPlatformImageRef);
+            }
 
-            downloadingPlatformImages = 0;
-        });
-    }    
+            platformImage->save();
+            platformImage->saveImage();
+            platformId = platformImage->getPlatformId();
+        }
+        
+        // Sends the notification when the last image is saved
+        if(platformId)
+        {
+            NotificationManager::getInstance()->notify(NOTIFICATION_PLATFORM_UPDATED, "", 0 , 0, new Platform(platformId));
+        }
+        
+        PlatformImage::releaseItems(platformImagesToSave);
+    });
 }
+
+

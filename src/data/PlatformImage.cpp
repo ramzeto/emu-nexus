@@ -25,6 +25,8 @@
 #include "PlatformImage.h"
 #include "Database.h"
 #include "Logger.h"
+#include "Platform.h"
+#include "Utils.h"
 
 #include <unistd.h>
 
@@ -41,12 +43,16 @@ const int PlatformImage::THUMBNAIL_HEIGHT = 100;
 PlatformImage::PlatformImage()
 {
     url = "";
+    downloaded = 0;
+    external = 0;
 }
 
 PlatformImage::PlatformImage(int64_t id)
 {
 	this->id = id;
         url = "";
+        downloaded = 0;
+        external = 0;
 }
 
 PlatformImage::PlatformImage(const PlatformImage &orig)
@@ -226,62 +232,62 @@ int PlatformImage::load()
 
 int PlatformImage::save()
 {
-	int result = 1;
-        
-        sqlite3 *db = Database::getInstance()->acquire();
-	if(id == 0)
-	{
-		string insert = "insert into PlatformImage (platformId, type, fileName, external, apiId, url, downloaded) values(?, ?, ?, ?, ?, ?, ?)";
-		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
-		{
-			sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
-			sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
-			sqlite3_bind_text(statement, 3, fileName.c_str(), fileName.length(), NULL);
-			sqlite3_bind_int64(statement, 4, (sqlite3_int64)external);
-			sqlite3_bind_int64(statement, 5, (sqlite3_int64)apiId);
-			sqlite3_bind_text(statement, 6, url.c_str(), url.length(), NULL);
-			sqlite3_bind_int64(statement, 7, (sqlite3_int64)downloaded);
-			
-			if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
-			{
-				id = sqlite3_last_insert_rowid(db);
-			}
-		}
-		else
-		{
-			Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
-		}
+    int result = 1;
 
-		sqlite3_finalize(statement);
-	}
-	else
-	{
-		string update = "update PlatformImage set platformId = ?, type = ?, fileName = ?, external = ?, apiId = ?, url = ?, downloaded = ? where id = ?";
-		sqlite3_stmt *statement;
-		if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
-		{
-			sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
-			sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
-			sqlite3_bind_text(statement, 3, fileName.c_str(), fileName.length(), NULL);
-			sqlite3_bind_int64(statement, 4, (sqlite3_int64)external);
-			sqlite3_bind_int64(statement, 5, (sqlite3_int64)apiId);
-			sqlite3_bind_text(statement, 6, url.c_str(), url.length(), NULL);
-			sqlite3_bind_int64(statement, 7, (sqlite3_int64)downloaded);
-			sqlite3_bind_int64(statement, 8, (sqlite3_int64)id);
-			
-			result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
-		}
-		else
-		{
-			Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
-		}
+    sqlite3 *db = Database::getInstance()->acquire();
+    if(id == 0)
+    {
+        string insert = "insert into PlatformImage (platformId, type, fileName, external, apiId, url, downloaded) values(?, ?, ?, ?, ?, ?, ?)";
+        sqlite3_stmt *statement;
+        if (sqlite3_prepare_v2(db, insert.c_str(), insert.length(), &statement, NULL) == SQLITE_OK)
+        {
+            sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
+            sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
+            sqlite3_bind_text(statement, 3, fileName.c_str(), fileName.length(), NULL);
+            sqlite3_bind_int64(statement, 4, (sqlite3_int64)external);
+            sqlite3_bind_int64(statement, 5, (sqlite3_int64)apiId);
+            sqlite3_bind_text(statement, 6, url.c_str(), url.length(), NULL);
+            sqlite3_bind_int64(statement, 7, (sqlite3_int64)downloaded);
 
-		sqlite3_finalize(statement);
-	}
-        Database::getInstance()->release();
-        
-	return result;
+            if(!(result = (sqlite3_step(statement) == SQLITE_DONE ? 0 : 1)))
+            {
+                id = sqlite3_last_insert_rowid(db);
+            }
+        }
+        else
+        {
+            Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + insert);
+        }
+
+        sqlite3_finalize(statement);
+    }
+    else
+    {
+        string update = "update PlatformImage set platformId = ?, type = ?, fileName = ?, external = ?, apiId = ?, url = ?, downloaded = ? where id = ?";
+        sqlite3_stmt *statement;
+        if (sqlite3_prepare_v2(db, update.c_str(), update.length(), &statement, NULL) == SQLITE_OK)
+        {
+            sqlite3_bind_int64(statement, 1, (sqlite3_int64)platformId);
+            sqlite3_bind_int64(statement, 2, (sqlite3_int64)type);
+            sqlite3_bind_text(statement, 3, fileName.c_str(), fileName.length(), NULL);
+            sqlite3_bind_int64(statement, 4, (sqlite3_int64)external);
+            sqlite3_bind_int64(statement, 5, (sqlite3_int64)apiId);
+            sqlite3_bind_text(statement, 6, url.c_str(), url.length(), NULL);
+            sqlite3_bind_int64(statement, 7, (sqlite3_int64)downloaded);
+            sqlite3_bind_int64(statement, 8, (sqlite3_int64)id);
+
+            result = sqlite3_step(statement) == SQLITE_DONE ? 0 : 1;
+        }
+        else
+        {
+            Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + update);
+        }
+
+        sqlite3_finalize(statement);
+    }
+    Database::getInstance()->release();
+    
+    return result;
 }
 
 int PlatformImage::remove()
@@ -315,6 +321,47 @@ int PlatformImage::remove()
     
     return result;    
 }
+
+int PlatformImage::saveImage() 
+{    
+    if(!id)
+    {
+       return 1;
+    }
+    
+    
+    Platform *platform = new Platform(getPlatformId());
+    platform->load();
+    string newFileName = platform->getMediaDirectory() + PlatformImage::FILE_PREFIX + to_string(id);    
+    delete platform;
+    
+    string currentFileName = getFileName();
+    
+    if(currentFileName.compare(newFileName) != 0)
+    {
+        if(Utils::getInstance()->fileExists(currentFileName))
+        {
+            if(!Utils::getInstance()->copyFile(currentFileName, newFileName))
+            {
+                setFileName(newFileName);            
+
+                Utils::getInstance()->scaleImage(getFileName(), PlatformImage::THUMBNAIL_WIDTH, PlatformImage::THUMBNAIL_HEIGHT, getThumbnailFileName());
+                return !save();
+            }   
+        }        
+    }
+    else
+    {
+        if(Utils::getInstance()->fileExists(currentFileName))
+        {
+            Utils::getInstance()->scaleImage(currentFileName, PlatformImage::THUMBNAIL_WIDTH, PlatformImage::THUMBNAIL_HEIGHT, getThumbnailFileName());
+            return 0;
+        }
+    }
+                
+    return 1;
+}
+
 
 string PlatformImage::getThumbnailFileName()
 {
@@ -449,6 +496,40 @@ list<PlatformImage *> *PlatformImage::getItems(int64_t platformId)
 
 	return items;
 }
+
+list<PlatformImage*>* PlatformImage::getPendingToDownloadItems() 
+{
+        sqlite3 *db = Database::getInstance()->acquire();
+	list<PlatformImage *> *items = new list<PlatformImage *>;
+	string query = "select id, platformId, type, fileName, external, apiId, url, downloaded from PlatformImage where downloaded = 0 and url <> ''";
+	sqlite3_stmt *statement;
+	if (sqlite3_prepare_v2(db, query.c_str(), query.length(), &statement, NULL) == SQLITE_OK)
+	{            
+		while (sqlite3_step(statement) == SQLITE_ROW)
+		{
+			PlatformImage *item = new PlatformImage();
+			item->id = (int64_t)sqlite3_column_int64(statement, 0);
+			item->platformId = (int64_t)sqlite3_column_int64(statement, 1);
+			item->type = (int64_t)sqlite3_column_int64(statement, 2);
+			item->fileName = string((const char*) sqlite3_column_text(statement, 3));
+			item->external = (int64_t)sqlite3_column_int64(statement, 4);
+			item->apiId = (int64_t)sqlite3_column_int64(statement, 5);
+                        item->url = string((const char*) sqlite3_column_text(statement, 6));
+                        item->downloaded = (int64_t)sqlite3_column_int64(statement, 7);
+                        
+			items->push_back(item);
+		}
+	}
+	else
+	{
+		Logger::getInstance()->error("PlatformImage", __FUNCTION__, string(sqlite3_errmsg(db)) + " " + query);
+	}
+	sqlite3_finalize(statement);
+        Database::getInstance()->release();
+
+	return items;
+}
+
 
 PlatformImage *PlatformImage::getItem(list<PlatformImage *> *items, unsigned int index)
 {

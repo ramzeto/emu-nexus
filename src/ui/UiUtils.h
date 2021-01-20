@@ -28,6 +28,8 @@
 #include <gtk/gtk.h>
 #include <string>
 #include <map>
+#include <list>
+#include <pthread.h>
 
 using namespace std;
 
@@ -66,8 +68,26 @@ public:
      * @param width Desired width.
      * @param height Desired height.
      * @param aspectFill When > 0, stretches the image to width x height respecting the aspect ratio.
+     * @return 1 on success, 0 if fails (usually because the file does not exists)
      */
-    void loadImage(GtkImage *image, string fileName, int width, int height, int aspectFill = 0);
+    int loadImage(GtkImage *image, string fileName, int width, int height, int aspectFill = 0);
+    
+    /**
+     * Queues an image to download. When finished, it will be saved to the file named fileName and it will be loaded into the GtkImage parameter with the size parameters.
+     * @param image
+     * @param url
+     * @param fileName
+     * @param width
+     * @param height
+     * @param aspectFill
+     */
+    void downloadImage(GtkImage *image, string url, string fileName, int width, int height, int aspectFill = 0);
+    
+    /**
+     * Cancels the loading of a downloaded image into a GtkImage previously passed as parameter to the downloadImage method.
+     * @param image
+     */
+    void cancelDownloadImage(GtkImage *image);
     
     /**
      * 
@@ -80,6 +100,22 @@ private:
     virtual ~UiUtils();
     
     map<string, GdkPixbuf*> *imageCache;
+    
+    static const int DOWNLOADED_DONE;
+    static const int DOWNLOADED_PENDING;
+    static const int DOWNLOADED_FAILED;
+    typedef struct{
+        GtkImage *image;
+        string url;
+        string fileName;
+        int width;
+        int height;
+        int aspectFill;
+        int downloaded;
+    }DownloadImage_t;    
+    list<DownloadImage_t*> *downloadImages;
+    int downloadingImages;
+    pthread_mutex_t downloadImagesMutex;
 
     static UiUtils *instance;
 };

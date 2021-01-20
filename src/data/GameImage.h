@@ -85,7 +85,18 @@ public:
 	int save();
         int remove();
 
+        /**
+         * Saves the image and creates its thumbnail. The PlatforImage object should exists in the database and the fileName should exists.
+         * @return 0 on success.
+         */
+        int saveImage();
+        
+        /**
+         * 
+         * @return Thumbnail file name.
+         */
         string getThumbnailFileName();
+        
 	json_t *toJson();
 
         static GameImage *getPrimaryImage(int64_t gameId);

@@ -41,7 +41,7 @@
 #include "Notifications.h"
 #include "Directory.h"
 #include "ParseDirectoryProcess.h"
-#include "DownloadGameImagesProcess.h"
+#include "DownloadImagesProcess.h"
 #include "GameActivity.h"
 #include "FavoritePanel.h"
 #include "RecentsPanel.h"
@@ -188,7 +188,7 @@ MainWindow::MainWindow()
     
     NotificationManager::getInstance()->registerToNotification(SetupDatabaseProcess::TYPE, this, onNotification, 1);
     NotificationManager::getInstance()->registerToNotification(ParseDirectoryProcess::TYPE, this, onNotification, 1);
-    NotificationManager::getInstance()->registerToNotification(DownloadGameImagesProcess::TYPE, this, onNotification, 1);
+    NotificationManager::getInstance()->registerToNotification(DownloadImagesProcess::TYPE, this, onNotification, 1);
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_PLATFORM_UPDATED, this, onNotification, 1);
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_DIRECTORY_ADDED, this, onNotification, 1);
     NotificationManager::getInstance()->registerToNotification(NOTIFICATION_GAME_ACTIVITY_UPDATED, this, onNotification, 1);
@@ -231,7 +231,7 @@ MainWindow::~MainWindow()
 {
     NotificationManager::getInstance()->unregisterToNotification(SetupDatabaseProcess::TYPE, this);
     NotificationManager::getInstance()->unregisterToNotification(ParseDirectoryProcess::TYPE, this);
-    NotificationManager::getInstance()->unregisterToNotification(DownloadGameImagesProcess::TYPE, this);
+    NotificationManager::getInstance()->unregisterToNotification(DownloadImagesProcess::TYPE, this);
     NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_PLATFORM_UPDATED, this);
     NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_DIRECTORY_ADDED, this);
     NotificationManager::getInstance()->unregisterToNotification(NOTIFICATION_GAME_ACTIVITY_UPDATED, this);
@@ -312,7 +312,7 @@ void MainWindow::showPlatformEditDialog(int64_t platformId)
             selectPlatform(platformEditDialog->getPlatform()->getId());
         }
     }
-    PlatformEditDialog::deleteWhenReady(platformEditDialog);
+    delete platformEditDialog;
 }
 
 
@@ -628,8 +628,8 @@ void MainWindow::onNotification(Notification* notification)
             
             if(notification->getStatus() == SerialProcess::STATUS_SUCCESS)
             {
-                DownloadGameImagesProcess *downloadGameImagesProcess = new DownloadGameImagesProcess();
-                SerialProcessExecutor::getInstance()->schedule(downloadGameImagesProcess);
+                DownloadImagesProcess *downloadImagesProcess = new DownloadImagesProcess();
+                SerialProcessExecutor::getInstance()->schedule(downloadImagesProcess);
             }
             else
             {
@@ -640,7 +640,7 @@ void MainWindow::onNotification(Notification* notification)
         }
     }
     
-    else if(notification->getName().compare(DownloadGameImagesProcess::TYPE) == 0)
+    else if(notification->getName().compare(DownloadImagesProcess::TYPE) == 0)
     {
         if(notification->getStatus() == SerialProcess::STATUS_RUNNING)
         {
@@ -679,7 +679,7 @@ void MainWindow::onNotification(Notification* notification)
     
     else if(notification->getName().compare(NOTIFICATION_PLATFORM_UPDATED) == 0)
     {
-        Platform *platform = (Platform *)notification->getData();        
+        Platform *platform = (Platform *)notification->getData();
         mainWindow->updatePlatform(platform->getId());
         
         if(platform->getId() == mainWindow->selectedPlatformId)
@@ -771,7 +771,7 @@ void MainWindow::onNotification(Notification* notification)
         unsigned int processCount = SerialProcessExecutor::getInstance()->getProcessCount();
         if(processCount > 0)
         {
-            gtk_label_set_text(mainWindow->processQueueLabel, string("(" + to_string(processCount) + " pending " + (processCount == 1 ? "job" : "jobs") + ")").c_str());
+            gtk_label_set_text(mainWindow->processQueueLabel, string("[" + to_string(processCount) + " pending " + (processCount == 1 ? "job" : "jobs") + "]").c_str());
         }
         else
         {
