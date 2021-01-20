@@ -193,7 +193,7 @@ void GameBannerOverlayWidget::update()
     gtk_label_set_text(nameLabel, game->getName().c_str());
     gtk_widget_set_tooltip_text(GTK_WIDGET(nameLabel), game->getName().c_str());
     
-    gtk_label_set_text(fileNameLabel, Utils::getInstance()->getFileBasename(game->getFileName()).c_str());
+    gtk_label_set_text(fileNameLabel, Utils::getInstance()->getFileRelativeName(game->getFileName()).c_str());
             
     list<GameActivity *> *gameActivities = GameActivity::getItems(-1, game->getId());
     if(gameActivities->size() > 0)

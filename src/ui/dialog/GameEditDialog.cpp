@@ -485,9 +485,10 @@ void GameEditDialog::selectFileName()
         Preferences::getInstance()->setLastPath(Utils::getInstance()->getFileDirectory(fileName));
         Preferences::getInstance()->save();
        
-        string gameName = Game::getSanitizedNameFromFileName(fileName);
+        string gameName = Utils::getInstance()->getFileNameWithoutExtension(Utils::getInstance()->getFileRelativeName(fileName));
+        string sanitizedGameName = Game::getSanitizedName(gameName);
         
-        gtk_entry_set_text(nameEntry, gameName.c_str());
+        gtk_entry_set_text(nameEntry, sanitizedGameName.c_str());
         fileSelected = 1;
     }
     gtk_widget_destroy(fileChooserDialog);

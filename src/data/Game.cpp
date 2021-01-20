@@ -635,15 +635,8 @@ Game* Game::getGameWithFileName(int64_t platformId, string fileName)
     return game;
 }
 
-string Game::getSanitizedNameFromFileName(string fileName)
+string Game::getSanitizedName(string fileName)
 {
-    fileName = Utils::getInstance()->getFileBasename(fileName);    
-    size_t periodPosition = fileName.find_last_of(".");        
-    if(periodPosition != string::npos)
-    {
-        fileName.erase(periodPosition, fileName.length() - periodPosition);
-    }
-    
     string name = "";
     int open = 0;
     for(unsigned int c = 0; c < fileName.length(); c++)

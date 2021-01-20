@@ -743,7 +743,7 @@ void MainWindow::onNotification(Notification* notification)
             list<string> baseFileNames;
             for(list<string>::iterator item = fileNames.begin(); item != fileNames.end(); item++)
             {
-                baseFileNames.push_back(Utils::getInstance()->getFileBasename(*item));
+                baseFileNames.push_back(Utils::getInstance()->getFileRelativeName(*item));
             }
 
             SelectFromListDialog *selectFromListDialog = new SelectFromListDialog(GTK_WINDOW(mainWindow->mainWindow), "Multiple files where found", baseFileNames);

@@ -112,11 +112,11 @@ public:
         static Game* getGameWithFileName(int64_t platformId, string fileName);
         
         /**
-         * Utility method that gets the "sanitized" game name from the file name.
-         * @param fileName
+         * Utility method that gets the "sanitized" game name.
+         * @param name Not sanitized name
          * @return "sanitized" name.
          */
-        static string getSanitizedNameFromFileName(string fileName);
+        static string getSanitizedName(string name);
 };
 
 #endif

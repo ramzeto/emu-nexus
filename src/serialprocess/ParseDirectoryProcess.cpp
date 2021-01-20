@@ -145,16 +145,20 @@ void ParseDirectoryProcess::parseGameFiles(list<string> extensions, string direc
                         ParseDirectoryGame *parseDirectoryGame = ParseDirectoryGame::getItem(parseDirectory->getId(), directory + fileName);
                         if(!parseDirectoryGame)
                         {
+                            string fileNameWithoutExtension = Utils::getInstance()->getFileNameWithoutExtension(fileName);
+                            
                             parseDirectoryGame = new ParseDirectoryGame((int64_t)0);
                             parseDirectoryGame->setParseDirectoryId(parseDirectory->getId());
                             parseDirectoryGame->setFileName(directory + fileName);
                             parseDirectoryGame->setProcessed(0);
                             parseDirectoryGame->setTimestamp(Utils::getInstance()->nowIsoDateTime());
-                            parseDirectoryGame->setName(Game::getSanitizedNameFromFileName(fileName));
+                            parseDirectoryGame->setName(Game::getSanitizedName(fileNameWithoutExtension));
 
                             if(parseDirectory->getUseMame())
                             {
-                                parseDirectoryGame->setMameName(Game::getSanitizedNameFromFileName(getMameGameName(parseDirectoryGame->getName())));
+                                string mameGameName = getMameGameName(fileNameWithoutExtension);
+                                string sanitizedMameGameName = Game::getSanitizedName(mameGameName);                                
+                                parseDirectoryGame->setMameName(sanitizedMameGameName);
                             }
                             else
                             {

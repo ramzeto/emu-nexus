@@ -53,11 +53,18 @@ public:
     string getFileDirectory(string fileName);
     
     /**
-     * Gets the base name of a file.
+     * Gets the relative name of a file.
      * @param fileName
      * @return base file name.
      */
-    string getFileBasename(string fileName);
+    string getFileRelativeName(string fileName);
+    
+    /**
+     * Gets the file name without extension.
+     * @param fileName
+     * @return file name without extension.
+     */
+    string getFileNameWithoutExtension(string fileName);
     
     /**
      * Checks if a file exists.

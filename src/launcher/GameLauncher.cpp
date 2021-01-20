@@ -228,7 +228,7 @@ int GameLauncher::launch(int64_t gameId)
                         string m3uContent = "";
                         for(list<string>::iterator fileName = cueFileNames.begin(); fileName != cueFileNames.end(); fileName++)
                         {
-                            m3uContent += Utils::getInstance()->getFileBasename(*fileName) + "\n";
+                            m3uContent += Utils::getInstance()->getFileRelativeName(*fileName) + "\n";
                         }
                         Utils::getInstance()->writeToFile((unsigned char *)m3uContent.c_str(), m3uContent.length(), m3uFileName);
                         fileNames.push_back(m3uFileName);

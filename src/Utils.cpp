@@ -72,6 +72,8 @@ int Utils::copyFile(string sourceFileName, string destinyFileName)
         return 1;
     }
     
+    if(is_sim)
+    
     ifstream in(sourceFileName.c_str(), ios::binary);
     if(!in)
     {
@@ -105,7 +107,7 @@ string Utils::getFileDirectory(string fileName)
     return path;
 }
 
-string Utils::getFileBasename(string fileName)
+string Utils::getFileRelativeName(string fileName)
 {
     string path = fileName;
     char *lastDivider = strrchr((char*)fileName.c_str(), '/');
@@ -120,6 +122,18 @@ string Utils::getFileBasename(string fileName)
     
     return path;
 }
+
+string Utils::getFileNameWithoutExtension(string fileName) 
+{
+    size_t periodPosition = fileName.find_last_of(".");        
+    if(periodPosition != string::npos)
+    {
+        fileName.erase(periodPosition, fileName.length() - periodPosition);
+    }
+    
+    return fileName;
+}
+
 
 
 int Utils::fileExists(string fileName)
