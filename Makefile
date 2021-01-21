@@ -24,7 +24,7 @@ ASSETSDIR=assets
 INSTALLBINDIR=/usr/bin
 INSTALLASSETSDIR=/usr/share/$(BIN)
 BUILDH=Build.h
-VERSION=1.34
+VERSION=1.35
 
 $(BIN) : $(OBJS)	
 	$(CC) $(OBJS) $(LFLAGS) $(GTKFLAGS) -o $(BIN)

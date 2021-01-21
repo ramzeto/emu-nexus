@@ -284,6 +284,7 @@ int GameLauncher::launch(int64_t gameId)
                 fileName = Utils::getInstance()->strReplace(fileName, "]", "\\]");
                 fileName = Utils::getInstance()->strReplace(fileName, "{", "\\{");
                 fileName = Utils::getInstance()->strReplace(fileName, "}", "\\}");
+                fileName = Utils::getInstance()->strReplace(fileName, "&", "\\&");
 
                 // Replaces %FILE% for the actual game file name
                 command = Utils::getInstance()->strReplace(command, "%FILE%", fileName);

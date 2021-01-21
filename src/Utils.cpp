@@ -65,15 +65,13 @@ Utils::~Utils()
 }
 
 int Utils::copyFile(string sourceFileName, string destinyFileName)
-{    
+{
     ofstream out(destinyFileName.c_str(), ios::binary);    
     if(!out)
     {
         return 1;
     }
-    
-    if(is_sim)
-    
+
     ifstream in(sourceFileName.c_str(), ios::binary);
     if(!in)
     {
